@@ -180,6 +180,7 @@ def aggregate_sales(orders):
             if not barcode:
                 logging.warning(f"Variant ID {variant.get('id')} has an empty barcode.")
                 print(f"    [WARNING] Variant ID {variant.get('id')} has an empty barcode.")
+                # Optionally, log to a separate file or take other actions
                 continue  # Skip if barcode is empty after stripping
             
             # Only include barcodes starting with '978'
@@ -212,6 +213,7 @@ def export_to_csv(sales_data, filename):
             writer.writerow([barcode, qty])
     logging.info(f"Report exported to {filename}")
     print(f"Report exported to {filename}")
+    
 
 # -----------------------------#
 #             Main             #
