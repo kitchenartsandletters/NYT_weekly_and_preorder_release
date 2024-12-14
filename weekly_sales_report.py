@@ -172,15 +172,14 @@ def aggregate_sales(orders):
                 continue
             # Safely handle None barcodes
             barcode = variant.get('barcode')
-            if barcode is None:
-                barcode = ''
+            if not isinstance(barcode, str):
+                barcode = ''  # Set to empty string if barcode is None or not a string
             else:
                 barcode = barcode.strip()
             
             if not barcode:
                 logging.warning(f"Variant ID {variant.get('id')} has an empty barcode.")
                 print(f"    [WARNING] Variant ID {variant.get('id')} has an empty barcode.")
-                # Optionally, log to a separate file or take other actions
                 continue  # Skip if barcode is empty after stripping
             
             # Only include barcodes starting with '978'
