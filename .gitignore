@@ -1,0 +1,15 @@
+# Python compiled files
+__pycache__/
+*.py[cod]
+
+# Environment variables
+.env
+
+# Log files
+*.log
+
+# CSV reports
+shopify_sales_report_*.csv
+
+# Virtual environment
+env/
