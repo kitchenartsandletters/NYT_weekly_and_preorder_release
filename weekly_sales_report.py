@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 Shopify GraphQL Sales Report Script
-Version: 1.0.1
+Version: 1.0.2
 Description: Fetches Shopify orders within a specified date range using GraphQL, maps variants to barcodes, 
-             accumulates quantities, and exports the data to a CSV report.
+             accumulates quantities, logs fetched order IDs, and exports the data to a CSV report.
 Author: Gil Calderon
 Date: 2024-12-10
 """
@@ -73,7 +73,7 @@ def run_query(query, variables=None):
 
 def fetch_orders(start_date, end_date):
     """
-    Fetches all orders within the specified date range using GraphQL.
+    Fetches all orders within the specified date range using GraphQL and logs fetched order IDs.
     
     Args:
         start_date (str): Start date in 'YYYY-MM-DD' format.
@@ -85,6 +85,17 @@ def fetch_orders(start_date, end_date):
     orders = []
     has_next_page = True
     cursor = None
+
+    # Initialize the log file for fetched order IDs
+    log_file_path = 'fetched_order_ids.log'
+
+    try:
+        log_file = open(log_file_path, 'w')
+        logging.info("Opened fetched_order_ids.log for writing.")
+    except Exception as e:
+        logging.error(f"Failed to open {log_file_path} for writing: {e}")
+        print(f"    [ERROR] Failed to open {log_file_path} for writing: {e}")
+        exit(1)
 
     query = """
     query($first: Int!, $query: String!, $after: String) {
@@ -130,11 +141,19 @@ def fetch_orders(start_date, end_date):
             for edge in fetched_orders:
                 order = edge['node']
                 orders.append(order)
-                cursor = edge['cursor']
+                order_id = order['id']
+                # Log the fetched order ID
+                try:
+                    log_file.write(f"{order_id}\n")
+                    logging.debug(f"Logged Order ID: {order_id}")
+                except Exception as e:
+                    logging.error(f"Failed to write Order ID {order_id} to log: {e}")
+                    print(f"    [ERROR] Failed to write Order ID {order_id} to log: {e}")
             has_next_page = data['orders']['pageInfo']['hasNextPage']
             logging.info(f"Fetched {len(fetched_orders)} orders. Has next page: {has_next_page}")
             print(f"Fetched {len(fetched_orders)} orders. Has next page: {has_next_page}")
             if has_next_page:
+                cursor = fetched_orders[-1]['cursor']
                 variables['after'] = cursor
             else:
                 break
@@ -142,6 +161,14 @@ def fetch_orders(start_date, end_date):
             logging.error(f"Failed to fetch orders: {e}", exc_info=True)
             print(f"Failed to fetch orders: {e}")
             break
+
+    # Close the log file after fetching all orders
+    try:
+        log_file.close()
+        logging.info(f"Successfully closed {log_file_path}.")
+    except Exception as e:
+        logging.error(f"Failed to close {log_file_path}: {e}")
+        print(f"    [ERROR] Failed to close {log_file_path}: {e}")
 
     logging.info(f"Total orders fetched: {len(orders)}")
     print(f"Total orders fetched: {len(orders)}")
@@ -212,7 +239,7 @@ def export_to_csv(sales_data, filename):
             writer.writerow([barcode, qty])
     logging.info(f"Report exported to {filename}")
     print(f"Report exported to {filename}")
-    
+
 
 # -----------------------------#
 #             Main             #
