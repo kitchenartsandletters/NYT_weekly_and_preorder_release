@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """
 Shopify GraphQL Sales Report Script
-Version: 1.0.2
+Version: 1.0.3
 Description: Fetches Shopify orders within a specified date range using GraphQL, maps variants to barcodes, 
-             accumulates quantities, logs fetched order IDs, and exports the data to a CSV report.
+             accumulates quantities, logs fetched order IDs with creation dates, handles missing data, 
+             and exports the data to a CSV report.
 Author: Gil Calderon
-Date: 2024-12-10
+Date: 2024-12-14
 """
 
 import os
@@ -13,8 +14,10 @@ import requests
 import csv
 import logging
 import argparse
-from datetime import datetime, timedelta
+from datetime import datetime
 from dotenv import load_dotenv
+import time
+import random
 
 # -----------------------------#
 #         Configuration        #
@@ -71,9 +74,32 @@ def run_query(query, variables=None):
         raise Exception(f"GraphQL errors: {result['errors']}")
     return result['data']
 
+def run_query_with_retries(query, variables=None, max_retries=5):
+    """
+    Executes a GraphQL query with retry logic in case of failures.
+    
+    Args:
+        query (str): The GraphQL query string.
+        variables (dict, optional): Variables for the GraphQL query.
+        max_retries (int): Maximum number of retry attempts.
+    
+    Returns:
+        dict: The JSON response from Shopify.
+    """
+    for attempt in range(1, max_retries + 1):
+        try:
+            return run_query(query, variables)
+        except Exception as e:
+            wait_time = 2 ** attempt + random.uniform(0, 1)
+            logging.warning(f"Attempt {attempt} failed: {e}. Retrying in {wait_time:.2f} seconds...")
+            print(f"    [WARNING] Attempt {attempt} failed: {e}. Retrying in {wait_time:.2f} seconds...")
+            time.sleep(wait_time)
+    logging.error(f"All {max_retries} attempts failed.")
+    raise Exception(f"Failed to execute GraphQL query after {max_retries} attempts.")
+
 def fetch_orders(start_date, end_date):
     """
-    Fetches all orders within the specified date range using GraphQL and logs fetched order IDs.
+    Fetches all orders within the specified date range using GraphQL and logs fetched order IDs with creation dates.
     
     Args:
         start_date (str): Start date in 'YYYY-MM-DD' format.
@@ -86,89 +112,82 @@ def fetch_orders(start_date, end_date):
     has_next_page = True
     cursor = None
 
-    # Initialize the log file for fetched order IDs
+    # Initialize the log file for fetched order IDs using a context manager
     log_file_path = 'fetched_order_ids.log'
 
     try:
-        log_file = open(log_file_path, 'w')
-        logging.info("Opened fetched_order_ids.log for writing.")
+        with open(log_file_path, 'w') as log_file:
+            logging.info("Opened fetched_order_ids.log for writing.")
+            query = """
+            query($first: Int!, $query: String!, $after: String) {
+              orders(first: $first, query: $query, after: $after, reverse: false) {
+                edges {
+                  cursor
+                  node {
+                    id
+                    name
+                    createdAt
+                    lineItems(first: 100) {
+                      edges {
+                        node {
+                          id
+                          name
+                          quantity
+                          variant {
+                            id
+                            barcode
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                pageInfo {
+                  hasNextPage
+                }
+              }
+            }
+            """
+
+            variables = {
+                "first": 250,  # Maximum number of orders per request
+                "query": f"created_at:>={start_date} created_at:<={end_date}",
+                "after": cursor
+            }
+
+            while has_next_page:
+                try:
+                    data = run_query_with_retries(query, variables)
+                    fetched_orders = data['orders']['edges']
+                    for edge in fetched_orders:
+                        order = edge['node']
+                        orders.append(order)
+                        order_id = order['id']
+                        order_created_at = order['createdAt']
+                        # Log the fetched order ID and creation date
+                        try:
+                            log_file.write(f"{order_id}\t{order_created_at}\n")
+                            logging.debug(f"Logged Order ID: {order_id}, Created At: {order_created_at}")
+                        except Exception as e:
+                            logging.error(f"Failed to write Order ID {order_id} to log: {e}")
+                            print(f"    [ERROR] Failed to write Order ID {order_id} to log: {e}")
+                    has_next_page = data['orders']['pageInfo']['hasNextPage']
+                    logging.info(f"Fetched {len(fetched_orders)} orders. Has next page: {has_next_page}")
+                    print(f"Fetched {len(fetched_orders)} orders. Has next page: {has_next_page}")
+                    if has_next_page:
+                        cursor = fetched_orders[-1]['cursor']
+                        variables['after'] = cursor
+                    else:
+                        break
+                except Exception as e:
+                    logging.error(f"Failed to fetch orders after retries: {e}", exc_info=True)
+                    print(f"Failed to fetch orders after retries: {e}")
+                    break
+
     except Exception as e:
         logging.error(f"Failed to open {log_file_path} for writing: {e}")
         print(f"    [ERROR] Failed to open {log_file_path} for writing: {e}")
         exit(1)
-
-    query = """
-    query($first: Int!, $query: String!, $after: String) {
-      orders(first: $first, query: $query, after: $after, reverse: false) {
-        edges {
-          cursor
-          node {
-            id
-            name
-            createdAt
-            lineItems(first: 100) {
-              edges {
-                node {
-                  id
-                  name
-                  quantity
-                  variant {
-                    id
-                    barcode
-                  }
-                }
-              }
-            }
-          }
-        }
-        pageInfo {
-          hasNextPage
-        }
-      }
-    }
-    """
-
-    variables = {
-        "first": 250,  # Maximum number of orders per request
-        "query": f"created_at:>={start_date} created_at:<={end_date}",
-        "after": cursor
-    }
-
-    while has_next_page:
-        try:
-            data = run_query(query, variables)
-            fetched_orders = data['orders']['edges']
-            for edge in fetched_orders:
-                order = edge['node']
-                orders.append(order)
-                order_id = order['id']
-                # Log the fetched order ID
-                try:
-                    log_file.write(f"{order_id}\n")
-                    logging.debug(f"Logged Order ID: {order_id}")
-                except Exception as e:
-                    logging.error(f"Failed to write Order ID {order_id} to log: {e}")
-                    print(f"    [ERROR] Failed to write Order ID {order_id} to log: {e}")
-            has_next_page = data['orders']['pageInfo']['hasNextPage']
-            logging.info(f"Fetched {len(fetched_orders)} orders. Has next page: {has_next_page}")
-            print(f"Fetched {len(fetched_orders)} orders. Has next page: {has_next_page}")
-            if has_next_page:
-                cursor = fetched_orders[-1]['cursor']
-                variables['after'] = cursor
-            else:
-                break
-        except Exception as e:
-            logging.error(f"Failed to fetch orders: {e}", exc_info=True)
-            print(f"Failed to fetch orders: {e}")
-            break
-
-    # Close the log file after fetching all orders
-    try:
-        log_file.close()
-        logging.info(f"Successfully closed {log_file_path}.")
-    except Exception as e:
-        logging.error(f"Failed to close {log_file_path}: {e}")
-        print(f"    [ERROR] Failed to close {log_file_path}: {e}")
 
     logging.info(f"Total orders fetched: {len(orders)}")
     print(f"Total orders fetched: {len(orders)}")
@@ -176,26 +195,40 @@ def fetch_orders(start_date, end_date):
 
 def aggregate_sales(orders):
     """
-    Aggregates sales quantities per barcode.
+    Aggregates sales quantities per barcode and categorizes skipped line items.
     
     Args:
         orders (list): A list of Shopify Order objects.
     
     Returns:
-        dict: A dictionary mapping barcode to total quantity sold.
+        tuple: A dictionary mapping barcode to total quantity sold and a list of skipped line items.
     """
     sales_data = {}
+    skipped_line_items = []
     total_line_items = 0
     processed_line_items = 0
 
     for order in orders:
+        order_id = order.get('id', 'Unknown Order ID')
+        order_created_at = order.get('createdAt', 'Unknown Creation Date')
+        logging.debug(f"Processing Order ID: {order_id}, Created At: {order_created_at}")
+        print(f"Processing Order ID: {order_id}, Created At: {order_created_at}")
+
         for line_item_edge in order['lineItems']['edges']:
             line_item = line_item_edge['node']
             total_line_items += 1
             variant = line_item.get('variant')
             if not variant:
-                logging.warning(f"Order {order['id']} Line Item {line_item['id']} has no variant.")
-                print(f"    [WARNING] Order {order['id']} Line Item {line_item['id']} has no variant.")
+                line_item_id = line_item.get('id', 'Unknown Line Item ID')
+                product_name = line_item.get('name', 'Unknown Product')
+                logging.warning(f"Order {order_id} Line Item {line_item_id} ('{product_name}') has no variant.")
+                print(f"    [WARNING] Order {order_id} Line Item {line_item_id} ('{product_name}') has no variant.")
+                skipped_line_items.append({
+                    'order_id': order_id,
+                    'line_item_id': line_item_id,
+                    'product_name': product_name,
+                    'reason': 'No variant'
+                })
                 continue
             # Safely handle None barcodes
             barcode = variant.get('barcode')
@@ -205,8 +238,16 @@ def aggregate_sales(orders):
                 barcode = barcode.strip()
             
             if not barcode:
-                logging.warning(f"Variant ID {variant.get('id')} has an empty barcode.")
-                print(f"    [WARNING] Variant ID {variant.get('id')} has an empty barcode.")
+                variant_id = variant.get('id', 'Unknown Variant ID')
+                product_name = line_item.get('name', 'Unknown Product')
+                logging.warning(f"Variant ID {variant_id} for Product '{product_name}' has an empty barcode.")
+                print(f"    [WARNING] Variant ID {variant_id} for Product '{product_name}' has an empty barcode.")
+                skipped_line_items.append({
+                    'order_id': order_id,
+                    'line_item_id': line_item.get('id', 'Unknown Line Item ID'),
+                    'product_name': product_name,
+                    'reason': 'Empty barcode'
+                })
                 continue  # Skip if barcode is empty after stripping
             
             # Only include barcodes starting with '978'
@@ -215,14 +256,26 @@ def aggregate_sales(orders):
                 sales_data[barcode] = sales_data.get(barcode, 0) + quantity
                 processed_line_items += 1
                 # Debugging statements
-                print(f"  Line Item: {line_item['name']}, Quantity: {quantity}, Barcode: {barcode}, Order ID: {order['id']}")
-                logging.debug(f"  Line Item: {line_item['name']}, Quantity: {quantity}, Barcode: {barcode}, Order ID: {order['id']}")
+                print(f"  Line Item: {line_item['name']}, Quantity: {quantity}, Barcode: {barcode}, Order ID: {order_id}")
+                logging.debug(f"  Line Item: {line_item['name']}, Quantity: {quantity}, Barcode: {barcode}, Order ID: {order_id}")
+            else:
+                # Optionally handle barcodes not starting with '978'
+                skipped_line_items.append({
+                    'order_id': order_id,
+                    'line_item_id': line_item.get('id', 'Unknown Line Item ID'),
+                    'product_name': line_item.get('name', 'Unknown Product'),
+                    'reason': 'Barcode does not start with 978'
+                })
+                logging.info(f"Barcode {barcode} for Product '{line_item['name']}' does not start with '978'. Skipping.")
+                print(f"    [INFO] Barcode {barcode} for Product '{line_item['name']}' does not start with '978'. Skipping.")
 
     print(f"Total line items processed: {processed_line_items} out of {total_line_items}")
     logging.info(f"Total line items processed: {processed_line_items} out of {total_line_items}")
     print(f"Total products with sales > 0 and ISBN starting with '978': {len(sales_data)}")
     logging.info(f"Total products with sales > 0 and ISBN starting with '978': {len(sales_data)}")
-    return sales_data
+    print(f"Total skipped line items: {len(skipped_line_items)}")
+    logging.info(f"Total skipped line items: {len(skipped_line_items)}")
+    return sales_data, skipped_line_items
 
 def export_to_csv(sales_data, filename):
     """
@@ -240,16 +293,68 @@ def export_to_csv(sales_data, filename):
     logging.info(f"Report exported to {filename}")
     print(f"Report exported to {filename}")
 
+def export_skipped_line_items(skipped_line_items, filename='skipped_line_items.log'):
+    """
+    Exports the skipped line items to a CSV file.
+    
+    Args:
+        skipped_line_items (list): A list of dictionaries containing skipped line item details.
+        filename (str): The filename for the skipped line items export.
+    """
+    with open(filename, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Order ID', 'Line Item ID', 'Product Name', 'Reason'])
+        for item in skipped_line_items:
+            writer.writerow([item['order_id'], item['line_item_id'], item['product_name'], item['reason']])
+    logging.info(f"Skipped line items logged to {filename}")
+    print(f"Skipped line items logged to {filename}")
+
+def compare_order_ids(manual_ids_file, fetched_ids_file, output_missing, output_extra):
+    """
+    Compares manual order IDs with fetched order IDs and outputs missing and extra IDs.
+    
+    Args:
+        manual_ids_file (str): Path to the manual order IDs file.
+        fetched_ids_file (str): Path to the fetched order IDs log file.
+        output_missing (str): Path to the output file for missing IDs.
+        output_extra (str): Path to the output file for extra IDs.
+    """
+    try:
+        with open(manual_ids_file, 'r') as f:
+            manual_ids = set(line.strip() for line in f if line.strip())
+        with open(fetched_ids_file, 'r') as f:
+            fetched_ids = set(line.strip().split('\t')[0] for line in f if line.strip())
+    except Exception as e:
+        logging.error(f"Error reading order IDs files: {e}")
+        print(f"    [ERROR] Error reading order IDs files: {e}")
+        return
+
+    missing_ids = manual_ids - fetched_ids
+    extra_ids = fetched_ids - manual_ids
+
+    try:
+        with open(output_missing, 'w') as f:
+            for id in missing_ids:
+                f.write(f"{id}\n")
+        with open(output_extra, 'w') as f:
+            for id in extra_ids:
+                f.write(f"{id}\n")
+        logging.info(f"Comparison complete. Missing IDs: {len(missing_ids)}, Extra IDs: {len(extra_ids)}")
+        print(f"Comparison complete. Missing IDs: {len(missing_ids)}, Extra IDs: {len(extra_ids)}")
+    except Exception as e:
+        logging.error(f"Error writing comparison results: {e}")
+        print(f"    [ERROR] Error writing comparison results: {e}")
 
 # -----------------------------#
 #             Main             #
 # -----------------------------#
 
 def main():
-    # Parse command-line arguments for date range
+    # Parse command-line arguments for date range and optional comparison
     parser = argparse.ArgumentParser(description='Generate Shopify Sales Report using GraphQL.')
     parser.add_argument('--start-date', type=str, help='Start date in YYYY-MM-DD format', required=True)
     parser.add_argument('--end-date', type=str, help='End date in YYYY-MM-DD format', required=True)
+    parser.add_argument('--manual-order-ids', type=str, help='Path to manual order IDs file', required=False)
     args = parser.parse_args()
 
     start_date = args.start_date
@@ -292,12 +397,16 @@ def main():
         return
 
     # Aggregate sales
-    sales_data = aggregate_sales(orders)
+    sales_data, skipped_line_items = aggregate_sales(orders)
 
     if not sales_data:
         print("No sales data to export.")
         logging.info("No sales data to export.")
         return
+
+    # Export skipped line items to CSV
+    if skipped_line_items:
+        export_skipped_line_items(skipped_line_items, 'skipped_line_items.log')
 
     # Export to CSV
     date_str = datetime.now().strftime("%Y-%m-%d")
@@ -308,6 +417,15 @@ def main():
         print(f"Failed to export report: {e}")
         logging.error(f"Failed to export report: {e}", exc_info=True)
         exit(1)
+
+    # Optionally, perform comparison with manual order IDs if provided
+    if args.manual_order_ids:
+        compare_order_ids(
+            manual_ids_file=args.manual_order_ids,
+            fetched_ids_file='fetched_order_ids.log',
+            output_missing='missing_order_ids.txt',
+            output_extra='extra_order_ids.txt'
+        )
 
     print("Report generation completed successfully.")
     logging.info("Report generation completed successfully.")
