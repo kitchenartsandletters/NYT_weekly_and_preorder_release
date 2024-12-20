@@ -99,14 +99,15 @@ def run_query_with_retries(query, variables=None, max_retries=5):
 
 def fetch_orders(start_date, end_date):
     """
-    Fetches all orders within the specified date range using GraphQL and logs fetched order IDs with creation dates.
+    Fetches all orders within the specified date range using GraphQL,
+    including refund information, and logs fetched order IDs with creation dates.
     
     Args:
         start_date (str): Start date in 'YYYY-MM-DD' format.
         end_date (str): End date in 'YYYY-MM-DD' format.
     
     Returns:
-        list: A list of orders with their line items.
+        list: A list of orders with their line items and refunds.
     """
     orders = []
     has_next_page = True
@@ -136,6 +137,30 @@ def fetch_orders(start_date, end_date):
                           variant {
                             id
                             barcode
+                          }
+                        }
+                      }
+                    }
+                    refunds(first: 50) {  # Adjust the number as needed
+                      edges {
+                        node {
+                          id
+                          createdAt
+                          processedAt
+                          refundLineItems(first: 100) {
+                            edges {
+                              node {
+                                lineItem {
+                                  id
+                                  name
+                                  variant {
+                                    id
+                                    barcode
+                                  }
+                                }
+                                quantity
+                              }
+                            }
                           }
                         }
                       }
@@ -195,13 +220,14 @@ def fetch_orders(start_date, end_date):
 
 def aggregate_sales(orders):
     """
-    Aggregates sales quantities per barcode and categorizes skipped line items.
+    Aggregates net sales quantities per barcode by accounting for refunds,
+    and categorizes skipped line items.
     
     Args:
         orders (list): A list of Shopify Order objects.
     
     Returns:
-        tuple: A dictionary mapping barcode to total quantity sold and a list of skipped line items.
+        tuple: A dictionary mapping barcode to net quantity sold and a list of skipped line items.
     """
     sales_data = {}
     skipped_line_items = []
@@ -214,6 +240,7 @@ def aggregate_sales(orders):
         logging.debug(f"Processing Order ID: {order_id}, Created At: {order_created_at}")
         print(f"Processing Order ID: {order_id}, Created At: {order_created_at}")
 
+        # Aggregate quantities from line items
         for line_item_edge in order['lineItems']['edges']:
             line_item = line_item_edge['node']
             total_line_items += 1
@@ -269,10 +296,78 @@ def aggregate_sales(orders):
                 logging.info(f"Barcode {barcode} for Product '{line_item['name']}' does not start with '978'. Skipping.")
                 print(f"    [INFO] Barcode {barcode} for Product '{line_item['name']}' does not start with '978'. Skipping.")
 
+        # Process refunds associated with the order
+        refunds = order.get('refunds', {}).get('edges', [])
+        for refund_edge in refunds:
+            refund = refund_edge['node']
+            refund_id = refund.get('id', 'Unknown Refund ID')
+            refund_created_at = refund.get('createdAt', 'Unknown Refund Date')
+            logging.debug(f"  Processing Refund ID: {refund_id}, Created At: {refund_created_at}")
+            print(f"  Processing Refund ID: {refund_id}, Created At: {refund_created_at}")
+
+            for refund_line_item_edge in refund.get('refundLineItems', {}).get('edges', []):
+                refund_line_item = refund_line_item_edge['node']
+                refunded_line_item = refund_line_item.get('lineItem', {})
+                refunded_quantity = refund_line_item.get('quantity', 0)
+                variant = refunded_line_item.get('variant')
+
+                if not variant:
+                    refunded_line_item_id = refunded_line_item.get('id', 'Unknown Line Item ID')
+                    refunded_product_name = refunded_line_item.get('name', 'Unknown Product')
+                    logging.warning(f"Refund {refund_id} Line Item {refunded_line_item_id} ('{refunded_product_name}') has no variant.")
+                    print(f"    [WARNING] Refund {refund_id} Line Item {refunded_line_item_id} ('{refunded_product_name}') has no variant.")
+                    skipped_line_items.append({
+                        'order_id': order_id,
+                        'line_item_id': refunded_line_item_id,
+                        'product_name': refunded_product_name,
+                        'reason': 'No variant in refund'
+                    })
+                    continue
+
+                # Safely handle None barcodes
+                refunded_barcode = variant.get('barcode')
+                if not isinstance(refunded_barcode, str):
+                    refunded_barcode = ''  # Set to empty string if barcode is None or not a string
+                else:
+                    refunded_barcode = refunded_barcode.strip()
+                
+                if not refunded_barcode:
+                    refunded_variant_id = variant.get('id', 'Unknown Variant ID')
+                    refunded_product_name = refunded_line_item.get('name', 'Unknown Product')
+                    logging.warning(f"Variant ID {refunded_variant_id} for Product '{refunded_product_name}' has an empty barcode in refund.")
+                    print(f"    [WARNING] Variant ID {refunded_variant_id} for Product '{refunded_product_name}' has an empty barcode in refund.")
+                    skipped_line_items.append({
+                        'order_id': order_id,
+                        'line_item_id': refunded_line_item.get('id', 'Unknown Line Item ID'),
+                        'product_name': refunded_product_name,
+                        'reason': 'Empty barcode in refund'
+                    })
+                    continue  # Skip if barcode is empty after stripping
+                
+                # Only include barcodes starting with '978' in refunds
+                if refunded_barcode.startswith('978'):
+                    # Subtract refunded quantity and ensure it doesn't go negative
+                    net_quantity = sales_data.get(refunded_barcode, 0) - refunded_quantity
+                    sales_data[refunded_barcode] = max(net_quantity, 0)
+                    processed_line_items += 1
+                    # Debugging statements
+                    print(f"  Refund Line Item: {refunded_line_item.get('name')}, Refunded Quantity: {refunded_quantity}, Barcode: {refunded_barcode}, Refund ID: {refund_id}, Net Qty: {sales_data[refunded_barcode]}")
+                    logging.debug(f"  Refund Line Item: {refunded_line_item.get('name')}, Refunded Quantity: {refunded_quantity}, Barcode: {refunded_barcode}, Refund ID: {refund_id}, Net Qty: {sales_data[refunded_barcode]}")
+                else:
+                    # Optionally handle barcodes not starting with '978' in refunds
+                    skipped_line_items.append({
+                        'order_id': order_id,
+                        'line_item_id': refunded_line_item.get('id', 'Unknown Line Item ID'),
+                        'product_name': refunded_line_item.get('name', 'Unknown Product'),
+                        'reason': 'Barcode does not start with 978 in refund'
+                    })
+                    logging.info(f"Refund Barcode {refunded_barcode} for Product '{refunded_line_item.get('name')}' does not start with '978'. Skipping.")
+                    print(f"    [INFO] Refund Barcode {refunded_barcode} for Product '{refunded_line_item.get('name')}' does not start with '978'. Skipping.")
+
     print(f"Total line items processed: {processed_line_items} out of {total_line_items}")
     logging.info(f"Total line items processed: {processed_line_items} out of {total_line_items}")
-    print(f"Total products with sales > 0 and ISBN starting with '978': {len(sales_data)}")
-    logging.info(f"Total products with sales > 0 and ISBN starting with '978': {len(sales_data)}")
+    print(f"Total products with net sales > 0 and ISBN starting with '978': {len(sales_data)}")
+    logging.info(f"Total products with net sales > 0 and ISBN starting with '978': {len(sales_data)}")
     print(f"Total skipped line items: {len(skipped_line_items)}")
     logging.info(f"Total skipped line items: {len(skipped_line_items)}")
     return sales_data, skipped_line_items
