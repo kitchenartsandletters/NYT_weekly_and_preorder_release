@@ -43,3 +43,13 @@ This script fetches Shopify orders within a specified date range using the Graph
 ## How to Run
 ```bash
 python weekly_sales_report.py --start-date YYYY-MM-DD --end-date YYYY-MM-DD
+
+# Example formula used in Google Sheets to verify matching barcodes between
+# the manual generated report (columns A:B) and the automated (columns F:G):
+#
+# =IF(ISERROR(VLOOKUP(A2, F:G, 2, FALSE)), 
+#     "Missing in Automated", 
+#     IF(VLOOKUP(A2, F:G, 2, FALSE) = B2, "Match", "Quantity Mismatch")
+# )
+#
+# We also used =ABS(NewQty - OldQty) to compare quantity differences.
