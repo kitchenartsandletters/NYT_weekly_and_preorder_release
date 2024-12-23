@@ -368,7 +368,7 @@ def export_to_csv(sales_data, filename):
     """
     with open(filename, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow(['Barcode', 'QTY'])
+        writer.writerow(['ISBN', 'QTY'])
         for barcode, qty in sales_data.items():
             writer.writerow([barcode, qty])
     logging.info(f"Report exported to {filename}")

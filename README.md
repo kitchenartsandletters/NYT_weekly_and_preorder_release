@@ -138,9 +138,9 @@ To compare manual and automated data:
 	1.	Matching Barcodes in Two Columns
 
 =IF(
-    ISERROR(VLOOKUP(A2, F:G, 2, FALSE)), 
+    ISERROR(VLOOKUP(A2, C:D, 2, FALSE)), 
     "Missing in Automated", 
-    IF(VLOOKUP(A2, F:G, 2, FALSE) = B2, 
+    IF(VLOOKUP(A2, C:D, 2, FALSE) = B2, 
        "Match", 
        "Quantity Mismatch"
     )
