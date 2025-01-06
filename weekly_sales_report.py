@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
 Shopify GraphQL Sales Report Script
-Version: 1.0.4
+Version: 1.1.1
 Description:
-    - Based on your previously working "Version: 1.0.3"
-    - Adds the ability to handle refunds by querying `refunds` as a list
-      (NOT a connection), then subtracting refunded quantity from sales_data 
-      for items whose barcode starts with '978'.
-    - This version accurately accounts for line items with barcodes starting with '978'
-    - Last updated: 2024-12-22, includes final debug logs
+    - Supports multiple environments (production and test) by loading separate .env files.
+    - Correctly initializes global variables for API connections.
+    - Handles refunds by querying `refunds` as a list,
+      subtracting refunded quantity from sales_data for items whose barcode starts with '978'.
+    - Accurately accounts for line items with barcodes starting with '978'.
+    - Last updated: 2025-01-06, includes environment selection and global variable fixes.
 Author: Gil Calderon
-Date: 2024-12-22
+Date: 2025-01-06
 """
 
 import os
@@ -22,33 +22,38 @@ from datetime import datetime
 from dotenv import load_dotenv
 import time
 import random
+import sys
 
 # -----------------------------#
 #         Configuration        #
 # -----------------------------#
 
-# Load environment variables from .env file
-load_dotenv()
+# Initialize global variables
+GRAPHQL_URL = None
+HEADERS = None
 
-SHOP_URL = os.getenv('SHOP_URL')  # e.g., 'your-shop-name.myshopify.com'
-ACCESS_TOKEN = os.getenv('SHOPIFY_ACCESS_TOKEN')  # Your private app access token
-
-# Configure logging
-logging.basicConfig(
-    filename='weekly_sales_report_graphql.log',
-    level=logging.DEBUG,  # Set to DEBUG for detailed logs
-    format='%(asctime)s:%(levelname)s:%(message)s'
-)
-
-# Shopify GraphQL endpoint
-GRAPHQL_URL = f"https://{SHOP_URL}/admin/api/2024-10/graphql.json"
-
-# Headers for authentication
-HEADERS = {
-    "Content-Type": "application/json",
-    "X-Shopify-Access-Token": ACCESS_TOKEN
-}
-
+def load_environment(env):
+    """
+    Loads environment variables from the specified .env file based on the environment.
+    """
+    env_files = {
+        'production': '.env.production',
+        'test': '.env.test'
+    }
+    
+    if env not in env_files:
+        print(f"Error: Unknown environment '{env}'. Choose from 'production' or 'test'.")
+        sys.exit(1)
+    
+    env_file = env_files[env]
+    
+    if not os.path.exists(env_file):
+        print(f"Error: Environment file '{env_file}' does not exist.")
+        sys.exit(1)
+    
+    load_dotenv(dotenv_path=env_file)
+    print(f"Loaded environment variables from '{env_file}'.")
+    logging.info(f"Loaded environment variables from '{env_file}'.")
 
 # -----------------------------#
 #          Helper Functions    #
@@ -59,11 +64,14 @@ def run_query(query, variables=None):
     Executes a GraphQL query against the Shopify API.
     Raises an exception if there's an error or invalid status code.
     """
+    global GRAPHQL_URL, HEADERS  # Declare as global to access the variables
     payload = {
         "query": query,
         "variables": variables or {}
     }
+    logging.debug(f"Sending GraphQL query with variables: {variables}")
     response = requests.post(GRAPHQL_URL, json=payload, headers=HEADERS)
+    logging.debug(f"Received response: {response.status_code} - {response.text}")
     if response.status_code != 200:
         logging.error(f"GraphQL query failed: {response.status_code} - {response.text}")
         raise Exception(f"GraphQL query failed: {response.status_code} - {response.text}")
@@ -72,7 +80,6 @@ def run_query(query, variables=None):
         logging.error(f"GraphQL errors: {result['errors']}")
         raise Exception(f"GraphQL errors: {result['errors']}")
     return result['data']
-
 
 def run_query_with_retries(query, variables=None, max_retries=5):
     """
@@ -88,7 +95,6 @@ def run_query_with_retries(query, variables=None, max_retries=5):
             time.sleep(wait_time)
     logging.error(f"All {max_retries} attempts failed.")
     raise Exception(f"Failed to execute GraphQL query after {max_retries} attempts.")
-
 
 def fetch_orders(start_date, end_date):
     """
@@ -106,8 +112,7 @@ def fetch_orders(start_date, end_date):
         with open(log_file_path, 'w') as log_file:
             logging.info("Opened fetched_order_ids.log for writing.")
 
-            # This query now includes refunds as a *list* 
-            # (no "first: X" or "edges" on `refunds`)
+            # Updated query with 'AND' and quotes
             query = """
             query($first: Int!, $query: String!, $after: String) {
               orders(first: $first, query: $query, after: $after, reverse: false) {
@@ -132,11 +137,9 @@ def fetch_orders(start_date, end_date):
                       }
                     }
                     
-                    # Refunds is an array, not a connection
                     refunds {
                       id
                       createdAt
-                      # We can still do a connection on refundLineItems
                       refundLineItems(first: 100) {
                         edges {
                           node {
@@ -165,7 +168,7 @@ def fetch_orders(start_date, end_date):
 
             variables = {
                 "first": 250,
-                "query": f"created_at:>={start_date} created_at:<={end_date}",
+                "query": f'created_at:>="{start_date}" AND created_at:<="{end_date}"',
                 "after": cursor
             }
 
@@ -210,7 +213,6 @@ def fetch_orders(start_date, end_date):
     logging.info(f"Total orders fetched: {len(orders)}")
     print(f"Total orders fetched: {len(orders)}")
     return orders
-
 
 def aggregate_sales(orders):
     """
@@ -361,7 +363,6 @@ def aggregate_sales(orders):
 
     return final_sales_data, skipped_line_items
 
-
 def export_to_csv(sales_data, filename):
     """
     Exports the final net sales data (barcode -> quantity) to a CSV file.
@@ -373,7 +374,6 @@ def export_to_csv(sales_data, filename):
             writer.writerow([barcode, qty])
     logging.info(f"Report exported to {filename}")
     print(f"Report exported to {filename}")
-
 
 def export_skipped_line_items(skipped_line_items, filename='skipped_line_items.log'):
     """
@@ -391,7 +391,6 @@ def export_skipped_line_items(skipped_line_items, filename='skipped_line_items.l
             ])
     logging.info(f"Skipped line items logged to {filename}")
     print(f"Skipped line items logged to {filename}")
-
 
 def compare_order_ids(manual_ids_file, fetched_ids_file, output_missing, output_extra):
     """
@@ -431,6 +430,27 @@ def compare_order_ids(manual_ids_file, fetched_ids_file, output_missing, output_
         logging.error(f"Error writing comparison results: {e}")
         print(f"    [ERROR] Error writing comparison results: {e}")
 
+def test_api_credentials():
+    """
+    Tests API credentials by querying the shop name.
+    """
+    global GRAPHQL_URL, HEADERS  # Declare as global to access the variables
+    test_query = """
+    query {
+      shop {
+        name
+      }
+    }
+    """
+    try:
+        data = run_query(test_query)
+        shop_name = data['shop']['name']
+        print(f"Successfully connected to Shopify store: {shop_name}")
+        logging.info(f"Successfully connected to Shopify store: {shop_name}")
+    except Exception as e:
+        print(f"API Credentials Test Failed: {e}")
+        logging.error(f"API Credentials Test Failed: {e}", exc_info=True)
+        sys.exit(1)
 
 # -----------------------------#
 #             Main             #
@@ -444,12 +464,53 @@ def main():
                         help='End date in YYYY-MM-DD format')
     parser.add_argument('--manual-order-ids', type=str, required=False,
                         help='Optional path to a file containing manual order IDs for comparison')
+    parser.add_argument('--env', type=str, choices=['production', 'test'], default='production',
+                        help="Environment to use: 'production' or 'test'. Defaults to 'production'.")
     args = parser.parse_args()
 
+    # Load the appropriate environment
+    load_environment(args.env)
+
+    # Load environment variables
+    global SHOP_URL, ACCESS_TOKEN, GRAPHQL_URL, HEADERS  # Declare as global to access in helper functions
+    SHOP_URL = os.getenv('SHOP_URL')  # e.g., 'your-shop-name.myshopify.com'
+    ACCESS_TOKEN = os.getenv('SHOPIFY_ACCESS_TOKEN')  # Your private app access token
+
+    if not SHOP_URL or not ACCESS_TOKEN:
+        print("Error: SHOP_URL and SHOPIFY_ACCESS_TOKEN must be set in the .env file.")
+        logging.error("SHOP_URL and SHOPIFY_ACCESS_TOKEN not set in the .env file.")
+        sys.exit(1)
+
+    # Configure logging
+    log_filename = 'weekly_sales_report_graphql.log'
+    logging.basicConfig(
+        filename=log_filename,
+        level=logging.DEBUG,  # Set to DEBUG for detailed logs
+        format='%(asctime)s:%(levelname)s:%(message)s'
+    )
+    logging.info(f"Script started with environment: {args.env}")
+
+    # Shopify GraphQL endpoint
+    # Ensure that the API version is valid. Update as needed.
+    API_VERSION = os.getenv('SHOPIFY_API_VERSION', '2025-01')  # Default to '2025-01' if not set
+    GRAPHQL_URL = f"https://{SHOP_URL}/admin/api/{API_VERSION}/graphql.json"
+
+    # Headers for authentication
+    HEADERS = {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": ACCESS_TOKEN
+    }
+
+    # Print and log the environment being used (masking sensitive info)
+    print(f"Using environment: {args.env}")
+    logging.info(f"Using environment: {args.env}")
+    logging.debug(f"SHOP_URL: {SHOP_URL}")
+    logging.debug(f"ACCESS_TOKEN: {ACCESS_TOKEN[:4]}****")  # Mask the token
+
+    # Validate date formats
     start_date = args.start_date
     end_date = args.end_date
 
-    # Validate date formats
     try:
         datetime.strptime(start_date, '%Y-%m-%d')
     except ValueError:
@@ -470,7 +531,10 @@ def main():
         logging.error("Start date is after end date.")
         exit(1)
 
-    # 1) Fetch orders
+    # 1) Test API credentials
+    test_api_credentials()
+
+    # 2) Fetch orders
     try:
         orders = fetch_orders(start_date, end_date)
     except Exception as e:
@@ -483,7 +547,7 @@ def main():
         logging.info("No orders fetched. Exiting.")
         return
 
-    # 2) Aggregate net sales (including refunds)
+    # 3) Aggregate net sales (including refunds)
     sales_data, skipped_line_items = aggregate_sales(orders)
 
     if not sales_data:
@@ -491,11 +555,11 @@ def main():
         logging.info("No sales data to export.")
         return
 
-    # 3) Export "skipped line items" if any
+    # 4) Export "skipped line items" if any
     if skipped_line_items:
         export_skipped_line_items(skipped_line_items, filename='skipped_line_items.log')
 
-    # 4) Export the final net sales data
+    # 5) Export the final net sales data
     date_str = datetime.now().strftime("%Y-%m-%d")
     report_filename = f"shopify_sales_report_{date_str}.csv"
     try:
@@ -505,7 +569,7 @@ def main():
         logging.error(f"Failed to export report: {e}", exc_info=True)
         exit(1)
 
-    # 5) Optionally compare order IDs
+    # 6) Optionally compare order IDs
     if args.manual_order_ids:
         compare_order_ids(
             manual_ids_file=args.manual_order_ids,
@@ -516,7 +580,6 @@ def main():
 
     print("Report generation completed successfully.")
     logging.info("Report generation completed successfully.")
-
 
 if __name__ == "__main__":
     main()
