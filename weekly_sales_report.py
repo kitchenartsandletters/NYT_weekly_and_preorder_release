@@ -24,6 +24,8 @@ import time
 import random
 import sys
 
+print(f"Using store: {os.getenv('SHOPIFY_STORE')}")
+
 # -----------------------------#
 #         Configuration        #
 # -----------------------------#
