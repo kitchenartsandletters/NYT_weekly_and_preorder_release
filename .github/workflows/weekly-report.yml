@@ -3,6 +3,7 @@ name: Generate Weekly Shopify Report
 on:
   schedule:
     - cron: '0 15 * * 1'  # Every Monday at 10am ET (3pm UTC)
+  workflow_dispatch:
 
 jobs:
   generate_report:
