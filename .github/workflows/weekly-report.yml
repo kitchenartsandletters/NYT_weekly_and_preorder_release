@@ -1,13 +1,14 @@
-name: Weekly Shopify Report
+name: Weekly Sales Report
 
 on:
+  workflow_dispatch:  # Allows manual runs
   schedule:
-    - cron: "0 15 * * 1"  # Every Monday at 10:00 AM ET
-  workflow_dispatch:
+    - cron: '0 10 * * 1'  # Runs at 10:00 AM UTC every Monday
 
 jobs:
   generate_report:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -15,20 +16,16 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: 3.12
 
       - name: Install dependencies
-        run: |
-          python3 -m venv env
-          source env/bin/activate
-          pip install -r requirements.txt
+        run: pip install python-dotenv requests sendgrid
 
-      - name: Run weekly report script
-        env:
+      - name: Run script
+        env:  # Pass secrets here
           SHOP_URL: ${{ secrets.SHOP_URL }}
           SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
           SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
           EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
-        run: |
-          python3 weekly_sales_report.py --env production
+        run: python3 weekly_sales_report.py --env production
