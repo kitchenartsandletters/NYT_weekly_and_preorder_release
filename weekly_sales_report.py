@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Shopify Weekly Sales Report Script with Email Integration and Logging
-Version: 1.3.0
+Version: 1.3.1
 Description:
     - Generates a Shopify sales report for a given date range.
     - Sends the report via email using SendGrid.
@@ -15,7 +15,7 @@ import requests
 import csv
 import logging
 import argparse
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import sendgrid
 from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
@@ -27,6 +27,9 @@ import base64
 # -----------------------------#
 #         Configuration        #
 # -----------------------------#
+
+# Base directory for the script
+BASE_DIR = "/Users/gilcalderon/ShopifyReport"
 
 # Initialize global variables
 GRAPHQL_URL = None
@@ -41,8 +44,8 @@ def load_environment(env):
     Loads environment variables from the specified .env file based on the environment.
     """
     env_files = {
-        'production': '.env.production',
-        'test': '.env.test'
+        'production': os.path.join(BASE_DIR, '.env.production'),
+        'test': os.path.join(BASE_DIR, '.env.test')
     }
 
     if env not in env_files:
@@ -198,7 +201,8 @@ def export_skipped_line_items(skipped_line_items, filename):
     """
     Exports skipped line items to a CSV file.
     """
-    with open(filename, 'w', newline='', encoding='utf-8') as f:
+    abs_path = os.path.join(BASE_DIR, filename)
+    with open(abs_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow(['Order ID', 'Product Name', 'Quantity', 'Reason'])
         for item in skipped_line_items:
@@ -208,7 +212,8 @@ def export_to_csv(sales_data, filename):
     """
     Exports the sales data to a CSV file.
     """
-    with open(filename, 'w', newline='', encoding='utf-8') as f:
+    abs_path = os.path.join(BASE_DIR, filename)
+    with open(abs_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow(['ISBN', 'QTY'])
         for barcode, qty in sales_data.items():
@@ -230,6 +235,8 @@ def send_email(report_path):
     subject = "Weekly Shopify Sales Report"
     content = "Attached is the weekly Shopify sales report."
 
+    abs_report_path = os.path.join(BASE_DIR, report_path)
+
     message = Mail(
         from_email=sender_email,
         to_emails=recipient_emails,
@@ -238,12 +245,12 @@ def send_email(report_path):
     )
 
     try:
-        with open(report_path, 'rb') as f:
+        with open(abs_report_path, 'rb') as f:
             report_data = f.read()
             encoded_file = base64.b64encode(report_data).decode()
             attachment = Attachment(
                 FileContent(encoded_file),
-                FileName(os.path.basename(report_path)),
+                FileName(os.path.basename(abs_report_path)),
                 FileType('text/csv'),
                 Disposition('attachment')
             )
@@ -265,12 +272,21 @@ def send_email(report_path):
 #             Main             #
 # -----------------------------#
 
+def get_last_week_date_range():
+    today = datetime.now()
+    last_sunday = today - timedelta(days=today.weekday() + 1)  # Last Sunday
+    last_monday = last_sunday - timedelta(days=6)  # Previous Monday
+    return last_monday.strftime('%Y-%m-%d'), last_sunday.strftime('%Y-%m-%d')
+
+
 def main():
-    parser = argparse.ArgumentParser(description='Generate and email a Shopify sales report.')
-    parser.add_argument('--start-date', required=True, help='Start date (YYYY-MM-DD)')
-    parser.add_argument('--end-date', required=True, help='End date (YYYY-MM-DD)')
+    parser = argparse.ArgumentParser(description='Generate and email a Shopify weekly sales report.')
     parser.add_argument('--env', choices=['production', 'test'], default='production', help="Environment")
     args = parser.parse_args()
+
+    # Automatically determine last week's date range
+    start_date, end_date = get_last_week_date_range()
+    print(f"Generating report for: {start_date} to {end_date}")
 
     load_environment(args.env)
 
@@ -285,22 +301,26 @@ def main():
     GRAPHQL_URL = f"https://{SHOP_URL}/admin/api/2025-01/graphql.json"
     HEADERS = {"Content-Type": "application/json", "X-Shopify-Access-Token": ACCESS_TOKEN}
 
-    orders = fetch_orders(args.start_date, args.end_date)
+    orders = fetch_orders(start_date, end_date)
     if not orders:
         print("No orders found.")
         return
 
-    sales_data, skipped_line_items = aggregate_sales(orders)
+    sales_data, skipped_items = aggregate_sales(orders)
+    if not sales_data:
+        print("No sales data.")
+        return
 
-    skipped_items_path = "skipped_line_items.csv"
-    export_skipped_line_items(skipped_line_items, skipped_items_path)
+    report_filename = f"shopify_sales_report_{datetime.now().strftime('%Y-%m-%d')}.csv"
+    skipped_filename = "skipped_line_items.csv"
 
-    report_path = f"shopify_sales_report_{datetime.now().strftime('%Y-%m-%d')}.csv"
-    export_to_csv(sales_data, report_path)
-    print(f"Report generated: {report_path}")
-    print(f"Skipped items logged: {skipped_items_path}")
+    export_to_csv(sales_data, report_filename)
+    export_skipped_line_items(skipped_items, filename=skipped_filename)
 
-    send_email(report_path)
+    print(f"Report generated: {os.path.join(BASE_DIR, report_filename)}")
+    print(f"Skipped items logged: {os.path.join(BASE_DIR, skipped_filename)}")
+
+    send_email(report_filename)
 
 if __name__ == "__main__":
     main()
