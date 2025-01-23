@@ -41,11 +41,16 @@ HEADERS = None
 
 def load_environment(env):
     """
-    Loads environment variables from the specified .env file based on the environment.
+    Loads environment variables from the specified .env file based on the environment,
+    unless the variables are already set (e.g., in GitHub Actions).
     """
+    if all(key in os.environ for key in ['SHOP_URL', 'SHOPIFY_ACCESS_TOKEN', 'SENDGRID_API_KEY', 'EMAIL_SENDER', 'EMAIL_RECIPIENTS']):
+        print("Environment variables detected. Skipping .env file loading.")
+        return
+
     env_files = {
-        'production': os.path.join(BASE_DIR, '.env.production'),
-        'test': os.path.join(BASE_DIR, '.env.test')
+        'production': '.env.production',
+        'test': '.env.test'
     }
 
     if env not in env_files:
