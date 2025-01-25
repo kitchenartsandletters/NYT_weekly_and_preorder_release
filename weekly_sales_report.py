@@ -413,6 +413,41 @@ def get_last_week_date_range():
     
     return last_monday.strftime('%Y-%m-%d'), last_sunday.strftime('%Y-%m-%d')
 
+def validate_sales_data(sales_data, skipped_items):
+    """
+    Performs basic validation checks on sales data
+    Returns a list of warnings if any issues are found
+    """
+    warnings = []
+    
+    # Basic volume checks
+    total_quantity = sum(sales_data.values())
+    if total_quantity == 0:
+        warnings.append("WARNING: No sales recorded for this period")
+    
+    # ISBN format check
+    invalid_isbns = [isbn for isbn in sales_data.keys() if not str(isbn).startswith('978')]
+    if invalid_isbns:
+        warnings.append(f"WARNING: Found {len(invalid_isbns)} invalid ISBNs in sales data")
+    
+    # Unusual quantities check (more than 1000 of any single ISBN)
+    large_quantities = [(isbn, qty) for isbn, qty in sales_data.items() if qty > 1000]
+    if large_quantities:
+        warnings.append(f"WARNING: Unusually large quantities found for {len(large_quantities)} ISBNs")
+        for isbn, qty in large_quantities:
+            warnings.append(f"         ISBN: {isbn}, Quantity: {qty}")
+    
+    # Check for negative quantities
+    negative_quantities = [(isbn, qty) for isbn, qty in sales_data.items() if qty < 0]
+    if negative_quantities:
+        warnings.append(f"WARNING: Found {len(negative_quantities)} ISBNs with negative quantities")
+    
+    # Basic skipped items analysis
+    if len(skipped_items) > 100:  # Arbitrary threshold
+        warnings.append(f"WARNING: Large number of skipped items: {len(skipped_items)}")
+    
+    return warnings
+
 def main():
     print(f"Script running from directory: {os.getcwd()}")
     print(f"BASE_DIR set to: {BASE_DIR}")
@@ -442,6 +477,26 @@ def main():
     if not sales_data:
         logging.error("No sales data.")
         return
+
+        # Run validations
+        warnings = validate_sales_data(sales_data, skipped_items)
+        
+        # Add warnings to email content if any exist
+        email_content = f"""Weekly Shopify Sales Report
+    Report Period: {start_date} to {end_date}
+
+    REPORT DEFINITIONS:
+    - This report includes all completed sales of ISBN products (barcodes starting with '978')
+    - Quantities reflect final sales after any refunds or cancellations
+    - Each line includes the ISBN and the total quantity sold
+
+    """
+
+        if warnings:
+            email_content += "\nVALIDATION WARNINGS:\n"
+            for warning in warnings:
+                email_content += f"{warning}\n"
+                logging.warning(warning)  # Also log the warnings
 
     report_filename = f"shopify_sales_report_{datetime.now().strftime('%Y-%m-%d')}.csv"
     skipped_filename = f"excluded_items_{datetime.now().strftime('%Y-%m-%d')}.csv"
