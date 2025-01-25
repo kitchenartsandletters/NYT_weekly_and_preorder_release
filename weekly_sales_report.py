@@ -303,9 +303,10 @@ def export_to_csv(sales_data, filename):
         for barcode, qty in sales_data.items():
             writer.writerow([barcode, qty])
 
-def send_email(report_filename):
+def send_email(report_filename, start_date, end_date, skipped_items):
     """
     Sends the report as an email attachment using SendGrid.
+    Includes date range and report details in the email.
     """
     api_key = os.getenv('SENDGRID_API_KEY')
     sender_email = os.getenv('EMAIL_SENDER')
@@ -318,15 +319,39 @@ def send_email(report_filename):
     output_dir = os.path.join(BASE_DIR, 'output')
     abs_report_path = os.path.join(output_dir, report_filename)
 
+    # Create summary of skipped items
+    skipped_summary = {}
+    for item in skipped_items:
+        reason = item['reason']
+        if reason not in skipped_summary:
+            skipped_summary[reason] = 0
+        skipped_summary[reason] += item['quantity']
+
+    # Format the email content
+    email_content = f"""Weekly Shopify Sales Report
+Report Period: {start_date} to {end_date}
+
+REPORT DEFINITIONS:
+- This report includes all completed sales of ISBN products (barcodes starting with '978')
+- Quantities reflect final sales after any refunds or cancellations
+- Each line includes the ISBN and the total quantity sold
+
+ITEMS NOT INCLUDED IN REPORT:
+"""
+    # Add skipped items summary
+    for reason, quantity in skipped_summary.items():
+        email_content += f"- {quantity} items: {reason}\n"
+
     sg = sendgrid.SendGridAPIClient(api_key)
-    subject = "Weekly Shopify Sales Report"
-    content = "Attached is the weekly Shopify sales report."
+    
+    # Update subject to include date range
+    subject = f"Weekly Shopify Sales Report ({start_date} to {end_date})"
 
     message = Mail(
         from_email=sender_email,
         to_emails=recipient_emails,
         subject=subject,
-        plain_text_content=content
+        plain_text_content=email_content
     )
 
     try:
@@ -411,7 +436,12 @@ def main():
     logging.info(f"Skipped items logged: {skipped_path}")
     logging.info(f"Current working directory (BASE_DIR): {BASE_DIR}")
 
-    send_email(report_filename)
+    send_email(
+        report_filename,
+        start_date,
+        end_date,
+        skipped_items
+    )
 
 if __name__ == "__main__":
     main()
