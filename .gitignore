@@ -15,4 +15,4 @@ __pycache__/
 shopify_sales_report_*.csv
 
 # Virtual environment
-env/
+env/.DS_Store
