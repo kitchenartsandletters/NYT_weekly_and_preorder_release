@@ -1,6 +1,7 @@
 name: Generate Weekly Report
 
 on:
+  workflow_dispatch: # Allows manual runs
   schedule:
     - cron: "0 15 * * 1"  # Every Monday at 3 PM UTC (10 AM ET)
 
