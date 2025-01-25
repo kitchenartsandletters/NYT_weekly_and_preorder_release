@@ -242,16 +242,18 @@ def aggregate_sales(orders):
                 skipped_line_items.append({
                     'order_id': order_id,
                     'product_name': line_item_node.get('name', 'Unknown'),
+                    'barcode': 'N/A',
                     'quantity': quantity,
                     'reason': 'No barcode'
                 })
                 continue
             
-            # Skip if not a valid ISBN
+            # For non-ISBN items:
             if not is_valid_isbn(barcode):
                 skipped_line_items.append({
                     'order_id': order_id,
                     'product_name': line_item_node.get('name', 'Unknown'),
+                    'barcode': barcode,  # Include the barcode
                     'quantity': quantity,
                     'reason': 'Not an ISBN (does not start with 978)'
                 })
@@ -268,7 +270,7 @@ def aggregate_sales(orders):
 
 def export_skipped_line_items(skipped_line_items, filename):
     """
-    Exports skipped line items to a CSV file.
+    Exports skipped line items to a CSV file with additional details.
     """
     output_dir = os.path.join(BASE_DIR, 'output')
     os.makedirs(output_dir, exist_ok=True)
@@ -278,11 +280,12 @@ def export_skipped_line_items(skipped_line_items, filename):
     
     with open(abs_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow(['Order ID', 'Product Name', 'Quantity', 'Reason'])
+        writer.writerow(['Order ID', 'Product Name', 'Barcode/ISBN', 'Quantity', 'Reason'])
         for item in skipped_line_items:
             writer.writerow([
                 item['order_id'],
                 item['product_name'],
+                item.get('barcode', 'N/A'),  # Add barcode if available
                 item['quantity'],
                 item['reason']
             ])
@@ -303,10 +306,10 @@ def export_to_csv(sales_data, filename):
         for barcode, qty in sales_data.items():
             writer.writerow([barcode, qty])
 
-def send_email(report_filename, start_date, end_date, skipped_items):
+def send_email(report_filename, skipped_filename, start_date, end_date, skipped_items):
     """
     Sends the report as an email attachment using SendGrid.
-    Includes date range and report details in the email.
+    Now includes both the sales report and excluded items report.
     """
     api_key = os.getenv('SENDGRID_API_KEY')
     sender_email = os.getenv('EMAIL_SENDER')
@@ -318,6 +321,7 @@ def send_email(report_filename, start_date, end_date, skipped_items):
 
     output_dir = os.path.join(BASE_DIR, 'output')
     abs_report_path = os.path.join(output_dir, report_filename)
+    abs_skipped_path = os.path.join(output_dir, skipped_filename)
 
     # Create summary of skipped items
     skipped_summary = {}
@@ -327,7 +331,6 @@ def send_email(report_filename, start_date, end_date, skipped_items):
             skipped_summary[reason] = 0
         skipped_summary[reason] += item['quantity']
 
-    # Format the email content
     email_content = f"""Weekly Shopify Sales Report
 Report Period: {start_date} to {end_date}
 
@@ -338,13 +341,14 @@ REPORT DEFINITIONS:
 
 ITEMS NOT INCLUDED IN REPORT:
 """
-    # Add skipped items summary
     for reason, quantity in skipped_summary.items():
         email_content += f"- {quantity} items: {reason}\n"
 
+    email_content += "\nAttached files:\n"
+    email_content += f"1. {report_filename} - Weekly sales report\n"
+    email_content += f"2. {skipped_filename} - Detailed list of excluded items"
+
     sg = sendgrid.SendGridAPIClient(api_key)
-    
-    # Update subject to include date range
     subject = f"Weekly Shopify Sales Report ({start_date} to {end_date})"
 
     message = Mail(
@@ -354,6 +358,7 @@ ITEMS NOT INCLUDED IN REPORT:
         plain_text_content=email_content
     )
 
+    # Attach main report
     try:
         with open(abs_report_path, 'rb') as f:
             report_data = f.read()
@@ -366,7 +371,23 @@ ITEMS NOT INCLUDED IN REPORT:
             )
             message.add_attachment(attachment)
     except Exception as e:
-        logging.error(f"Error attaching report: {e}")
+        logging.error(f"Error attaching main report: {e}")
+        return
+
+    # Attach excluded items report
+    try:
+        with open(abs_skipped_path, 'rb') as f:
+            skipped_data = f.read()
+            encoded_file = base64.b64encode(skipped_data).decode()
+            attachment = Attachment(
+                FileContent(encoded_file),
+                FileName(skipped_filename),
+                FileType('text/csv'),
+                Disposition('attachment')
+            )
+            message.add_attachment(attachment)
+    except Exception as e:
+        logging.error(f"Error attaching excluded items report: {e}")
         return
 
     try:
@@ -423,7 +444,7 @@ def main():
         return
 
     report_filename = f"shopify_sales_report_{datetime.now().strftime('%Y-%m-%d')}.csv"
-    skipped_filename = "skipped_line_items.csv"
+    skipped_filename = f"excluded_items_{datetime.now().strftime('%Y-%m-%d')}.csv"
 
     export_to_csv(sales_data, report_filename)
     export_skipped_line_items(skipped_items, skipped_filename)
@@ -438,6 +459,7 @@ def main():
 
     send_email(
         report_filename,
+        skipped_filename,
         start_date,
         end_date,
         skipped_items
