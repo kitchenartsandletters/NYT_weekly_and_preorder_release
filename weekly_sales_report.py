@@ -117,20 +117,16 @@ def get_last_week_date_range():
 
 
 def main():
-
     print(f"Script running from directory: {os.getcwd()}")
     print(f"BASE_DIR set to: {BASE_DIR}")
     print(f"Python version: {sys.version}")
     
-    parser = argparse.ArgumentParser(description='Generate and email a Shopify weekly sales report.')
-    args = parser.parse_args()  # No need for '--env' argument anymore
-
     # Automatically determine last week's date range
     start_date, end_date = get_last_week_date_range()
     print(f"Generating report for: {start_date} to {end_date}")
 
-    load_environment()
-
+    # Remove the load_environment() call since we're using GitHub Actions environment variables
+    
     global SHOP_URL, GRAPHQL_URL, HEADERS
     SHOP_URL = os.getenv('SHOP_URL')
     ACCESS_TOKEN = os.getenv('SHOPIFY_ACCESS_TOKEN')
@@ -152,15 +148,22 @@ def main():
         print("No sales data.")
         return
 
+    # Create output directory
+    output_dir = os.path.join(BASE_DIR, 'output')
+    os.makedirs(output_dir, exist_ok=True)
+
     report_filename = f"shopify_sales_report_{datetime.now().strftime('%Y-%m-%d')}.csv"
     skipped_filename = "skipped_line_items.csv"
 
-    export_to_csv(sales_data, report_filename)
-    export_skipped_line_items(skipped_items, filename=skipped_filename)
+    # Update paths to use output directory
+    report_path = os.path.join(output_dir, report_filename)
+    skipped_path = os.path.join(output_dir, skipped_filename)
 
-    print(f"Report generated: {os.path.join(BASE_DIR, report_filename)}")
-    print(f"Skipped items logged: {os.path.join(BASE_DIR, skipped_filename)}")
-    # Debug: Print the current BASE_DIR value
+    export_to_csv(sales_data, report_filename)
+    export_skipped_line_items(skipped_items, skipped_filename)
+
+    print(f"Report generated: {report_path}")
+    print(f"Skipped items logged: {skipped_path}")
     print(f"Current working directory (BASE_DIR): {BASE_DIR}")
 
     send_email(report_filename)
