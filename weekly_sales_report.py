@@ -41,10 +41,9 @@ HEADERS = None
 
 def load_environment(env):
     """
-    Loads environment variables from the specified .env file based on the environment,
-    unless the variables are already set (e.g., in GitHub Actions).
+    Loads environment variables from the specified .env file based on the environment.
     """
-    if all(key in os.environ for key in ['SHOP_URL', 'SHOPIFY_ACCESS_TOKEN', 'SENDGRID_API_KEY', 'EMAIL_SENDER', 'EMAIL_RECIPIENTS']):
+    if os.getenv("SHOP_URL") and os.getenv("SHOPIFY_ACCESS_TOKEN"):
         print("Environment variables detected. Skipping .env file loading.")
         return
 
@@ -65,7 +64,7 @@ def load_environment(env):
 
     load_dotenv(dotenv_path=env_file)
     print(f"Loaded environment variables from '{env_file}'.")
-
+    
 def run_query(query, variables=None):
     """
     Executes a GraphQL query against the Shopify API.
