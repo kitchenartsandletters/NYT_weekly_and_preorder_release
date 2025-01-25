@@ -64,7 +64,10 @@ def load_environment(env):
 
     load_dotenv(dotenv_path=env_file)
     print(f"Loaded environment variables from '{env_file}'.")
-    
+    print(f"Debug: SHOP_URL = {os.getenv('SHOP_URL')}")
+    print(f"Debug: ACCESS_TOKEN = {'set' if os.getenv('SHOPIFY_ACCESS_TOKEN') else 'not set'}")
+    print(f"Debug: SENDGRID_API_KEY = {'set' if os.getenv('SENDGRID_API_KEY') else 'not set'}")
+
 def run_query(query, variables=None):
     """
     Executes a GraphQL query against the Shopify API.
