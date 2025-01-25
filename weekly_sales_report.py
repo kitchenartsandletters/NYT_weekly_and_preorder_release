@@ -87,53 +87,54 @@ def fetch_orders(start_date, end_date):
 
             query = """
             query($first: Int!, $query: String!, $after: String) {
-              orders(first: $first, query: $query, after: $after, reverse: false) {
-                edges {
-                  cursor
-                  node {
-                    id
-                    name
-                    createdAt
-                    
-                    lineItems(first: 100) {
-                      edges {
+                orders(first: $first, query: $query, after: $after, reverse: false) {
+                    edges {
+                        cursor
                         node {
-                          id
-                          name
-                          quantity
-                          variant {
                             id
-                            barcode
-                          }
-                        }
-                      }
-                    }
-                    
-                    refunds {
-                      id
-                      createdAt
-                      refundLineItems(first: 100) {
-                        edges {
-                          node {
-                            lineItem {
-                              id
-                              name
-                              variant {
-                                id
-                                barcode
-                              }
+                            name
+                            createdAt
+                            cancelledAt
+                            
+                            lineItems(first: 100) {
+                                edges {
+                                    node {
+                                        id
+                                        name
+                                        quantity
+                                        variant {
+                                            id
+                                            barcode
+                                        }
+                                    }
+                                }
                             }
-                            quantity
-                          }
+                            
+                            refunds {
+                                id
+                                createdAt
+                                refundLineItems(first: 100) {
+                                    edges {
+                                        node {
+                                            quantity
+                                            lineItem {
+                                                id
+                                                name
+                                                variant {
+                                                    id
+                                                    barcode
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
-                      }
                     }
-                  }
+                    pageInfo {
+                        hasNextPage
+                    }
                 }
-                pageInfo {
-                  hasNextPage
-                }
-              }
             }
             """
 
@@ -180,17 +181,46 @@ def fetch_orders(start_date, end_date):
     logging.info(f"Total orders fetched: {len(orders)}")
     return orders
 
+def is_valid_isbn(barcode):
+    """
+    Checks if a barcode is a valid ISBN (starts with 978)
+    """
+    return barcode and str(barcode).startswith('978')
+
 def aggregate_sales(orders):
     """
     Aggregates sales data from the orders.
-    Returns a tuple of (sales_data, skipped_items).
+    Only includes valid ISBN products and excludes refunded/cancelled items.
     """
     sales_data = {}  # Dictionary to store barcode -> quantity
     skipped_line_items = []  # List to store items that couldn't be processed
     
     for order in orders:
+        # Skip cancelled orders
+        if order.get('cancelledAt'):
+            continue
+            
         line_items = order.get('lineItems', {}).get('edges', [])
         order_id = order['id']
+        
+        # Track refunded quantities per barcode for this order
+        refunded_quantities = {}
+        
+        # First, process refunds to track what's been refunded
+        refunds = order.get('refunds', [])
+        for refund in refunds:
+            refund_line_items = refund.get('refundLineItems', {}).get('edges', [])
+            for refund_item in refund_line_items:
+                refund_node = refund_item['node']
+                quantity = refund_node['quantity']
+                line_item = refund_node.get('lineItem', {})
+                variant = line_item.get('variant')
+                
+                if variant and variant.get('barcode'):
+                    barcode = variant['barcode']
+                    if barcode not in refunded_quantities:
+                        refunded_quantities[barcode] = 0
+                    refunded_quantities[barcode] += quantity
         
         # Process regular line items
         for line_item in line_items:
@@ -217,29 +247,22 @@ def aggregate_sales(orders):
                 })
                 continue
             
-            # Add to sales data
-            sales_data[barcode] = sales_data.get(barcode, 0) + quantity
-        
-        # Process refunds
-        refunds = order.get('refunds', [])
-        for refund in refunds:
-            refund_line_items = refund.get('refundLineItems', {}).get('edges', [])
-            for refund_item in refund_line_items:
-                refund_node = refund_item['node']
-                quantity = refund_node['quantity']
-                line_item = refund_node.get('lineItem', {})
-                variant = line_item.get('variant')
-                
-                if not variant:
-                    continue  # Skip logging refunds without variant info
-                    
-                barcode = variant.get('barcode')
-                if not barcode:
-                    continue  # Skip logging refunds without barcode
-                
-                # Subtract refunded quantity
-                if barcode in sales_data:
-                    sales_data[barcode] = max(0, sales_data[barcode] - quantity)
+            # Skip if not a valid ISBN
+            if not is_valid_isbn(barcode):
+                skipped_line_items.append({
+                    'order_id': order_id,
+                    'product_name': line_item_node.get('name', 'Unknown'),
+                    'quantity': quantity,
+                    'reason': 'Not an ISBN (does not start with 978)'
+                })
+                continue
+            
+            # Subtract any refunded quantity for this barcode
+            refunded_qty = refunded_quantities.get(barcode, 0)
+            final_qty = quantity - refunded_qty
+            
+            if final_qty > 0:
+                sales_data[barcode] = sales_data.get(barcode, 0) + final_qty
     
     return sales_data, skipped_line_items
 
@@ -330,10 +353,18 @@ def send_email(report_filename):
 def get_last_week_date_range():
     """
     Returns the date range for last week (Monday to Sunday)
+    Ensures we're always getting previous week regardless of when script runs
     """
     today = datetime.now()
-    last_sunday = today - timedelta(days=today.weekday() + 1)  # Last Sunday
-    last_monday = last_sunday - timedelta(days=6)  # Previous Monday
+    # First, get last Sunday
+    last_sunday = today - timedelta(days=(today.weekday() + 1))
+    # Then get the Monday before that
+    last_monday = last_sunday - timedelta(days=6)
+    
+    # Set times to ensure full day coverage
+    last_monday = last_monday.replace(hour=0, minute=0, second=0, microsecond=0)
+    last_sunday = last_sunday.replace(hour=23, minute=59, second=59, microsecond=999999)
+    
     return last_monday.strftime('%Y-%m-%d'), last_sunday.strftime('%Y-%m-%d')
 
 def main():
