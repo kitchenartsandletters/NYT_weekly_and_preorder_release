@@ -1,31 +1,25 @@
-name: Weekly Sales Report
+def load_environment(env):
+    """
+    Loads environment variables from the specified .env file based on the environment.
+    """
+    if os.getenv("SHOP_URL") and os.getenv("SHOPIFY_ACCESS_TOKEN"):
+        print("Environment variables detected. Skipping .env file loading.")
+        return
 
-on:
-  workflow_dispatch:  # Allows manual runs
-  schedule:
-    - cron: '0 10 * * 1'  # Runs at 10:00 AM UTC every Monday
+    env_files = {
+        'production': '.env.production',
+        'test': '.env.test'
+    }
 
-jobs:
-  generate_report:
-    runs-on: ubuntu-latest
+    if env not in env_files:
+        print(f"Error: Unknown environment '{env}'. Choose from 'production' or 'test'.")
+        sys.exit(1)
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+    env_file = env_files[env]
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: 3.12
+    if not os.path.exists(env_file):
+        print(f"Error: Environment file '{env_file}' does not exist.")
+        sys.exit(1)
 
-      - name: Install dependencies
-        run: pip install python-dotenv requests sendgrid
-
-      - name: Run script
-        env:  # Pass secrets here
-          SHOP_URL: ${{ secrets.SHOP_URL }}
-          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
-          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
-          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
-          EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
-        run: python3 weekly_sales_report.py --env production
+    load_dotenv(dotenv_path=env_file)
+    print(f"Loaded environment variables from '{env_file}'.")
