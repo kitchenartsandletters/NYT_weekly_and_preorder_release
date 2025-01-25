@@ -17,7 +17,7 @@ import base64
 # -----------------------------#
 
 # Base directory for the script (use current working directory)
-BASE_DIR = os.getcwd()
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Initialize global variables
 GRAPHQL_URL = None
@@ -41,8 +41,13 @@ def export_to_csv(sales_data, filename):
     """
     Exports the sales data to a CSV file.
     """
-    abs_path = os.path.join(os.getcwd(), filename)  # Use the current working directory
+    # Create an 'output' directory if it doesn't exist
+    output_dir = os.path.join(BASE_DIR, 'output')
+    os.makedirs(output_dir, exist_ok=True)
+    
+    abs_path = os.path.join(output_dir, filename)
     print(f"Exporting to CSV at path: {abs_path}")  # Debug statement
+    
     with open(abs_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow(['ISBN', 'QTY'])
@@ -112,6 +117,11 @@ def get_last_week_date_range():
 
 
 def main():
+
+    print(f"Script running from directory: {os.getcwd()}")
+    print(f"BASE_DIR set to: {BASE_DIR}")
+    print(f"Python version: {sys.version}")
+    
     parser = argparse.ArgumentParser(description='Generate and email a Shopify weekly sales report.')
     args = parser.parse_args()  # No need for '--env' argument anymore
 
