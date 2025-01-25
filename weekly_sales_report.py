@@ -29,7 +29,8 @@ def export_skipped_line_items(skipped_line_items, filename):
     """
     Exports skipped line items to a CSV file.
     """
-    abs_path = os.path.join(BASE_DIR, filename)
+    abs_path = os.path.join(os.getcwd(), filename)  # Use the current working directory
+    print(f"Exporting skipped items to CSV at path: {abs_path}")  # Debug statement
     with open(abs_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow(['Order ID', 'Product Name', 'Quantity', 'Reason'])
@@ -40,7 +41,8 @@ def export_to_csv(sales_data, filename):
     """
     Exports the sales data to a CSV file.
     """
-    abs_path = os.path.join(BASE_DIR, filename)
+    abs_path = os.path.join(os.getcwd(), filename)  # Use the current working directory
+    print(f"Exporting to CSV at path: {abs_path}")  # Debug statement
     with open(abs_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow(['ISBN', 'QTY'])
@@ -148,6 +150,8 @@ def main():
 
     print(f"Report generated: {os.path.join(BASE_DIR, report_filename)}")
     print(f"Skipped items logged: {os.path.join(BASE_DIR, skipped_filename)}")
+    # Debug: Print the current BASE_DIR value
+    print(f"Current working directory (BASE_DIR): {BASE_DIR}")
 
     send_email(report_filename)
 
