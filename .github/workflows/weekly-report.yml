@@ -1,25 +1,36 @@
-def load_environment(env):
-    """
-    Loads environment variables from the specified .env file based on the environment.
-    """
-    if os.getenv("SHOP_URL") and os.getenv("SHOPIFY_ACCESS_TOKEN"):
-        print("Environment variables detected. Skipping .env file loading.")
-        return
+name: Weekly Shopify Sales Report
 
-    env_files = {
-        'production': '.env.production',
-        'test': '.env.test'
-    }
+on:
+  schedule:
+    - cron: "0 15 * * 1"  # Every Monday at 10:00 AM EST
+  workflow_dispatch:
 
-    if env not in env_files:
-        print(f"Error: Unknown environment '{env}'. Choose from 'production' or 'test'.")
-        sys.exit(1)
+jobs:
+  generate_report:
+    runs-on: ubuntu-latest
 
-    env_file = env_files[env]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
 
-    if not os.path.exists(env_file):
-        print(f"Error: Environment file '{env_file}' does not exist.")
-        sys.exit(1)
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.12"
 
-    load_dotenv(dotenv_path=env_file)
-    print(f"Loaded environment variables from '{env_file}'.")
+    - name: Install dependencies
+      run: |
+        python3 -m venv env
+        source env/bin/activate
+        pip install -r requirements.txt
+
+    - name: Run weekly sales report
+      env:
+        SHOP_URL: ${{ secrets.SHOP_URL }}
+        SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+        SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+        EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+        EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
+      run: |
+        source env/bin/activate
+        python3 weekly_sales_report.py --env production
