@@ -41,32 +41,22 @@ HEADERS = None
 
 def load_environment(env):
     """
-    Loads environment variables from the specified .env file based on the environment.
+    Ensures all required environment variables are set.
     """
-    if os.getenv("SHOP_URL") and os.getenv("SHOPIFY_ACCESS_TOKEN"):
-        print("Environment variables detected. Skipping .env file loading.")
-        return
+    required_env_vars = [
+        "SHOP_URL",
+        "SHOPIFY_ACCESS_TOKEN",
+        "SENDGRID_API_KEY",
+        "EMAIL_SENDER",
+        "EMAIL_RECIPIENTS",
+    ]
 
-    env_files = {
-        'production': '.env.production',
-        'test': '.env.test'
-    }
-
-    if env not in env_files:
-        print(f"Error: Unknown environment '{env}'. Choose from 'production' or 'test'.")
+    missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+    if missing_vars:
+        print(f"Error: Missing environment variables: {', '.join(missing_vars)}")
         sys.exit(1)
 
-    env_file = env_files[env]
-
-    if not os.path.exists(env_file):
-        print(f"Error: Environment file '{env_file}' does not exist.")
-        sys.exit(1)
-
-    load_dotenv(dotenv_path=env_file)
-    print(f"Loaded environment variables from '{env_file}'.")
-    print(f"Debug: SHOP_URL = {os.getenv('SHOP_URL')}")
-    print(f"Debug: ACCESS_TOKEN = {'set' if os.getenv('SHOPIFY_ACCESS_TOKEN') else 'not set'}")
-    print(f"Debug: SENDGRID_API_KEY = {'set' if os.getenv('SENDGRID_API_KEY') else 'not set'}")
+    print("Environment variables successfully loaded.")
 
 def run_query(query, variables=None):
     """
