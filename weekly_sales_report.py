@@ -39,7 +39,7 @@ HEADERS = None
 #          Helper Functions    #
 # -----------------------------#
 
-def load_environment(env):
+def load_environment():
     """
     Ensures all required environment variables are set.
     """
@@ -278,21 +278,20 @@ def get_last_week_date_range():
 
 def main():
     parser = argparse.ArgumentParser(description='Generate and email a Shopify weekly sales report.')
-    parser.add_argument('--env', choices=['production', 'test'], default='production', help="Environment")
-    args = parser.parse_args()
+    args = parser.parse_args()  # No need for '--env' argument anymore
 
     # Automatically determine last week's date range
     start_date, end_date = get_last_week_date_range()
     print(f"Generating report for: {start_date} to {end_date}")
 
-    load_environment(args.env)
+    load_environment()
 
     global SHOP_URL, GRAPHQL_URL, HEADERS
     SHOP_URL = os.getenv('SHOP_URL')
     ACCESS_TOKEN = os.getenv('SHOPIFY_ACCESS_TOKEN')
 
     if not SHOP_URL or not ACCESS_TOKEN:
-        print("Error: Missing SHOP_URL or ACCESS_TOKEN.")
+        print("Error: Missing SHOP_URL or SHOPIFY_ACCESS_TOKEN.")
         return
 
     GRAPHQL_URL = f"https://{SHOP_URL}/admin/api/2025-01/graphql.json"
