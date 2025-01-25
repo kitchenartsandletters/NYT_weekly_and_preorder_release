@@ -1,9 +1,9 @@
 name: Generate Weekly Report
 
 on:
-  workflow_dispatch: # Allows manual runs
+  workflow_dispatch:
   schedule:
-    - cron: "0 15 * * 1"  # Every Monday at 3 PM UTC (10 AM ET)
+    - cron: "0 15 * * 1"
 
 jobs:
   generate_report:
@@ -20,6 +20,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      - name: Create output directory
+        run: mkdir -p output
+
       - name: Generate and send report
         env:
           SHOP_URL: ${{ secrets.SHOP_URL }}
@@ -28,3 +31,11 @@ jobs:
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
           EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
         run: python3 weekly_sales_report.py
+
+      # Optional: Upload the generated files as artifacts
+      - name: Upload report artifacts
+        uses: actions/upload-artifact@v3
+        if: always()  # This ensures we upload even if the script fails
+        with:
+          name: sales-reports
+          path: output/
