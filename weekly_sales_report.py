@@ -183,9 +183,9 @@ def fetch_orders(start_date, end_date):
 
 def is_valid_isbn(barcode):
     """
-    Checks if a barcode is a valid ISBN (starts with 978)
+    Checks if a barcode is a valid ISBN (starts with 978 or 979)
     """
-    return barcode and str(barcode).startswith('978')
+    return barcode and (str(barcode).startswith('978') or str(barcode).startswith('979'))
 
 def aggregate_sales(orders):
     """
@@ -398,20 +398,22 @@ ITEMS NOT INCLUDED IN REPORT:
 
 def get_last_week_date_range():
     """
-    Returns the date range for last week (Monday to Sunday)
-    Ensures we're always getting previous week regardless of when script runs
+    Returns the date range for last week (Sunday through Saturday)
+    Ensures we're always getting the most recently completed week
+    regardless of when the script runs
     """
     today = datetime.now()
-    # First, get last Sunday
-    last_sunday = today - timedelta(days=(today.weekday() + 1))
-    # Then get the Monday before that
-    last_monday = last_sunday - timedelta(days=6)
+    # Find the most recent Saturday
+    days_since_saturday = (today.weekday() + 1) % 7
+    last_saturday = today - timedelta(days=days_since_saturday)
+    # Get the Sunday before that
+    last_sunday = last_saturday - timedelta(days=6)
     
     # Set times to ensure full day coverage
-    last_monday = last_monday.replace(hour=0, minute=0, second=0, microsecond=0)
-    last_sunday = last_sunday.replace(hour=23, minute=59, second=59, microsecond=999999)
+    last_sunday = last_sunday.replace(hour=0, minute=0, second=0, microsecond=0)
+    last_saturday = last_saturday.replace(hour=23, minute=59, second=59, microsecond=999999)
     
-    return last_monday.strftime('%Y-%m-%d'), last_sunday.strftime('%Y-%m-%d')
+    return last_sunday.strftime('%Y-%m-%d'), last_saturday.strftime('%Y-%m-%d')
 
 def validate_sales_data(sales_data, skipped_items):
     """
@@ -426,7 +428,8 @@ def validate_sales_data(sales_data, skipped_items):
         warnings.append("WARNING: No sales recorded for this period")
     
     # ISBN format check
-    invalid_isbns = [isbn for isbn in sales_data.keys() if not str(isbn).startswith('978')]
+    invalid_isbns = [isbn for isbn in sales_data.keys() 
+                    if not (str(isbn).startswith('978') or str(isbn).startswith('979'))]
     if invalid_isbns:
         warnings.append(f"WARNING: Found {len(invalid_isbns)} invalid ISBNs in sales data")
     
