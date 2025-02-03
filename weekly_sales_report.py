@@ -399,14 +399,16 @@ ITEMS NOT INCLUDED IN REPORT:
 def get_last_week_date_range():
     """
     Returns the date range for last week (Sunday through Saturday)
-    Ensures we're always getting the most recently completed week
-    regardless of when the script runs
+    For a report run on Monday Feb 3rd, 2025, this should return:
+    Sunday Jan 26th through Saturday Feb 1st
     """
     today = datetime.now()
-    # Find the most recent Saturday
-    days_since_saturday = (today.weekday() + 1) % 7
-    last_saturday = today - timedelta(days=days_since_saturday)
-    # Get the Sunday before that
+    
+    # First, find the most recent Saturday (Feb 1st in our example)
+    days_after_saturday = today.weekday() + 2  # Adding 2 because Sunday is 6 and we want to include the previous Saturday
+    last_saturday = today - timedelta(days=days_after_saturday)
+    
+    # Then get the Sunday before that Saturday (Jan 26th in our example)
     last_sunday = last_saturday - timedelta(days=6)
     
     # Set times to ensure full day coverage
