@@ -9,33 +9,32 @@ jobs:
   generate_report:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: "3.12"
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+    - name: Install dependencies
+      run: pip install -r requirements.txt
 
-      - name: Create output directory
-        run: mkdir -p output
+    - name: Create output directory
+      run: mkdir -p output
 
-      - name: Generate and send report
-        env:
-          SHOP_URL: ${{ secrets.SHOP_URL }}
-          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
-          SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
-          EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
-          EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
-        run: python3 weekly_sales_report.py
+    - name: Generate and send report
+      env:
+        SHOP_URL: ${{ secrets.SHOP_URL }}
+        SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+        SENDGRID_API_KEY: ${{ secrets.SENDGRID_API_KEY }}
+        EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
+        EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
+      run: python3 weekly_sales_report.py
 
-      # Optional: Upload the generated files as artifacts
-      - name: Upload report artifacts
-        uses: actions/upload-artifact@v3
-        if: always()  # This ensures we upload even if the script fails
-        with:
-          name: sales-reports
-          path: output/
+    - name: Upload report artifacts
+      uses: actions/upload-artifact@v4
+      if: always() # This ensures we upload even if the script fails
+      with:
+        name: sales-reports
+        path: output/
