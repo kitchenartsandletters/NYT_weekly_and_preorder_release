@@ -311,7 +311,17 @@ def send_email(report_filename, skipped_filename, start_date, end_date, skipped_
     Sends the report as an email attachment using SendGrid.
     Now includes both the sales report and excluded items report.
     """
-    # ... (existing email setup code remains the same) ...
+    api_key = os.getenv('SENDGRID_API_KEY')
+    sender_email = os.getenv('EMAIL_SENDER')
+    recipient_emails = os.getenv('EMAIL_RECIPIENTS').split(',')
+
+    if not api_key or not sender_email or not recipient_emails:
+        logging.error("Error: Missing email configuration.")
+        return
+
+    output_dir = os.path.join(BASE_DIR, 'output')
+    abs_report_path = os.path.join(output_dir, report_filename)
+    abs_skipped_path = os.path.join(output_dir, skipped_filename)
 
     # Create summary of skipped items
     skipped_summary = {}
@@ -491,8 +501,8 @@ def main():
                 email_content += f"{warning}\n"
                 logging.warning(warning)  # Also log the warnings
 
-    report_filename = f"NYT_Bestseller_Weekly_Report_{datetime.now().strftime('%Y-%m-%d')}.csv"
-    skipped_filename = f"NYT_Bestseller_Excluded_Items_{datetime.now().strftime('%Y-%m-%d')}.csv"
+    report_filename = f"shopify_sales_report_{datetime.now().strftime('%Y-%m-%d')}.csv"
+    skipped_filename = f"excluded_items_{datetime.now().strftime('%Y-%m-%d')}.csv"
 
     export_to_csv(sales_data, report_filename)
     export_skipped_line_items(skipped_items, skipped_filename)
