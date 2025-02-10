@@ -105,6 +105,25 @@ def fetch_orders(start_date, end_date):
                                         variant {
                                             id
                                             barcode
+                                            product {
+                                                id
+                                                title
+                                                collections(first: 5) {
+                                                    edges {
+                                                        node {
+                                                            title
+                                                        }
+                                                    }
+                                                }
+                                                metafields(first: 1, query: "namespace:custom AND key:pub_date") {
+                                                    edges {
+                                                        node {
+                                                            key
+                                                            value
+                                                        }
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -123,6 +142,25 @@ def fetch_orders(start_date, end_date):
                                                 variant {
                                                     id
                                                     barcode
+                                                    product {
+                                                        id
+                                                        title
+                                                        collections(first: 5) {
+                                                            edges {
+                                                                node {
+                                                                    title
+                                                                }
+                                                            }
+                                                        }
+                                                        metafields(first: 1, query: "namespace:custom AND key:pub_date") {
+                                                            edges {
+                                                                node {
+                                                                    key
+                                                                    value
+                                                                }
+                                                            }
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -187,26 +225,97 @@ def is_valid_isbn(barcode):
     """
     return barcode and (str(barcode).startswith('978') or str(barcode).startswith('979'))
 
-def aggregate_sales(orders):
+def get_pub_date(product_data):
     """
-    Aggregates sales data from the orders.
-    Only includes valid ISBN products and excludes refunded/cancelled items.
+    Extracts publication date from product metafields
     """
-    sales_data = {}  # Dictionary to store barcode -> quantity
-    skipped_line_items = []  # List to store items that couldn't be processed
+    try:
+        metafields = product_data.get('metafields', {}).get('edges', [])
+        for metafield in metafields:
+            if metafield['node']['key'] == 'pub_date':
+                return metafield['node']['value']
+    except Exception as e:
+        logging.error(f"Error extracting pub date: {e}")
+    return None
+
+def is_preorder(product_data, current_date):
+    """
+    Determines if a product is a preorder based on collection or pub_date
+    """
+    try:
+        # Check collection membership
+        collections = product_data.get('collections', {}).get('edges', [])
+        is_in_preorder = any(
+            collection['node']['title'] == 'Preorder' 
+            for collection in collections
+        )
+        
+        # Check pub_date
+        pub_date_str = get_pub_date(product_data)
+        is_future_pub = False
+        if pub_date_str:
+            try:
+                pub_date = datetime.strptime(pub_date_str, '%Y-%m-%d').date()
+                is_future_pub = pub_date > current_date
+            except ValueError:
+                logging.error(f"Invalid pub_date format: {pub_date_str}")
+        
+        return is_in_preorder or is_future_pub, pub_date_str if is_future_pub else None
+        
+    except Exception as e:
+        logging.error(f"Error checking preorder status: {e}")
+        return False, None
+
+def track_preorders(preorder_data, tracking_file):
+    """
+    Maintains preorder tracking file
+    """
+    os.makedirs(os.path.dirname(tracking_file), exist_ok=True)
+    
+    try:
+        # Read existing data (if any)
+        existing_data = []
+        if os.path.exists(tracking_file):
+            with open(tracking_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                existing_data = list(reader)
+        
+        # Write all data (existing + new)
+        with open(tracking_file, 'w', newline='', encoding='utf-8') as f:
+            fieldnames = ['isbn', 'title', 'pub_date', 'order_date', 'quantity']
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            # Write existing data
+            for row in existing_data:
+                writer.writerow(row)
+            
+            # Write new data
+            writer.writerows(preorder_data)
+            
+    except Exception as e:
+        logging.error(f"Error tracking preorders: {e}")
+
+def aggregate_sales(orders, current_date=None):
+    """
+    Aggregates sales data from orders, handling preorders appropriately
+    """
+    if current_date is None:
+        current_date = datetime.now().date()
+        
+    sales_data = {}
+    skipped_line_items = []
+    preorder_data = []
     
     for order in orders:
         # Skip cancelled orders
         if order.get('cancelledAt'):
             continue
             
-        line_items = order.get('lineItems', {}).get('edges', [])
         order_id = order['id']
         
-        # Track refunded quantities per barcode for this order
+        # Track refunded quantities
         refunded_quantities = {}
-        
-        # First, process refunds to track what's been refunded
         refunds = order.get('refunds', [])
         for refund in refunds:
             refund_line_items = refund.get('refundLineItems', {}).get('edges', [])
@@ -222,7 +331,8 @@ def aggregate_sales(orders):
                         refunded_quantities[barcode] = 0
                     refunded_quantities[barcode] += quantity
         
-        # Process regular line items
+        # Process line items
+        line_items = order.get('lineItems', {}).get('edges', [])
         for line_item in line_items:
             line_item_node = line_item['node']
             quantity = line_item_node['quantity']
@@ -236,35 +346,66 @@ def aggregate_sales(orders):
                     'reason': 'No variant information'
                 })
                 continue
-                
+            
             barcode = variant.get('barcode')
+            product = variant.get('product', {})
+            
             if not barcode:
                 skipped_line_items.append({
                     'order_id': order_id,
-                    'product_name': line_item_node.get('name', 'Unknown'),
+                    'product_name': product.get('title', 'Unknown'),
                     'barcode': 'N/A',
                     'quantity': quantity,
                     'reason': 'No barcode'
                 })
                 continue
             
-            # For non-ISBN items:
+            # Check if it's a preorder
+            is_preorder_item, pub_date = is_preorder(product, current_date)
+            
+            if is_preorder_item:
+                # Add to preorder tracking
+                preorder_data.append({
+                    'isbn': barcode,
+                    'title': product.get('title', 'Unknown'),
+                    'pub_date': pub_date,
+                    'order_date': order['createdAt'],
+                    'quantity': quantity
+                })
+                
+                # Skip from current report if pub_date is in future
+                if pub_date and datetime.strptime(pub_date, '%Y-%m-%d').date() > current_date:
+                    skipped_line_items.append({
+                        'order_id': order_id,
+                        'product_name': product.get('title', 'Unknown'),
+                        'barcode': barcode,
+                        'quantity': quantity,
+                        'reason': f'Future Pub Date: {pub_date}'
+                    })
+                    continue
+            
+            # Check ISBN validity
             if not is_valid_isbn(barcode):
                 skipped_line_items.append({
                     'order_id': order_id,
-                    'product_name': line_item_node.get('name', 'Unknown'),
-                    'barcode': barcode,  # Include the barcode
+                    'product_name': product.get('title', 'Unknown'),
+                    'barcode': barcode,
                     'quantity': quantity,
-                    'reason': 'Not an ISBN (does not start with 978)'
+                    'reason': 'Not an ISBN (does not start with 978 or 979)'
                 })
                 continue
             
-            # Subtract any refunded quantity for this barcode
+            # Calculate final quantity after refunds
             refunded_qty = refunded_quantities.get(barcode, 0)
             final_qty = quantity - refunded_qty
             
             if final_qty > 0:
                 sales_data[barcode] = sales_data.get(barcode, 0) + final_qty
+    
+    # Track preorders if any exist
+    if preorder_data:
+        preorder_file = os.path.join(BASE_DIR, 'output', 'preorder_tracking.csv')
+        track_preorders(preorder_data, preorder_file)
     
     return sales_data, skipped_line_items
 
@@ -473,15 +614,22 @@ def main():
     GRAPHQL_URL = f"https://{SHOP_URL}/admin/api/2025-01/graphql.json"
     HEADERS = {"Content-Type": "application/json", "X-Shopify-Access-Token": ACCESS_TOKEN}
 
+    current_date = datetime.now().date()
+    
     orders = fetch_orders(start_date, end_date)
     if not orders:
         logging.error("No orders found.")
         return
 
-    sales_data, skipped_items = aggregate_sales(orders)
+    sales_data, skipped_items = aggregate_sales(orders, current_date)
     if not sales_data:
         logging.error("No sales data.")
         return
+    
+    # Include any accumulated preorders for newly released books
+    preorder_file = os.path.join(BASE_DIR, 'output', 'preorder_tracking.csv')
+    if os.path.exists(preorder_file):
+        include_released_preorders(sales_data, preorder_file, current_date)
 
         # Run validations
         warnings = validate_sales_data(sales_data, skipped_items)
