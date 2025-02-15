@@ -313,7 +313,7 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
         logging.error(f"Error reading existing preorder file: {e}")
         return {}  # Return empty dictionary to prevent further issues
 
-    preorder_log_entries =
+    preorder_log_entries =  # Initialize the list HERE!
     preorder_log_entries.append("=== Preorder Tracking Log ===")
     preorder_log_entries.append(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     preorder_log_entries.append("\nExisting Preorders (Before Update):")
