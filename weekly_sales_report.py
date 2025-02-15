@@ -277,7 +277,7 @@ def is_valid_isbn(barcode):
     """
     return barcode and (str(barcode).startswith('978') or str(barcode).startswith('979'))
 
-def track_preorder_sales(preorder_items, tracking_file='preorder_tracking.csv'):
+def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.csv'):
     """
     Maintains a running log of preorder sales
     Reads existing file, merges new preorder items, logs changes
@@ -829,7 +829,7 @@ REPORT DEFINITIONS:
 
     report_filename = f"NYT_weekly_sales_report_{datetime.now().strftime('%Y-%m-%d')}.csv"
     skipped_filename = f"NYT_excluded_items_{datetime.now().strftime('%Y-%m-%d')}.csv"
-    preorder_filename = f"NYT_preorder_tracking_{datetime.now().strftime('%Y-%m-%d')}.csv"
+    preorder_filename = f"NYT_preorder_tracking.csv"
 
 
     export_to_csv(sales_data, report_filename)
