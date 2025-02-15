@@ -279,47 +279,53 @@ def is_valid_isbn(barcode):
 
 def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.csv'):
     """
-    Maintains a running log of preorder sales.
-    Reads existing file, merges new preorder items, logs changes.
+    Maintains a running log of preorder sales
+    Reads existing file, merges new preorder items, logs changes
     """
     logging.info("Starting preorder tracking process")
     logging.info(f"New preorder items to track: {len(preorder_items)}")
 
-    tracking_path = os.path.join(BASE_DIR, 'preorders', tracking_file)
+    # Create preorders directory if it doesn't exist
+    preorders_dir = os.path.join(BASE_DIR, 'preorders')
+    os.makedirs(preorders_dir, exist_ok=True)
+
+    # Path to the tracking file in your repo
+    tracking_path = os.path.join(preorders_dir, tracking_file)
     log_path = os.path.join(BASE_DIR, 'output', 'preorder_tracking_log.txt')
 
-    os.makedirs(os.path.dirname(log_path), exist_ok=True)  # Ensure log dir exists
+    # Ensure output directory exists
+    os.makedirs(os.path.dirname(log_path), exist_ok=True)
 
+    # Read existing tracking data
     existing_preorders = {}
-    try:
-        if os.path.exists(tracking_path):
-            with open(tracking_path, 'r', newline='', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    key = (row['ISBN'], row['Pub Date'])
-                    try:  # Handle potential int conversion errors
-                        existing_preorders[key] = {
-                            'Title': row['Title'],
-                            'Quantity': int(row['Quantity']),
-                            'Status': row['Status']
-                        }
-                    except ValueError as e:
-                        logging.error(f"Error converting Quantity to int for ISBN: {row['ISBN']}, Pub Date: {row['Pub Date']}. Skipping row. Error: {e}")
-                        continue  # Skip to the next row if there's an error
-        else:
-            logging.info(f"Tracking file not found. Creating a new one: {tracking_path}")
+    if os.path.exists(tracking_path):
+        logging.info(f"Found existing tracking file: {tracking_path}")
+        with open(tracking_path, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                key = (row['ISBN'], row['Pub Date'])
+                existing_preorders[key] = {
+                    'Title': row['Title'],
+                    'Quantity': int(row['Quantity']),
+                    'Status': row['Status']
+                }
+    else:
+        logging.info("No existing tracking file - will create new one")
 
-    except Exception as e:
-        logging.error(f"Error reading existing preorder file: {e}")
-        return {}  # Return empty dictionary to prevent further issues
-
-    preorder_log_entries =  # Initialize the list HERE!
+    # Prepare logging of changes
+    preorder_log_entries = []
     preorder_log_entries.append("=== Preorder Tracking Log ===")
     preorder_log_entries.append(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
     preorder_log_entries.append("\nExisting Preorders (Before Update):")
     for (isbn, pub_date), data in existing_preorders.items():
-        preorder_log_entries.append(f"ISBN: {isbn}, Title: {data['Title']}, Pub Date: {pub_date}, Quantity: {data['Quantity']}, Status: {data['Status']}")
+        preorder_log_entries.append(
+            f"ISBN: {isbn}, Title: {data['Title']}, "
+            f"Pub Date: {pub_date}, Quantity: {data['Quantity']}, "
+            f"Status: {data['Status']}"
+        )
 
+    # Process current preorder items
     current_date = datetime.now().date()
     new_preorder_count = 0
     updated_preorder_count = 0
@@ -328,8 +334,9 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
     for item in preorder_items:
         pub_date = item.get('pub_date') or ''
         key = (item['barcode'], pub_date)
-
+        
         if key in existing_preorders:
+            # Update existing preorder
             old_qty = existing_preorders[key]['Quantity']
             existing_preorders[key]['Quantity'] += item['quantity']
             updated_preorder_count += 1
@@ -338,6 +345,7 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
                 f"Quantity: {old_qty} → {existing_preorders[key]['Quantity']}"
             )
         else:
+            # Add new preorder
             existing_preorders[key] = {
                 'Title': item['title'],
                 'Quantity': item['quantity'],
@@ -345,27 +353,23 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
             }
             new_preorder_count += 1
             preorder_log_entries.append(
-                f"New Preorder: ISBN {item['barcode']}, Title: {item['title']}, Quantity: {item['quantity']}"
+                f"New Preorder: ISBN {item['barcode']}, Title: {item['title']}, "
+                f"Quantity: {item['quantity']}"
             )
 
-    # Remove released items
+    # Handle released items
     released_items = {}
-    existing_preorders = {
-        key: data for (key, data) in existing_preorders.items() 
-        if not (key[1] and  # has a pub date
-                datetime.strptime(key[1], '%Y-%m-%d').date() <= current_date and 
-                data['Status'] == 'Preorder')
-    }
-
-    # Log released items
-    preorder_log_entries.append("\nReleased Preorder Items:")
     for (isbn, pub_date), data in list(existing_preorders.items()):
         if pub_date:
             try:
                 pub_date_obj = datetime.strptime(pub_date, '%Y-%m-%d').date()
                 if pub_date_obj <= current_date and data['Status'] == 'Preorder':
                     released_items[isbn] = data['Quantity']
-                    preorder_log_entries.append(f"Released: ISBN {isbn}, Title: {data['Title']}, Quantity: {data['Quantity']}")
+                    data['Status'] = 'Released'  # Update status but keep in tracking
+                    preorder_log_entries.append(
+                        f"Released: ISBN {isbn}, Title: {data['Title']}, "
+                        f"Quantity: {data['Quantity']}"
+                    )
             except ValueError:
                 logging.error(f"Invalid pub date format: {pub_date}")
 
@@ -382,7 +386,7 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
                 'Status': data['Status']
             })
 
-    # Write log file
+    # Write detailed log file
     preorder_log_entries.append(f"\nSummary:")
     preorder_log_entries.append(f"Total Existing Preorders: {len(existing_preorders)}")
     preorder_log_entries.append(f"New Preorder Items: {new_preorder_count}")
