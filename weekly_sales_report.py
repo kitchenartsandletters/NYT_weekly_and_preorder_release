@@ -858,6 +858,12 @@ REPORT DEFINITIONS:
     logging.info(f"Skipped items logged: {skipped_path}")
     logging.info(f"Current working directory (BASE_DIR): {BASE_DIR}")
 
+    logging.info(f"BASE_DIR: {BASE_DIR}")
+    logging.info(f"Tracking path: {tracking_path}")
+    logging.info(f"Output directory: {output_dir}")
+    logging.info(f"Tracking path exists: {os.path.exists(tracking_path)}")
+    logging.info(f"Output directory exists: {os.path.exists(output_dir)}")
+
      # Verify files exist before sending
     for filename in [report_filename, skipped_filename, preorder_filename]:
         file_path = os.path.join(output_dir, filename)
