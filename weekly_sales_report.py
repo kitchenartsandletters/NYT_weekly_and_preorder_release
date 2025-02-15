@@ -764,12 +764,6 @@ def main():
     start_date, end_date = get_last_week_date_range()
     print(f"Generating report for: {start_date} to {end_date}")
 
-    # Define tracking_path here
-    tracking_path = os.path.join(BASE_DIR, 'preorders', 'NYT_preorder_tracking.csv')
-    logging.info(f"BASE_DIR: {BASE_DIR}")
-    logging.info(f"Tracking path: {tracking_path}")
-    logging.info(f"Tracking path exists: {os.path.exists(tracking_path)}")
-
     global SHOP_URL, GRAPHQL_URL, HEADERS
     SHOP_URL = os.getenv('SHOP_URL')
     ACCESS_TOKEN = os.getenv('SHOPIFY_ACCESS_TOKEN')
@@ -848,44 +842,37 @@ REPORT DEFINITIONS:
     skipped_filename = f"NYT_excluded_items_{datetime.now().strftime('%Y-%m-%d')}.csv"
     preorder_filename = f"NYT_preorder_tracking.csv"
 
-
     export_to_csv(sales_data, report_filename)
     export_skipped_line_items(skipped_items, skipped_filename)
 
+    # Set up paths for verification
     output_dir = os.path.join(BASE_DIR, 'output')
     report_path = os.path.join(output_dir, report_filename)
     skipped_path = os.path.join(output_dir, skipped_filename)
+    preorder_path = os.path.join(BASE_DIR, 'preorders', preorder_filename)
 
-    # Verify environment
+    logging.info("=== File Verification ===")
+    files_to_check = {
+        'Weekly Sales Report': report_path,
+        'Excluded Items': skipped_path,
+        'Preorder Tracking': preorder_path
+    }
+
+    for file_type, path in files_to_check.items():
+        if os.path.exists(path):
+            logging.info(f"Verified {file_type} exists at: {path}")
+        else:
+            logging.error(f"Missing {file_type} at: {path}")
+
+    # Additional environment verification logging
     logging.info("=== Environment Verification ===")
     logging.info(f"Python Version: {sys.version}")
     logging.info(f"Current Directory: {os.getcwd()}")
-    logging.info(f"Output Directory: {os.path.join(BASE_DIR, 'output')}")
-    
-    # Verify date calculations
-    start_date, end_date = get_last_week_date_range()
-    logging.info("=== Date Range Verification ===")
-    logging.info(f"Report Period: {start_date} to {end_date}")
-    logging.info(f"Current time: {datetime.now()}")
-
-    logging.info(f"Report generated: {report_path}")
-    logging.info(f"Skipped items logged: {skipped_path}")
-    logging.info(f"Current working directory (BASE_DIR): {BASE_DIR}")
-
     logging.info(f"BASE_DIR: {BASE_DIR}")
-    logging.info(f"Tracking path: {tracking_path}")
-    logging.info(f"Output directory: {output_dir}")
-    logging.info(f"Tracking path exists: {os.path.exists(tracking_path)}")
-    logging.info(f"Output directory exists: {os.path.exists(output_dir)}")
+    logging.info(f"Output Directory: {output_dir}")
+    logging.info(f"Preorders Directory: {os.path.join(BASE_DIR, 'preorders')}")
 
-     # Verify files exist before sending
-    for filename in [report_filename, skipped_filename, preorder_filename]:
-        file_path = os.path.join(output_dir, filename)
-        if os.path.exists(file_path):
-            logging.info(f"Verified file exists: {filename}")
-        else:
-            logging.error(f"Missing file: {filename}")
-
+    # Send email with all reports
     send_email(
         report_filename,
         skipped_filename,
