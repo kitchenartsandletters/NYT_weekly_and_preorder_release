@@ -665,6 +665,9 @@ ITEMS NOT INCLUDED IN REPORT:
 
     # Attach preorder tracking report
     try:
+         # Use the path in the preorders directory
+        abs_preorder_path = os.path.join(BASE_DIR, 'preorders', 'preorder_tracking.csv')
+    
         with open(abs_preorder_path, 'rb') as f:
             preorder_data = f.read()
             encoded_file = base64.b64encode(preorder_data).decode()
