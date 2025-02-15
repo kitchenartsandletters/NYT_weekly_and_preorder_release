@@ -278,6 +278,9 @@ def is_valid_isbn(barcode):
     return barcode and (str(barcode).startswith('978') or str(barcode).startswith('979'))
 
 def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.csv'):
+    logging.info(f"Starting preorder tracking process")
+    logging.info(f"New preorder items to track: {len(preorder_items)}")
+
     """
     Maintains a running log of preorder sales
     Reads existing file, merges new preorder items, logs changes
@@ -332,6 +335,7 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
 
     preorder_log_entries.append("\nNew Preorder Items:")
     for item in preorder_items:
+        logging.info(f"Preorder Item: ISBN {item['barcode']}, Title: {item['title']}, Quantity: {item['quantity']}, Pub Date: {item.get('pub_date', 'No pub date')}")
         pub_date = item.get('pub_date') or ''
         key = (item['barcode'], pub_date)
         
@@ -358,13 +362,18 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
             )
 
     # Handle released items
+    preorder_log_entries.append("\nReleased Preorder Items:")
     released_items = {}
     for (isbn, pub_date), data in list(existing_preorders.items()):
         if pub_date:
             try:
                 pub_date_obj = datetime.strptime(pub_date, '%Y-%m-%d').date()
+                current_date = datetime.now().date()
+                logging.info(f"Checking release: ISBN {isbn}, Pub Date: {pub_date}, Current Date: {current_date}")
+                
                 if pub_date_obj <= current_date and data['Status'] == 'Preorder':
                     released_items[isbn] = data['Quantity']
+                    logging.info(f"Released: ISBN {isbn}, Title: {data['Title']}, Quantity: {data['Quantity']}")
                     data['Status'] = 'Released'  # Update status but keep in tracking
                     preorder_log_entries.append(
                         f"Released: ISBN {isbn}, Title: {data['Title']}, "
