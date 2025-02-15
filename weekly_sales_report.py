@@ -282,8 +282,17 @@ def track_preorder_sales(preorder_items, tracking_file='preorder_tracking.csv'):
     Maintains a running log of preorder sales
     Directly modifies the file in the repository
     """
+
+    logging.info("Starting preorder tracking process")
+    logging.info(f"New preorder items to track: {len(preorder_items)}")
+
     # Path to the tracking file in your repo
     tracking_path = os.path.join(BASE_DIR, tracking_file)
+
+    if os.path.exists(tracking_path):
+        logging.info(f"Found existing tracking file: {tracking_path}")
+    else:
+        logging.info("No existing tracking file found - will create new one")
     
     # Read existing tracking data
     existing_preorders = {}
@@ -298,6 +307,11 @@ def track_preorder_sales(preorder_items, tracking_file='preorder_tracking.csv'):
                     'Status': row['Status']
                 }
     
+    # After processing existing data:
+        logging.info(f"Current state of preorders:")
+        for (isbn, pub_date), data in existing_preorders.items():
+            logging.info(f"ISBN: {isbn}, Title: {data['Title']}, Pub Date: {pub_date}, Quantity: {data['Quantity']}, Status: {data['Status']}")
+
     # Update with new preorders
     current_date = datetime.now().date()
     for item in preorder_items:
@@ -331,6 +345,12 @@ def track_preorder_sales(preorder_items, tracking_file='preorder_tracking.csv'):
                     released_items[isbn] = data['Quantity']
             except ValueError:
                 logging.error(f"Invalid pub date format: {pub_date}")
+
+    # After identifying released items:
+    if released_items:
+        logging.info("Released items found:")
+        for isbn, qty in released_items.items():
+            logging.info(f"ISBN {isbn} released with {qty} preorder copies")
     
     # Write updated tracking file
     with open(tracking_path, 'w', newline='', encoding='utf-8') as f:
@@ -735,7 +755,6 @@ def main():
     released_items = track_preorder_sales(preorder_items)
 
     logging.info(f"Tracking {len(preorder_items)} new preorder items")
-    logging.info(f"Total existing preorders before update: {len(existing_preorders)}")
     logging.info(f"Released items this week: {len(released_items)}")
     
     # Add released items to sales_data
@@ -797,13 +816,34 @@ REPORT DEFINITIONS:
     report_path = os.path.join(output_dir, report_filename)
     skipped_path = os.path.join(output_dir, skipped_filename)
 
+    # Verify environment
+    logging.info("=== Environment Verification ===")
+    logging.info(f"Python Version: {sys.version}")
+    logging.info(f"Current Directory: {os.getcwd()}")
+    logging.info(f"Output Directory: {os.path.join(BASE_DIR, 'output')}")
+    
+    # Verify date calculations
+    start_date, end_date = get_last_week_date_range()
+    logging.info("=== Date Range Verification ===")
+    logging.info(f"Report Period: {start_date} to {end_date}")
+    logging.info(f"Current time: {datetime.now()}")
+
     logging.info(f"Report generated: {report_path}")
     logging.info(f"Skipped items logged: {skipped_path}")
     logging.info(f"Current working directory (BASE_DIR): {BASE_DIR}")
 
+     # Verify files exist before sending
+    for filename in [report_filename, skipped_filename, preorder_filename]:
+        file_path = os.path.join(output_dir, filename)
+        if os.path.exists(file_path):
+            logging.info(f"Verified file exists: {filename}")
+        else:
+            logging.error(f"Missing file: {filename}")
+
     send_email(
         report_filename,
         skipped_filename,
+        preorder_filename,
         start_date,
         end_date,
         skipped_items
