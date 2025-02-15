@@ -756,6 +756,12 @@ def main():
     start_date, end_date = get_last_week_date_range()
     print(f"Generating report for: {start_date} to {end_date}")
 
+    # Define tracking_path here
+    tracking_path = os.path.join(BASE_DIR, 'preorders', 'NYT_preorder_tracking.csv')
+    logging.info(f"BASE_DIR: {BASE_DIR}")
+    logging.info(f"Tracking path: {tracking_path}")
+    logging.info(f"Tracking path exists: {os.path.exists(tracking_path)}")
+
     global SHOP_URL, GRAPHQL_URL, HEADERS
     SHOP_URL = os.getenv('SHOP_URL')
     ACCESS_TOKEN = os.getenv('SHOPIFY_ACCESS_TOKEN')
