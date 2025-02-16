@@ -280,21 +280,22 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
         
         # Check if file exists and has content
         file_exists = os.path.exists(tracking_path) and os.path.getsize(tracking_path) > 0
-        
+
+        if file_exists:
+            # First read the file to check the last character
+            with open(tracking_path, 'r', newline='', encoding='utf-8') as f:
+                content = f.read()
+                needs_newline = content and not content.endswith('\n')
+
+        # Now open in append mode
         with open(tracking_path, 'a', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
             
             # Write header only if it's a new file
             if not file_exists:
                 writer.writeheader()
-            else:
-                # Add a newline if the file doesn't end with one
-                f.seek(0, 2)  # Go to end of file
-                if f.tell() > 0:  # If file is not empty
-                    f.seek(f.tell() - 1)  # Go to last character
-                    last_char = f.read(1)
-                    if last_char != '\n':
-                        f.write('\n')
+            elif needs_newline:
+                f.write('\n')
             
             # Append each new preorder item
             for item in preorder_items:
