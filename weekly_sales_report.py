@@ -744,6 +744,9 @@ def main():
 
     logging.info(f"Tracking {len(preorder_items)} new preorder items")
     logging.info("No items released this week")  # Changed this line since we're not tracking releases here
+
+    # Initialize released_items as empty dict before using it
+    released_items = {}
     
     # Add released items to sales_data
     for isbn, quantity in released_items.items():
