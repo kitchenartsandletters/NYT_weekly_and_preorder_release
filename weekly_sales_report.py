@@ -386,7 +386,7 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
     write_header = not os.path.exists(tracking_path) or os.path.getsize(tracking_path) == 0
 
     with open(tracking_path, 'a', newline='', encoding='utf-8') as f:
-    writer = csv.DictWriter(f, fieldnames=['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status'])
+        writer = csv.DictWriter(f, fieldnames=['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status'])
     
     # Only write header if file is new or empty
     if write_header:
