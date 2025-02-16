@@ -310,10 +310,15 @@ def calculate_total_preorder_quantities(as_of_date=None):
         with open(tracking_path, 'r', newline='', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                # Optional date filtering
-                if as_of_date and row['Pub Date'] and \
-                   datetime.fromisoformat(row['Pub Date']).date() > as_of_date:
-                    continue
+                # Only try to parse date if both as_of_date and a valid Pub Date exist
+                if as_of_date and row.get('Pub Date'):
+                    try:
+                        pub_date = datetime.fromisoformat(row['Pub Date']).date()
+                        if pub_date > as_of_date:
+                            continue
+                    except ValueError:
+                        # Log warning but continue processing the row
+                        logging.warning(f"Skipping date comparison for ISBN {row.get('ISBN', 'Unknown')}: Invalid pub date format: {row['Pub Date']}")
                 
                 isbn = row['ISBN']
                 quantity = int(row['Quantity'])
