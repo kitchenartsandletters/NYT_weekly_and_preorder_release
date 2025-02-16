@@ -382,15 +382,14 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
             except ValueError:
                 logging.error(f"Invalid pub date format: {pub_date}")
 
-    # Write updated tracking file
+   # Write updated tracking file
     write_header = not os.path.exists(tracking_path) or os.path.getsize(tracking_path) == 0
 
-    with open(tracking_path, 'a', newline='', encoding='utf-8') as f:
+    with open(tracking_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.DictWriter(f, fieldnames=['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status'])
     
-    # Only write header if file is new or empty
-    if write_header:
-        writer.writeheader()
+    # Always write header
+    writer.writeheader()
     
     for (isbn, pub_date), data in existing_preorders.items():
         writer.writerow({
@@ -399,7 +398,7 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
             'Pub Date': pub_date,
             'Quantity': data['Quantity'],
             'Status': data['Status']
-        })  
+        })
 
     # Write detailed log file
     preorder_log_entries.append(f"\nSummary:")
