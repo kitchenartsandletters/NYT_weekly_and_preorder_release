@@ -321,22 +321,28 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
     os.makedirs(preorders_dir, exist_ok=True)
     tracking_path = os.path.join(preorders_dir, tracking_file)
 
-    # First read existing file to ensure proper line ending
     try:
-        needs_newline = False
+        # First, fix any formatting issues in the existing file
         if os.path.exists(tracking_path) and os.path.getsize(tracking_path) > 0:
+            # Read all existing data
             with open(tracking_path, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
-                if lines and not lines[-1].endswith('\n'):
-                    needs_newline = True
+                content = f.read().strip()  # Remove any trailing whitespace
+                lines = content.split('\n')
+            
+            # Rewrite the file with guaranteed proper formatting
+            with open(tracking_path, 'w', encoding='utf-8', newline='') as f:
+                for line in lines:
+                    f.write(line.strip() + '\n')
 
-        # Append new items
-        with open(tracking_path, 'a', encoding='utf-8') as f:
-            if needs_newline:
-                f.write('\n')
-
-            # Use csv.writer for consistent formatting
+        # Now append new items
+        with open(tracking_path, 'a', encoding='utf-8', newline='') as f:
             writer = csv.writer(f)
+            
+            # Write header if file is empty
+            if os.path.getsize(tracking_path) == 0:
+                writer.writerow(['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status'])
+            
+            # Write new items
             for item in preorder_items:
                 writer.writerow([
                     item['barcode'],
