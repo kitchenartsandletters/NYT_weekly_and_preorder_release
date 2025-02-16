@@ -19,4 +19,6 @@ shopify_sales_report_*.csv
 env/.DS_Store
 
 output/
-shopify-reports/
+shopify-reports/.DS_Store
+.github/.DS_Store
+preorders/NYT_preorder_tracking.csv
