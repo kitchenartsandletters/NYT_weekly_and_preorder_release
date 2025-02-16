@@ -1,194 +1,140 @@
 import os
-import sys
-import csv
-import time
-import base64
-import logging
 import requests
-import functools
-from typing import Dict, List, Tuple, Optional, Any
-from datetime import datetime, date, timedelta
+import csv
+import logging
+import argparse
+from datetime import datetime, timedelta
 import sendgrid
 from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
+import time
+import sys
+import base64
 from dotenv import load_dotenv
 
-class Config:
-    """Configuration management class"""
-    def __init__(self):
-        self.base_dir = os.path.dirname(os.path.abspath(__file__))
-        self.load_environment()
-        self.setup_shopify()
-        self.validate_config()
+# Base directory for the script
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-    def load_environment(self) -> None:
-        """Load environment variables"""
-        env_file = '.env.production'
-        if not os.path.exists(env_file):
-            raise FileNotFoundError(f"Environment file {env_file} not found")
-        
-        load_dotenv(env_file)
-        self.shop_url = os.getenv('SHOP_URL')
-        self.access_token = os.getenv('SHOPIFY_ACCESS_TOKEN')
-        self.sendgrid_api_key = os.getenv('SENDGRID_API_KEY')
-        self.email_sender = os.getenv('EMAIL_SENDER')
-        self.email_recipients = os.getenv('EMAIL_RECIPIENTS', '').split(',')
+# Initialize global variables
+GRAPHQL_URL = None
+HEADERS = None
 
-    def setup_shopify(self) -> None:
-        """Setup Shopify API configuration"""
-        if self.shop_url:
-            self.graphql_url = f"https://{self.shop_url}/admin/api/2025-01/graphql.json"
-            self.headers = {
-                "Content-Type": "application/json",
-                "X-Shopify-Access-Token": self.access_token
-            }
+def load_environment():
+    """Loads environment variables from .env.production file"""
+    try:
+        load_dotenv('.env.production')
+        logging.info("Environment variables successfully loaded.")
+        logging.info(f"SHOP_URL present: {bool(os.getenv('SHOP_URL'))}")
+        logging.info(f"SHOPIFY_ACCESS_TOKEN present: {bool(os.getenv('SHOPIFY_ACCESS_TOKEN'))}")
+        logging.info(f"SENDGRID_API_KEY present: {bool(os.getenv('SENDGRID_API_KEY'))}")
+        logging.info(f"EMAIL_SENDER present: {bool(os.getenv('EMAIL_SENDER'))}")
+        logging.info(f"EMAIL_RECIPIENTS present: {bool(os.getenv('EMAIL_RECIPIENTS'))}")
+    except Exception as e:
+        logging.error(f"Error loading environment variables: {e}")
 
-    def validate_config(self) -> None:
-        """Validate configuration"""
-        required_vars = [
-            'shop_url', 'access_token', 'sendgrid_api_key',
-            'email_sender', 'email_recipients'
-        ]
-        missing_vars = [var for var in required_vars 
-                       if not getattr(self, var, None)]
-        if missing_vars:
-            raise ValueError(f"Missing required configuration: {', '.join(missing_vars)}")
+# Set up logging
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
 
-class FileManager:
-    """File operations management class"""
-    def __init__(self, config: Config):
-        self.config = config
-        self.setup_directories()
-
-    def setup_directories(self) -> None:
-        """Create necessary directories"""
-        for dir_name in ['output', 'logs', 'preorders']:
-            dir_path = os.path.join(self.config.base_dir, dir_name)
-            os.makedirs(dir_path, exist_ok=True)
-
-    @staticmethod
-    def safe_file_operation(func):
-        """Decorator for safe file operations"""
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            try:
-                return func(*args, **kwargs)
-            except FileNotFoundError as e:
-                logging.error(f"File not found: {e}")
-                raise
-            except PermissionError as e:
-                logging.error(f"Permission denied: {e}")
-                raise
-            except Exception as e:
-                logging.error(f"Unexpected error during file operation: {e}")
-                raise
-        return wrapper
-
-    def cleanup_old_files(self, days_to_keep: int = 30) -> None:
-        """Clean up old report files"""
-        current_time = datetime.now()
-        for directory in ['output', 'logs']:
-            dir_path = os.path.join(self.config.base_dir, directory)
-            if not os.path.exists(dir_path):
+def run_query_with_retries(query, variables, max_retries=3, delay=1):
+    """
+    Runs a GraphQL query with retry logic
+    """
+    attempt = 0
+    while attempt < max_retries:
+        try:
+            response = requests.post(
+                GRAPHQL_URL,
+                json={'query': query, 'variables': variables},
+                headers=HEADERS
+            )
+            
+            if response.status_code != 200:
+                logging.error(f"Error: Received status code {response.status_code}")
+                logging.error(f"Response: {response.text}")
+                attempt += 1
+                time.sleep(delay)
                 continue
-
-            for filename in os.listdir(dir_path):
-                file_path = os.path.join(dir_path, filename)
-                file_modified = datetime.fromtimestamp(os.path.getmtime(file_path))
-                if (current_time - file_modified).days > days_to_keep:
-                    try:
-                        os.remove(file_path)
-                        logging.info(f"Removed old file: {filename}")
-                    except Exception as e:
-                        logging.error(f"Failed to remove {filename}: {e}")
-
-class ShopifyAPI:
-    """Shopify API interaction class"""
-    def __init__(self, config: Config):
-        self.config = config
-
-    def retry_on_error(max_retries: int = 3, delay: int = 1):
-        """Decorator for retrying failed API calls"""
-        def decorator(func):
-            @functools.wraps(func)
-            def wrapper(*args, **kwargs):
-                for attempt in range(max_retries):
-                    try:
-                        return func(*args, **kwargs)
-                    except Exception as e:
-                        if attempt == max_retries - 1:
-                            raise
-                        logging.warning(f"Attempt {attempt + 1} failed: {e}")
-                        time.sleep(delay)
-                return None
-            return wrapper
-        return decorator
-
-    @retry_on_error(max_retries=3, delay=1)
-    def run_query(self, query: str, variables: Dict[str, Any]) -> Dict[str, Any]:
-        """Execute GraphQL query"""
-        response = requests.post(
-            self.config.graphql_url,
-            json={'query': query, 'variables': variables},
-            headers=self.config.headers
-        )
-        
-        if response.status_code != 200:
-            raise Exception(f"Query failed with status code: {response.status_code}")
+                
+            data = response.json()
             
-        result = response.json()
-        if 'errors' in result:
-            raise Exception(f"GraphQL errors: {result['errors']}")
+            if 'errors' in data:
+                logging.error(f"GraphQL Errors: {data['errors']}")
+                attempt += 1
+                time.sleep(delay)
+                continue
+                
+            return data['data']
             
-        return result['data']
+        except Exception as e:
+            logging.error(f"Attempt {attempt + 1} failed: {e}")
+            attempt += 1
+            time.sleep(delay)
+            
+    raise Exception(f"Failed to execute query after {max_retries} attempts")
 
-    def fetch_orders(self, start_date: str, end_date: str) -> List[Dict[str, Any]]:
-        """Fetch orders within date range"""
-        orders = []
-        has_next_page = True
-        cursor = None
-        
-        query = """
-        query($first: Int!, $query: String!, $after: String) {
-            orders(first: $first, query: $query, after: $after, reverse: false) {
-                edges {
-                    cursor
-                    node {
-                        id
-                        name
-                        createdAt
-                        cancelledAt
-                        
-                        lineItems(first: 25) {
-                            edges {
-                                node {
-                                    id
-                                    name
-                                    quantity
-                                    variant {
+def fetch_orders(start_date, end_date):
+    """
+    Fetches basic order data without collections or metafields
+    """
+    orders = []
+    has_next_page = True
+    cursor = None
+
+    # Update log file path to use output directory
+    output_dir = os.path.join(BASE_DIR, 'output')
+    os.makedirs(output_dir, exist_ok=True)
+    log_file_path = os.path.join(output_dir, 'fetched_order_ids.log')
+
+    try:
+        with open(log_file_path, 'w') as log_file:
+            logging.info(f"Opened {log_file_path} for writing.")
+
+            query = """
+            query($first: Int!, $query: String!, $after: String) {
+                orders(first: $first, query: $query, after: $after, reverse: false) {
+                    edges {
+                        cursor
+                        node {
+                            id
+                            name
+                            createdAt
+                            cancelledAt
+                            
+                            lineItems(first: 25) {
+                                edges {
+                                    node {
                                         id
-                                        barcode
-                                        product {
+                                        name
+                                        quantity
+                                        variant {
                                             id
-                                            title
+                                            barcode
+                                            product {
+                                                id
+                                                title
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                        
-                        refunds {
-                            id
-                            createdAt
-                            refundLineItems(first: 25) {
-                                edges {
-                                    node {
-                                        quantity
-                                        lineItem {
-                                            id
-                                            name
-                                            variant {
+                            
+                            refunds {
+                                id
+                                createdAt
+                                refundLineItems(first: 25) {
+                                    edges {
+                                        node {
+                                            quantity
+                                            lineItem {
                                                 id
-                                                barcode
+                                                name
+                                                variant {
+                                                    id
+                                                    barcode
+                                                }
                                             }
                                         }
                                     }
@@ -196,213 +142,433 @@ class ShopifyAPI:
                             }
                         }
                     }
-                }
-                pageInfo {
-                    hasNextPage
+                    pageInfo {
+                        hasNextPage
+                    }
                 }
             }
-        }
-        """
+            """
 
-        while has_next_page:
             variables = {
                 "first": 250,
                 "query": f'created_at:>="{start_date}" AND created_at:<="{end_date}"',
                 "after": cursor
             }
 
-            try:
-                data = self.run_query(query, variables)
-                fetched_orders = data['orders']['edges']
-                orders.extend([edge['node'] for edge in fetched_orders])
-                
-                has_next_page = data['orders']['pageInfo']['hasNextPage']
-                if has_next_page:
-                    cursor = fetched_orders[-1]['cursor']
-                
-                logging.info(f"Fetched {len(fetched_orders)} orders. Has next page: {has_next_page}")
-                
-            except Exception as e:
-                logging.error(f"Failed to fetch orders: {e}")
-                break
+            while has_next_page:
+                try:
+                    data = run_query_with_retries(query, variables)
+                    fetched_orders = data['orders']['edges']
+                    for edge in fetched_orders:
+                        order = edge['node']
+                        orders.append(order)
 
-        return orders
+                        # Log each order's ID & creation date
+                        order_id = order['id']
+                        order_created_at = order['createdAt']
+                        try:
+                            log_file.write(f"{order_id}\t{order_created_at}\n")
+                            logging.debug(f"Logged Order ID: {order_id}, Created At: {order_created_at}")
+                        except Exception as e:
+                            logging.error(f"Failed to write Order ID {order_id} to log: {e}")
 
-class SalesProcessor:
-    """Sales data processing class"""
-    def __init__(self, config: Config):
-        self.config = config
+                    has_next_page = data['orders']['pageInfo']['hasNextPage']
+                    logging.info(f"Fetched {len(fetched_orders)} orders. Has next page: {has_next_page}")
 
-    @staticmethod
-    def validate_isbn(isbn: str) -> bool:
-        """Validate ISBN format and checksum"""
-        if not isbn or not isinstance(isbn, str):
-            return False
+                    if has_next_page:
+                        cursor = fetched_orders[-1]['cursor']
+                        variables['after'] = cursor
+                    else:
+                        break
+
+                except Exception as e:
+                    logging.error(f"Failed to fetch orders after retries: {e}", exc_info=True)
+                    break
+
+    except Exception as e:
+        logging.error(f"Failed to open {log_file_path} for writing: {e}")
+        exit(1)
+
+    logging.info(f"Total orders fetched: {len(orders)}")
+    return orders
+
+def fetch_product_details(product_ids):
+    """
+    Fetches both collections and pub dates for products
+    """
+    if not product_ids:
+        return {}
+
+    query = """
+    query($ids: [ID!]!) {
+        nodes(ids: $ids) {
+            ... on Product {
+                id
+                title
+                collections(first: 4) {
+                    edges {
+                        node {
+                            title
+                        }
+                    }
+                }
+                metafields(first: 10, namespace: "custom") {
+                    edges {
+                        node {
+                            key
+                            value
+                        }
+                    }
+                }
+            }
+        }
+    }
+    """
+    
+    try:
+        # Split into chunks of 10 products to manage query cost
+        chunk_size = 10
+        all_product_details = {}
+        
+        for i in range(0, len(product_ids), chunk_size):
+            chunk = product_ids[i:i + chunk_size]
+            variables = {"ids": chunk}
             
-        isbn = isbn.replace('-', '').replace(' ', '')
-        if not (isbn.startswith('978') or isbn.startswith('979')):
-            return False
+            data = run_query_with_retries(query, variables)
             
-        if len(isbn) != 13:
-            return False
+            for node in data.get('nodes', []):
+                if node:
+                    product_id = node['id']
+                    all_product_details[product_id] = {
+                        'title': node['title'],
+                        'collections': [edge['node']['title'] for edge in node.get('collections', {}).get('edges', [])],
+                        'pub_date': None
+                    }
+                    
+                    # Extract pub_date if it exists
+                    metafields = node.get('metafields', {}).get('edges', [])
+                    for metafield in metafields:
+                        if metafield['node']['key'] == 'pub_date':
+                            all_product_details[product_id]['pub_date'] = metafield['node']['value']
+                            break
             
+            # Add a small delay between chunks
+            if i + chunk_size < len(product_ids):
+                time.sleep(1)
+        
+        return all_product_details
+        
+    except Exception as e:
+        logging.error(f"Error fetching product details: {e}")
+        return {}
+
+def is_valid_isbn(barcode):
+    """
+    Checks if a barcode is a valid ISBN (starts with 978 or 979)
+    """
+    return barcode and (str(barcode).startswith('978') or str(barcode).startswith('979'))
+
+def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.csv'):
+    """Append new preorder items to tracking file"""
+    preorders_dir = os.path.join(BASE_DIR, 'preorders')
+    os.makedirs(preorders_dir, exist_ok=True)
+    tracking_path = os.path.join(preorders_dir, tracking_file)
+
+    try:
+        with open(tracking_path, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, 
+                fieldnames=['Timestamp', 'ISBN', 'Title', 'Pub Date', 'Quantity', 'Status'],
+                extrasaction='ignore')
+            
+            # Write header if file is empty
+            if f.tell() == 0:
+                writer.writeheader()
+            
+            # Append each new preorder item
+            for item in preorder_items:
+                writer.writerow({
+                    'Timestamp': datetime.now().isoformat(),
+                    'ISBN': item['barcode'],
+                    'Title': item['title'],
+                    'Pub Date': item.get('pub_date', ''),
+                    'Quantity': item['quantity'],
+                    'Status': 'Preorder'
+                })
+        
+        logging.info(f"Appended {len(preorder_items)} new preorder items")
+    except Exception as e:
+        logging.error(f"Error appending preorder items: {e}")
+        raise
+
+def calculate_total_preorder_quantities(as_of_date=None):
+    """Calculate total preorder quantities for each ISBN"""
+    tracking_path = os.path.join(BASE_DIR, 'preorders', 'NYT_preorder_tracking.csv')
+    
+    preorder_totals = {}
+    
+    try:
+        with open(tracking_path, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                # Only try to compare dates if both as_of_date and Pub Date exist
+                if as_of_date and row.get('Pub Date'):
+                    try:
+                        pub_date = datetime.fromisoformat(row['Pub Date']).date()
+                        if pub_date > as_of_date:
+                            continue
+                    except ValueError:
+                        # Log the invalid date but continue processing
+                        logging.warning(f"Invalid pub date format for ISBN {row.get('ISBN', 'Unknown')}: {row.get('Pub Date')}")
+                        continue
+                
+                isbn = row.get('ISBN')
+                if not isbn:  # Skip rows without ISBN
+                    continue
+                    
+                try:
+                    quantity = int(row.get('Quantity', 0))
+                except (ValueError, TypeError):
+                    logging.warning(f"Invalid quantity for ISBN {isbn}: {row.get('Quantity')}")
+                    continue
+                
+                if isbn not in preorder_totals:
+                    preorder_totals[isbn] = 0
+                preorder_totals[isbn] += quantity
+    
+    except FileNotFoundError:
+        logging.warning(f"Preorder tracking file not found: {tracking_path}")
+        return {}
+    except Exception as e:
+        logging.error(f"Error calculating preorder totals: {e}")
+        raise
+    
+    return preorder_totals
+
+def process_released_preorders(sales_data):
+    """Process released preorders and add to sales data"""
+    current_date = datetime.now().date()
+    preorder_totals = calculate_total_preorder_quantities(current_date)
+    
+    # Add preorder quantities to sales data for released books
+    for isbn, quantity in preorder_totals.items():
+        sales_data[isbn] = sales_data.get(isbn, 0) + quantity
+    
+    return sales_data
+
+def is_preorder_or_future_pub(product_details):
+    """
+    Checks if a product is preorder or has future pub date
+    """
+    if not product_details:
+        return False, None
+        
+    # Check if in Preorder collection
+    is_preorder = 'Preorder' in product_details.get('collections', [])
+    
+    # Check pub date
+    pub_date_str = product_details.get('pub_date')
+    if pub_date_str:
         try:
-            total = sum((10 if x == 'X' else int(x)) * (1 if i % 2 == 0 else 3)
-                        for i, x in enumerate(isbn[:-1]))
-            check = (10 - (total % 10)) % 10
-            return check == int(isbn[-1])
+            pub_date = datetime.strptime(pub_date_str, '%Y-%m-%d').date()
+            is_future = pub_date > datetime.now().date()
+            if is_future:
+                return True, f'Future Pub Date: {pub_date_str}'
         except ValueError:
-            return False
+            logging.error(f"Invalid pub date format: {pub_date_str}")
+    
+    if is_preorder:
+        return True, 'Preorder Collection'
+        
+    return False, None
 
-    def process_refunds(self, order: Dict[str, Any]) -> Dict[str, int]:
-        """Process refunds for an order"""
-        refunded_quantities = {}
-        for refund in order.get('refunds', []):
-            refund_line_items = refund.get('refundLineItems', {}).get('edges', [])
-            for refund_item in refund_line_items:
-                node = refund_item['node']
-                quantity = node['quantity']
-                line_item = node.get('lineItem', {})
-                variant = line_item.get('variant')
-                
-                if variant and variant.get('barcode'):
-                    barcode = variant['barcode']
-                    refunded_quantities[barcode] = refunded_quantities.get(barcode, 0) + quantity
-                    
-        return refunded_quantities
-
-    def aggregate_sales(self, orders: List[Dict[str, Any]]) -> Tuple[Dict[str, int], List[Dict[str, Any]], List[Dict[str, Any]]]:
-        """Aggregate sales data from orders"""
-        sales_data = {}
-        skipped_items = []
-        preorder_items = []
-
-        for order in orders:
-            if order.get('cancelledAt'):
-                continue
-
-            refunded_quantities = self.process_refunds(order)
+def process_refunds(order):
+    """
+    Process refunds for an order
+    """
+    refunded_quantities = {}
+    refunds = order.get('refunds', [])
+    for refund in refunds:
+        refund_line_items = refund.get('refundLineItems', {}).get('edges', [])
+        for refund_item in refund_line_items:
+            refund_node = refund_item['node']
+            quantity = refund_node['quantity']
+            line_item = refund_node.get('lineItem', {})
+            variant = line_item.get('variant')
             
-            for line_item in order.get('lineItems', {}).get('edges', []):
-                node = line_item['node']
-                quantity = node['quantity']
-                variant = node.get('variant')
-                
-                if not variant or not variant.get('barcode'):
-                    skipped_items.append({
-                        'order_id': order['id'],
-                        'product_name': node.get('name', 'Unknown'),
-                        'quantity': quantity,
-                        'reason': 'Missing variant or barcode'
-                    })
-                    continue
-                    
+            if variant and variant.get('barcode'):
                 barcode = variant['barcode']
-                if not self.validate_isbn(barcode):
-                    skipped_items.append({
-                        'order_id': order['id'],
-                        'product_name': node.get('name', 'Unknown'),
+                if barcode not in refunded_quantities:
+                    refunded_quantities[barcode] = 0
+                refunded_quantities[barcode] += quantity
+                
+    return refunded_quantities
+
+def aggregate_sales(orders):
+    """
+    Aggregates sales data using two-phase approach
+    Now includes tracking of preorder items
+    """
+    sales_data = {}
+    skipped_line_items = []
+    preorder_items = []  # New list to track preorder items
+    
+    # First collect all unique product IDs
+    product_ids = set()
+    for order in orders:
+        if order.get('cancelledAt'):
+            continue
+            
+        for line_item in order.get('lineItems', {}).get('edges', []):
+            variant = line_item['node'].get('variant')
+            if variant and variant.get('product', {}).get('id'):
+                product_ids.add(variant['product']['id'])
+    
+    # Fetch product details
+    logging.info(f"Fetching details for {len(product_ids)} products")
+    product_details = fetch_product_details(list(product_ids))
+    
+    # Process orders with product details
+    for order in orders:
+        if order.get('cancelledAt'):
+            continue
+            
+        order_id = order['id']
+        refunded_quantities = process_refunds(order)
+        
+        for line_item in order.get('lineItems', {}).get('edges', []):
+            line_item_node = line_item['node']
+            quantity = line_item_node['quantity']
+            variant = line_item_node.get('variant')
+            
+            if not variant:
+                skipped_line_items.append({
+                    'order_id': order_id,
+                    'product_name': line_item_node.get('name', 'Unknown'),
+                    'quantity': quantity,
+                    'reason': 'No variant information'
+                })
+                continue
+            
+            barcode = variant.get('barcode')
+            if not barcode:
+                skipped_line_items.append({
+                    'order_id': order_id,
+                    'product_name': line_item_node.get('name', 'Unknown'),
+                    'barcode': 'N/A',
+                    'quantity': quantity,
+                    'reason': 'No barcode'
+                })
+                continue
+            
+            if not is_valid_isbn(barcode):
+                skipped_line_items.append({
+                    'order_id': order_id,
+                    'product_name': line_item_node.get('name', 'Unknown'),
+                    'barcode': barcode,
+                    'quantity': quantity,
+                    'reason': 'Not an ISBN (does not start with 978 or 979)'
+                })
+                continue
+            
+            # Check preorder status using product details
+            product = variant.get('product', {})
+            product_id = product.get('id')
+            details = product_details.get(product_id, {})
+            
+            is_excluded, reason = is_preorder_or_future_pub(details)
+            if is_excluded:
+                # If it's a preorder or future pub, track it
+                if reason == 'Preorder Collection' or reason.startswith('Future Pub Date'):
+                    preorder_items.append({
                         'barcode': barcode,
+                        'title': product.get('title', 'Unknown'),
                         'quantity': quantity,
-                        'reason': 'Invalid ISBN'
+                        'pub_date': details.get('pub_date')  # This might be None, which is okay
                     })
-                    continue
-
-                # Process final quantity after refunds
-                final_qty = quantity - refunded_quantities.get(barcode, 0)
-                if final_qty > 0:
-                    sales_data[barcode] = sales_data.get(barcode, 0) + final_qty
-
-        return sales_data, skipped_items, preorder_items
-
-class ReportGenerator:
-    """Report generation and email sending class"""
-    def __init__(self, config: Config):
-        self.config = config
-        self.file_manager = FileManager(config)
-
-    def generate_report(self, sales_data: Dict[str, int], 
-                       skipped_items: List[Dict[str, Any]], 
-                       start_date: str, end_date: str) -> None:
-        """Generate and send sales report"""
-        # Generate report files
-        report_filename = f"NYT_weekly_sales_report_{datetime.now():%Y-%m-%d}.csv"
-        skipped_filename = f"NYT_excluded_items_{datetime.now():%Y-%m-%d}.csv"
-        
-        self.export_sales_data(sales_data, report_filename)
-        self.export_skipped_items(skipped_items, skipped_filename)
-        
-        # Send email with reports
-        self.send_email(report_filename, skipped_filename, start_date, end_date, skipped_items)
-
-    @FileManager.safe_file_operation
-    def export_sales_data(self, sales_data: Dict[str, int], filename: str) -> None:
-        """Export sales data to CSV"""
-        filepath = os.path.join(self.config.base_dir, 'output', filename)
-        with open(filepath, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(['ISBN', 'QTY'])
-            for isbn, qty in sales_data.items():
-                writer.writerow([isbn, qty])
-
-    @FileManager.safe_file_operation
-    def export_skipped_items(self, skipped_items: List[Dict[str, Any]], filename: str) -> None:
-        """Export skipped items to CSV"""
-        filepath = os.path.join(self.config.base_dir, 'output', filename)
-        with open(filepath, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(['Order ID', 'Product Name', 'Barcode/ISBN', 'Quantity', 'Reason'])
-            for item in skipped_items:
-                writer.writerow([
-                    item['order_id'],
-                    item['product_name'],
-                    item.get('barcode', 'N/A'),
-                    item['quantity'],
-                    item['reason']
-                ])
-
-    def send_email(self, report_filename: str, skipped_filename: str, 
-                   start_date: str, end_date: str, skipped_items: List[Dict[str, Any]]) -> None:
-        """Send email with report attachments"""
-        try:
-            sg = sendgrid.SendGridAPIClient(self.config.sendgrid_api_key)
+                
+                skipped_line_items.append({
+                    'order_id': order_id,
+                    'product_name': product.get('title', 'Unknown'),
+                    'barcode': barcode,
+                    'quantity': quantity,
+                    'reason': reason
+                })
+                continue
             
-            # Create email content
-            email_content = self.create_email_content(start_date, end_date, skipped_items)
+            # Calculate final quantity after refunds
+            refunded_qty = refunded_quantities.get(barcode, 0)
+            final_qty = quantity - refunded_qty
             
-            # Create message
-            message = Mail(
-                from_email=self.config.email_sender,
-                to_emails=self.config.email_recipients,
-                subject=f"NYT Bestseller Weekly Report ({start_date} to {end_date})",
-                plain_text_content=email_content
-            )
-            
-            # Attach files
-            self.attach_file(message, report_filename, 'output')
-            self.attach_file(message, skipped_filename, 'output')
-            
-            # Send email
-            response = sg.send(message)
-            logging.info(f"Email sent successfully. Status code: {response.status_code}")
-            
-        except Exception as e:
-            logging.error(f"Failed to send email: {e}")
-            raise
+            if final_qty > 0:
+                sales_data[barcode] = sales_data.get(barcode, 0) + final_qty
+    
+    return sales_data, skipped_line_items, preorder_items
 
-    def create_email_content(self, start_date: str, end_date: str, 
-                           skipped_items: List[Dict[str, Any]]) -> str:
-        """Create email content for the report"""
-        # Summarize skipped items
-        skipped_summary = {}
-        for item in skipped_items:
-            reason = item['reason']
-            if reason not in skipped_summary:
-                skipped_summary[reason] = 0
-            skipped_summary[reason] += item['quantity']
+def export_skipped_line_items(skipped_line_items, filename):
+    """
+    Exports skipped line items to a CSV file with additional details.
+    """
+    output_dir = os.path.join(BASE_DIR, 'output')
+    os.makedirs(output_dir, exist_ok=True)
+    abs_path = os.path.join(output_dir, filename)
+    
+    logging.info(f"Exporting skipped items to CSV at path: {abs_path}")
+    
+    with open(abs_path, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Order ID', 'Product Name', 'Barcode/ISBN', 'Quantity', 'Reason'])
+        for item in skipped_line_items:
+            writer.writerow([
+                item['order_id'],
+                item['product_name'],
+                item.get('barcode', 'N/A'),  # Add barcode if available
+                item['quantity'],
+                item['reason']
+            ])
 
-        # Create email content
-        content = f"""NYT Bestseller Weekly Report
+def export_to_csv(sales_data, filename):
+    """
+    Exports the sales data to a CSV file.
+    """
+    output_dir = os.path.join(BASE_DIR, 'output')
+    os.makedirs(output_dir, exist_ok=True)
+    abs_path = os.path.join(output_dir, filename)
+    
+    logging.info(f"Exporting to CSV at path: {abs_path}")
+    
+    with open(abs_path, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['ISBN', 'QTY'])
+        for barcode, qty in sales_data.items():
+            writer.writerow([barcode, qty])
+
+def send_email(report_filename, skipped_filename, preorder_filename, start_date, end_date, skipped_items):
+    """
+    Sends the report as an email attachment using SendGrid.
+    Now includes preorder tracking report
+    """
+    api_key = os.getenv('SENDGRID_API_KEY')
+    sender_email = os.getenv('EMAIL_SENDER')
+    recipient_emails = os.getenv('EMAIL_RECIPIENTS').split(',')
+
+    if not api_key or not sender_email or not recipient_emails:
+        logging.error("Error: Missing email configuration.")
+        return
+
+    output_dir = os.path.join(BASE_DIR, 'output')
+    abs_report_path = os.path.join(output_dir, report_filename)
+    abs_skipped_path = os.path.join(output_dir, skipped_filename)
+    abs_preorder_path = os.path.join(output_dir, preorder_filename)
+
+    # Create summary of skipped items
+    skipped_summary = {}
+    for item in skipped_items:
+        reason = item['reason']
+        if reason not in skipped_summary:
+            skipped_summary[reason] = 0
+        skipped_summary[reason] += item['quantity']
+
+    email_content = f"""NYT Bestseller Weekly Report
 Report Period: Sunday {start_date} through Saturday {end_date}
 
 REPORT DEFINITIONS:
@@ -412,99 +578,270 @@ REPORT DEFINITIONS:
 
 ITEMS NOT INCLUDED IN REPORT:
 """
-        for reason, quantity in skipped_summary.items():
-            content += f"- {quantity} items: {reason}\n"
+    for reason, quantity in skipped_summary.items():
+        email_content += f"- {quantity} items: {reason}\n"
 
-        return content
+    email_content += "\nAttached files:\n"
+    email_content += f"1. {report_filename} - NYT Bestseller sales report\n"
+    email_content += f"2. {skipped_filename} - Detailed list of excluded items\n"
+    email_content += f"3. {preorder_filename} - Preorder tracking log\n"
 
-    @FileManager.safe_file_operation
-    def attach_file(self, message: Mail, filename: str, subdirectory: str) -> None:
-        """Attach file to email message"""
-        filepath = os.path.join(self.config.base_dir, subdirectory, filename)
-        with open(filepath, 'rb') as f:
-            file_data = f.read()
-            encoded_file = base64.b64encode(file_data).decode()
-            
+    sg = sendgrid.SendGridAPIClient(api_key)
+    subject = f"NYT Bestseller Weekly Report ({start_date} to {end_date})"
+
+    message = Mail(
+        from_email=sender_email,
+        to_emails=recipient_emails,
+        subject=subject,
+        plain_text_content=email_content
+    )
+
+    # Attach main report
+    try:
+        with open(abs_report_path, 'rb') as f:
+            report_data = f.read()
+            encoded_file = base64.b64encode(report_data).decode()
             attachment = Attachment(
                 FileContent(encoded_file),
-                FileName(filename),
+                FileName(report_filename),
                 FileType('text/csv'),
                 Disposition('attachment')
             )
             message.add_attachment(attachment)
+    except Exception as e:
+        logging.error(f"Error attaching main report: {e}")
+        return
 
-def setup_logging() -> None:
-    """Configure logging settings"""
-    log_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'logs')
-    os.makedirs(log_dir, exist_ok=True)
+    # Attach excluded items report
+    try:
+        with open(abs_skipped_path, 'rb') as f:
+            skipped_data = f.read()
+            encoded_file = base64.b64encode(skipped_data).decode()
+            attachment = Attachment(
+                FileContent(encoded_file),
+                FileName(skipped_filename),
+                FileType('text/csv'),
+                Disposition('attachment')
+            )
+            message.add_attachment(attachment)
+    except Exception as e:
+        logging.error(f"Error attaching excluded items report: {e}")
+        return
+
+    # Attach preorder tracking report
+    try:
+         # Use the path in the preorders directory
+        abs_preorder_path = os.path.join(BASE_DIR, 'preorders', 'preorder_tracking.csv')
     
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(
-                os.path.join(log_dir, f'sales_report_{datetime.now():%Y-%m-%d}.log')
-            ),
-            logging.StreamHandler(sys.stdout)
-        ]
-    )
+        with open(abs_preorder_path, 'rb') as f:
+            preorder_data = f.read()
+            encoded_file = base64.b64encode(preorder_data).decode()
+            attachment = Attachment(
+                FileContent(encoded_file),
+                FileName(preorder_filename),
+                FileType('text/csv'),
+                Disposition('attachment')
+            )
+            message.add_attachment(attachment)
+    except Exception as e:
+        logging.error(f"Error attaching preorder tracking report: {e}")
+        return
 
-def get_date_range() -> Tuple[str, str]:
-    """Get date range for last week (Sunday through Saturday)"""
+    try:
+        response = sg.send(message)
+        logging.info(f"Email sent! Status: {response.status_code}")
+    except Exception as e:
+        logging.error(f"Failed to send email: {e}")
+
+def get_last_week_date_range():
+    """
+    Returns the date range for last week (Sunday through Saturday)
+    For a report run on Monday Feb 3rd, 2025, this should return:
+    Sunday Jan 26th through Saturday Feb 1st
+    """
     today = datetime.now()
-    days_after_saturday = today.weekday() + 2
+    
+    # First, find the most recent Saturday (Feb 1st in our example)
+    days_after_saturday = today.weekday() + 2  # Adding 2 because Sunday is 6 and we want to include the previous Saturday
     last_saturday = today - timedelta(days=days_after_saturday)
+    
+    # Then get the Sunday before that Saturday (Jan 26th in our example)
     last_sunday = last_saturday - timedelta(days=6)
     
+    # Set times to ensure full day coverage
     last_sunday = last_sunday.replace(hour=0, minute=0, second=0, microsecond=0)
     last_saturday = last_saturday.replace(hour=23, minute=59, second=59, microsecond=999999)
     
     return last_sunday.strftime('%Y-%m-%d'), last_saturday.strftime('%Y-%m-%d')
 
-def main() -> None:
-    """Main execution function"""
-    try:
-        # Setup logging
-        setup_logging()
-        logging.info("Starting weekly sales report generation")
+def validate_sales_data(sales_data, skipped_items):
+    """
+    Performs basic validation checks on sales data
+    Returns a list of warnings if any issues are found
+    """
+    warnings = []
+    
+    # Basic volume checks
+    total_quantity = sum(sales_data.values())
+    if total_quantity == 0:
+        warnings.append("WARNING: No sales recorded for this period")
+    
+    # ISBN format check
+    invalid_isbns = [isbn for isbn in sales_data.keys() 
+                    if not (str(isbn).startswith('978') or str(isbn).startswith('979'))]
+    if invalid_isbns:
+        warnings.append(f"WARNING: Found {len(invalid_isbns)} invalid ISBNs in sales data")
+    
+    # Unusual quantities check (more than 1000 of any single ISBN)
+    large_quantities = [(isbn, qty) for isbn, qty in sales_data.items() if qty > 1000]
+    if large_quantities:
+        warnings.append(f"WARNING: Unusually large quantities found for {len(large_quantities)} ISBNs")
+        for isbn, qty in large_quantities:
+            warnings.append(f"         ISBN: {isbn}, Quantity: {qty}")
+    
+    # Check for negative quantities
+    negative_quantities = [(isbn, qty) for isbn, qty in sales_data.items() if qty < 0]
+    if negative_quantities:
+        warnings.append(f"WARNING: Found {len(negative_quantities)} ISBNs with negative quantities")
+    
+    # Basic skipped items analysis
+    if len(skipped_items) > 100:  # Arbitrary threshold
+        warnings.append(f"WARNING: Large number of skipped items: {len(skipped_items)}")
+    
+    return warnings
+
+def main():
+    print(f"Script running from directory: {os.getcwd()}")
+    print(f"BASE_DIR set to: {BASE_DIR}")
+    print(f"Python version: {sys.version}")
+
+    load_environment()
+
+    # Automatically determine last week's date range
+    start_date, end_date = get_last_week_date_range()
+    print(f"Generating report for: {start_date} to {end_date}")
+
+    global SHOP_URL, GRAPHQL_URL, HEADERS
+    SHOP_URL = os.getenv('SHOP_URL')
+    ACCESS_TOKEN = os.getenv('SHOPIFY_ACCESS_TOKEN')
+
+    if not SHOP_URL or not ACCESS_TOKEN:
+        logging.error("Error: Missing SHOP_URL or SHOPIFY_ACCESS_TOKEN.")
+        return
+
+    GRAPHQL_URL = f"https://{SHOP_URL}/admin/api/2025-01/graphql.json"
+    HEADERS = {"Content-Type": "application/json", "X-Shopify-Access-Token": ACCESS_TOKEN}
+
+    orders = fetch_orders(start_date, end_date)
+    if not orders:
+        logging.error("No orders found.")
+        return
+
+    sales_data, skipped_items, preorder_items = aggregate_sales(orders)
+    if not sales_data:
+        logging.error("No sales data.")
+        return
+
+    # Track preorder sales
+    track_preorder_sales(preorder_items)
+    released_items = track_preorder_sales(preorder_items)
+
+    # Process and add released preorders to sales data
+    sales_data = process_released_preorders(sales_data)
+
+    logging.info(f"Tracking {len(preorder_items)} new preorder items")
+    logging.info(f"Released items this week: {len(released_items)}")
+    
+    # Add released items to sales_data
+    for isbn, quantity in released_items.items():
+        sales_data[isbn] = sales_data.get(isbn, 0) + quantity
+
+    # Run validations
+    warnings = validate_sales_data(sales_data, skipped_items)
+
+    # Create email content
+    email_content = f"""Weekly Shopify Sales Report
+Report Period: {start_date} to {end_date}
+
+REPORT DEFINITIONS:
+- This report includes all completed sales of ISBN products (barcodes starting with '978')
+- Quantities reflect final sales after any refunds or cancellations
+- Each line includes the ISBN and the total quantity sold
+
+"""
+
+    # Add warnings if any exist
+    if warnings:
+        email_content += "\nVALIDATION WARNINGS:\n"
+        for warning in warnings:
+            email_content += f"{warning}\n"
+            logging.warning(warning)  # Also log the warnings
+
+    # Add preorder tracking details to email
+    email_content += "\nPREORDER TRACKING:\n"
+    if preorder_items:
+        email_content += f"Total Preorder Items Tracked: {len(preorder_items)}\n"
+        preorder_summary = {}
+        for item in preorder_items:
+            title = item['title']
+            if title not in preorder_summary:
+                preorder_summary[title] = 0
+            preorder_summary[title] += item['quantity']
         
-        # Initialize configuration
-        config = Config()
-        logging.info("Configuration loaded successfully")
-        
-        # Initialize components
-        file_manager = FileManager(config)
-        shopify_api = ShopifyAPI(config)
-        sales_processor = SalesProcessor(config)
-        report_generator = ReportGenerator(config)
-        
-        # Get date range
-        start_date, end_date = get_date_range()
-        logging.info(f"Generating report for period: {start_date} to {end_date}")
-        
-        # Fetch orders
-        orders = shopify_api.fetch_orders(start_date, end_date)
-        if not orders:
-            logging.error("No orders found for the specified period")
-            return
-        
-        # Process sales data
-        sales_data, skipped_items, preorder_items = sales_processor.aggregate_sales(orders)
-        if not sales_data:
-            logging.error("No sales data to report")
-            return
-        
-        # Generate and send report
-        report_generator.generate_report(sales_data, skipped_items, start_date, end_date)
-        
-        # Cleanup old files
-        file_manager.cleanup_old_files()
-        
-        logging.info("Weekly sales report generated successfully")
-        
-    except Exception as e:
-        logging.error(f"Error generating weekly sales report: {e}", exc_info=True)
-        sys.exit(1)
+        for title, qty in preorder_summary.items():
+            email_content += f"- {title}: {qty} preorder copies\n"
+    else:
+        email_content += "No preorder items tracked this week.\n"
+
+    # If there are any released items
+    if released_items:
+        email_content += "\nRELEASED PREORDER ITEMS:\n"
+        for isbn, qty in released_items.items():
+            email_content += f"- ISBN {isbn}: {qty} copies now included in sales report\n"
+
+    report_filename = f"NYT_weekly_sales_report_{datetime.now().strftime('%Y-%m-%d')}.csv"
+    skipped_filename = f"NYT_excluded_items_{datetime.now().strftime('%Y-%m-%d')}.csv"
+    preorder_filename = f"NYT_preorder_tracking.csv"
+
+    export_to_csv(sales_data, report_filename)
+    export_skipped_line_items(skipped_items, skipped_filename)
+
+    # Set up paths for verification
+    output_dir = os.path.join(BASE_DIR, 'output')
+    report_path = os.path.join(output_dir, report_filename)
+    skipped_path = os.path.join(output_dir, skipped_filename)
+    preorder_path = os.path.join(BASE_DIR, 'preorders', preorder_filename)
+
+    logging.info("=== File Verification ===")
+    files_to_check = {
+        'Weekly Sales Report': report_path,
+        'Excluded Items': skipped_path,
+        'Preorder Tracking': preorder_path
+    }
+
+    for file_type, path in files_to_check.items():
+        if os.path.exists(path):
+            logging.info(f"Verified {file_type} exists at: {path}")
+        else:
+            logging.error(f"Missing {file_type} at: {path}")
+
+    # Additional environment verification logging
+    logging.info("=== Environment Verification ===")
+    logging.info(f"Python Version: {sys.version}")
+    logging.info(f"Current Directory: {os.getcwd()}")
+    logging.info(f"BASE_DIR: {BASE_DIR}")
+    logging.info(f"Output Directory: {output_dir}")
+    logging.info(f"Preorders Directory: {os.path.join(BASE_DIR, 'preorders')}")
+
+    # Send email with all reports
+    send_email(
+        report_filename,
+        skipped_filename,
+        preorder_filename,
+        start_date,
+        end_date,
+        skipped_items
+    )
 
 if __name__ == "__main__":
     main()
