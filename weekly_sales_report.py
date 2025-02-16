@@ -321,33 +321,33 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
     os.makedirs(preorders_dir, exist_ok=True)
     tracking_path = os.path.join(preorders_dir, tracking_file)
 
-    # Define fieldnames without Timestamp
-    fieldnames = ['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status']
-    
+    # First read existing file to ensure proper line ending
     try:
-        # Check if file exists and has content
-        file_exists = os.path.exists(tracking_path) and os.path.getsize(tracking_path) > 0
-        
-        # Open file in append mode
-        with open(tracking_path, 'a', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
-            
-            # Write header only if it's a new file
-            if not file_exists:
-                writer.writeheader()
-            
-            # Append each new preorder item
+        needs_newline = False
+        if os.path.exists(tracking_path) and os.path.getsize(tracking_path) > 0:
+            with open(tracking_path, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                if lines and not lines[-1].endswith('\n'):
+                    needs_newline = True
+
+        # Append new items
+        with open(tracking_path, 'a', encoding='utf-8') as f:
+            if needs_newline:
+                f.write('\n')
+
+            # Use csv.writer for consistent formatting
+            writer = csv.writer(f)
             for item in preorder_items:
-                writer.writerow({
-                    'ISBN': item['barcode'],
-                    'Title': item['title'],
-                    'Pub Date': item.get('pub_date', ''),
-                    'Quantity': item['quantity'],
-                    'Status': 'Preorder'
-                })
-        
-        logging.info(f"Successfully appended {len(preorder_items)} new preorder items to {tracking_path}")
-        
+                writer.writerow([
+                    item['barcode'],
+                    item['title'],
+                    item.get('pub_date', ''),
+                    item['quantity'],
+                    'Preorder'
+                ])
+
+        logging.info(f"Successfully appended {len(preorder_items)} new preorder items")
+
     except Exception as e:
         logging.error(f"Error appending preorder items: {e}")
         raise
