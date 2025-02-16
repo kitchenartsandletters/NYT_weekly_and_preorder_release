@@ -268,6 +268,53 @@ def is_valid_isbn(barcode):
     """
     return barcode and (str(barcode).startswith('978') or str(barcode).startswith('979'))
 
+def clean_preorder_tracking_file(tracking_file='NYT_preorder_tracking.csv'):
+    """Clean up formatting issues in the preorder tracking file"""
+    preorders_dir = os.path.join(BASE_DIR, 'preorders')
+    tracking_path = os.path.join(preorders_dir, tracking_file)
+    temp_path = os.path.join(preorders_dir, 'temp_' + tracking_file)
+
+    fieldnames = ['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status']
+
+    try:
+        # Read all data from existing file
+        rows = []
+        with open(tracking_path, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.reader(f)
+            header = next(reader)  # Skip header
+            
+            current_row = []
+            for row in reader:
+                # If we have a complete row (5 columns)
+                if len(row) == 5:
+                    if current_row:  # If we have pending data
+                        rows.append(current_row)
+                    current_row = row
+                else:
+                    # If this is part of the previous row that was split
+                    if current_row:
+                        rows.append(current_row)
+                    current_row = row
+
+            if current_row:
+                rows.append(current_row)
+
+        # Write cleaned data back
+        with open(temp_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(fieldnames)
+            writer.writerows(rows)
+
+        # Replace original file with cleaned file
+        os.replace(temp_path, tracking_path)
+        logging.info(f"Successfully cleaned preorder tracking file. Total rows: {len(rows)}")
+
+    except Exception as e:
+        logging.error(f"Error cleaning preorder tracking file: {e}")
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        raise
+
 def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.csv'):
     """Append new preorder items to tracking file"""
     preorders_dir = os.path.join(BASE_DIR, 'preorders')
@@ -632,7 +679,7 @@ ITEMS NOT INCLUDED IN REPORT:
     # Attach preorder tracking report
     try:
          # Use the path in the preorders directory
-        abs_preorder_path = os.path.join(BASE_DIR, 'preorders', 'preorder_tracking.csv')
+        abs_preorder_path = os.path.join(BASE_DIR, 'preorders', 'NYT_preorder_tracking.csv')
     
         with open(abs_preorder_path, 'rb') as f:
             preorder_data = f.read()
