@@ -11,10 +11,6 @@ import sys
 import base64
 from dotenv import load_dotenv
 
-# -----------------------------#
-#         Configuration       #
-# -----------------------------#
-
 # Base directory for the script
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -23,12 +19,9 @@ GRAPHQL_URL = None
 HEADERS = None
 
 def load_environment():
-    """
-    Loads environment variables from .env.production file
-    Used for local development/testing
-    """
+    """Loads environment variables from .env.production file"""
     try:
-        load_dotenv('.env.production')  # Specifically load .env.production
+        load_dotenv('.env.production')
         logging.info("Environment variables successfully loaded.")
         logging.info(f"SHOP_URL present: {bool(os.getenv('SHOP_URL'))}")
         logging.info(f"SHOPIFY_ACCESS_TOKEN present: {bool(os.getenv('SHOPIFY_ACCESS_TOKEN'))}")
@@ -42,9 +35,7 @@ def load_environment():
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
 
 def run_query_with_retries(query, variables, max_retries=3, delay=1):
@@ -278,148 +269,75 @@ def is_valid_isbn(barcode):
     return barcode and (str(barcode).startswith('978') or str(barcode).startswith('979'))
 
 def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.csv'):
-    logging.info(f"Starting preorder tracking process")
-    logging.info(f"New preorder items to track: {len(preorder_items)}")
-
-    # Create preorders directory if it doesn't exist
+    """Append new preorder items to tracking file"""
     preorders_dir = os.path.join(BASE_DIR, 'preorders')
     os.makedirs(preorders_dir, exist_ok=True)
-
-    # Path to the tracking file in your repo
     tracking_path = os.path.join(preorders_dir, tracking_file)
-    log_path = os.path.join(BASE_DIR, 'output', 'preorder_tracking_log.txt')
 
-    # Ensure output directory exists
-    os.makedirs(os.path.dirname(log_path), exist_ok=True)
+    try:
+        with open(tracking_path, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, 
+                fieldnames=['Timestamp', 'ISBN', 'Title', 'Pub Date', 'Quantity', 'Status'],
+                extrasaction='ignore')
+            
+            # Write header if file is empty
+            if f.tell() == 0:
+                writer.writeheader()
+            
+            # Append each new preorder item
+            for item in preorder_items:
+                writer.writerow({
+                    'Timestamp': datetime.now().isoformat(),
+                    'ISBN': item['barcode'],
+                    'Title': item['title'],
+                    'Pub Date': item.get('pub_date', ''),
+                    'Quantity': item['quantity'],
+                    'Status': 'Preorder'
+                })
+        
+        logging.info(f"Appended {len(preorder_items)} new preorder items")
+    except Exception as e:
+        logging.error(f"Error appending preorder items: {e}")
+        raise
 
-    # Read existing tracking data
-    existing_preorders = {}
-    if os.path.exists(tracking_path):
-        logging.info(f"Found existing tracking file: {tracking_path}")
+def calculate_total_preorder_quantities(as_of_date=None):
+    """Calculate total preorder quantities for each ISBN"""
+    tracking_path = os.path.join(BASE_DIR, 'preorders', 'NYT_preorder_tracking.csv')
+    
+    preorder_totals = {}
+    
+    try:
         with open(tracking_path, 'r', newline='', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                key = (row['ISBN'], row['Pub Date'])
-                existing_preorders[key] = {
-                    'Title': row['Title'],
-                    'Quantity': int(row['Quantity']),
-                    'Status': row['Status']
-                }
-    else:
-        logging.info("No existing tracking file - will create new one")
-
-    # Prepare logging of changes
-    preorder_log_entries = []
-    preorder_log_entries.append("=== Preorder Tracking Log ===")
-    preorder_log_entries.append(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    
-    preorder_log_entries.append("\nExisting Preorders (Before Update):")
-    for (isbn, pub_date), data in existing_preorders.items():
-        preorder_log_entries.append(
-            f"ISBN: {isbn}, Title: {data['Title']}, "
-            f"Pub Date: {pub_date}, Quantity: {data['Quantity']}, "
-            f"Status: {data['Status']}"
-        )
-
-    # Process current preorder items
-    current_date = datetime.now().date()
-    new_preorder_count = 0
-    updated_preorder_count = 0
-
-    preorder_log_entries.append("\nNew Preorder Items:")
-    for item in preorder_items:
-        logging.info(f"Preorder Item: ISBN {item['barcode']}, Title: {item['title']}, Quantity: {item['quantity']}, Pub Date: {item.get('pub_date', 'No pub date')}")
-        pub_date = item.get('pub_date') or ''
-        key = (item['barcode'], pub_date)
-        
-        if key in existing_preorders:
-            # Update existing preorder
-            old_qty = existing_preorders[key]['Quantity']
-            existing_preorders[key]['Quantity'] += item['quantity']
-            updated_preorder_count += 1
-            preorder_log_entries.append(
-                f"Updated: ISBN {item['barcode']}, Title: {item['title']}, "
-                f"Quantity: {old_qty} → {existing_preorders[key]['Quantity']}"
-            )
-        else:
-            # Add new preorder
-            existing_preorders[key] = {
-                'Title': item['title'],
-                'Quantity': item['quantity'],
-                'Status': 'Preorder'
-            }
-            new_preorder_count += 1
-            preorder_log_entries.append(
-                f"New Preorder: ISBN {item['barcode']}, Title: {item['title']}, "
-                f"Quantity: {item['quantity']}"
-            )
-
-    # Handle released items
-    preorder_log_entries.append("\nReleased Preorder Items:")
-    released_items = {}
-    for (isbn, pub_date), data in list(existing_preorders.items()):
-        if pub_date:
-            try:
-                pub_date_obj = datetime.strptime(pub_date, '%Y-%m-%d').date()
-                current_date = datetime.now().date()
-                logging.info(f"Checking release: ISBN {isbn}, Pub Date: {pub_date}, Current Date: {current_date}")
+                # Optional date filtering
+                if as_of_date and row['Pub Date'] and \
+                   datetime.fromisoformat(row['Pub Date']).date() > as_of_date:
+                    continue
                 
-                if pub_date_obj <= current_date and data['Status'] == 'Preorder':
-                    released_items[isbn] = data['Quantity']
-                    logging.info(f"Released: ISBN {isbn}, Title: {data['Title']}, Quantity: {data['Quantity']}")
-                    data['Status'] = 'Released'  # Update status but keep in tracking
-                    preorder_log_entries.append(
-                        f"Released: ISBN {isbn}, Title: {data['Title']}, "
-                        f"Quantity: {data['Quantity']}"
-                    )
-            except ValueError:
-                logging.error(f"Invalid pub date format: {pub_date}")
-
-    # Prepare rows to write
-    fieldnames = ['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status']
-    rows_to_write = []
-    for (isbn, pub_date), data in existing_preorders.items():
-        rows_to_write.append({
-            'ISBN': isbn,
-            'Title': data['Title'],
-            'Pub Date': pub_date,
-            'Quantity': data['Quantity'],
-            'Status': data['Status']
-        })
-
-    # Explicitly log rows before writing
-    logging.info(f"Preparing to write {len(rows_to_write)} preorder rows")
-    for row in rows_to_write:
-        logging.debug(f"Row to write: {row}")
-
-    # Write rows with explicit error handling
-    try:
-        with open(tracking_path, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            
-            # Use writerows to write all rows at once
-            writer.writerows(rows_to_write)
-        
-        logging.info(f"Successfully wrote {len(rows_to_write)} rows to {tracking_path}")
-    except IOError as e:
-        logging.error(f"IO Error writing preorder tracking file: {e}")
-        raise
+                isbn = row['ISBN']
+                quantity = int(row['Quantity'])
+                
+                if isbn not in preorder_totals:
+                    preorder_totals[isbn] = 0
+                preorder_totals[isbn] += quantity
+    
     except Exception as e:
-        logging.error(f"Unexpected error writing preorder tracking file: {e}")
+        logging.error(f"Error calculating preorder totals: {e}")
         raise
+    
+    return preorder_totals
 
-    # Write detailed log file
-    preorder_log_entries.append(f"\nSummary:")
-    preorder_log_entries.append(f"Total Existing Preorders: {len(existing_preorders)}")
-    preorder_log_entries.append(f"New Preorder Items: {new_preorder_count}")
-    preorder_log_entries.append(f"Updated Preorder Items: {updated_preorder_count}")
-    preorder_log_entries.append(f"Released Preorder Items: {len(released_items)}")
-
-    with open(log_path, 'w', encoding='utf-8') as log_file:
-        log_file.write('\n'.join(preorder_log_entries))
-
-    return released_items
+def process_released_preorders(sales_data):
+    """Process released preorders and add to sales data"""
+    current_date = datetime.now().date()
+    preorder_totals = calculate_total_preorder_quantities(current_date)
+    
+    # Add preorder quantities to sales data for released books
+    for isbn, quantity in preorder_totals.items():
+        sales_data[isbn] = sales_data.get(isbn, 0) + quantity
+    
+    return sales_data
 
 def is_preorder_or_future_pub(product_details):
     """
@@ -809,7 +727,11 @@ def main():
         return
 
     # Track preorder sales
+    track_preorder_sales(preorder_items)
     released_items = track_preorder_sales(preorder_items)
+
+    # Process and add released preorders to sales data
+    sales_data = process_released_preorders(sales_data)
 
     logging.info(f"Tracking {len(preorder_items)} new preorder items")
     logging.info(f"Released items this week: {len(released_items)}")
