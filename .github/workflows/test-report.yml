@@ -9,6 +9,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Fetch all history to ensure we have the latest tracking file
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -26,3 +28,11 @@ jobs:
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
           EMAIL_RECIPIENTS: ${{ secrets.EMAIL_RECIPIENTS }}
         run: python3 weekly_sales_report.py
+
+      - name: Commit and push updated tracking file
+        if: success()
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add preorders/NYT_preorder_tracking.csv
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update preorder tracking data [skip ci]" && git push)
