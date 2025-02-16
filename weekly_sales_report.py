@@ -274,28 +274,20 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
     os.makedirs(preorders_dir, exist_ok=True)
     tracking_path = os.path.join(preorders_dir, tracking_file)
 
+    # Define fieldnames without Timestamp
+    fieldnames = ['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status']
+    
     try:
-        # Define fieldnames without Timestamp
-        fieldnames = ['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status']
-        
         # Check if file exists and has content
         file_exists = os.path.exists(tracking_path) and os.path.getsize(tracking_path) > 0
-
-        if file_exists:
-            # First read the file to check the last character
-            with open(tracking_path, 'r', newline='', encoding='utf-8') as f:
-                content = f.read()
-                needs_newline = content and not content.endswith('\n')
-
-        # Now open in append mode
+        
+        # Open file in append mode
         with open(tracking_path, 'a', newline='', encoding='utf-8') as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
             
             # Write header only if it's a new file
             if not file_exists:
                 writer.writeheader()
-            elif needs_newline:
-                f.write('\n')
             
             # Append each new preorder item
             for item in preorder_items:
@@ -312,6 +304,8 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
     except Exception as e:
         logging.error(f"Error appending preorder items: {e}")
         raise
+
+    return None
 
 def calculate_total_preorder_quantities(as_of_date=None):
     """Calculate total preorder quantities for each ISBN"""
