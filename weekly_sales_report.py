@@ -736,15 +736,14 @@ def main():
         logging.error("No sales data.")
         return
 
-    # Track preorder sales
+     # Track preorder sales
     track_preorder_sales(preorder_items)
-    released_items = track_preorder_sales(preorder_items)
-
+    
     # Process and add released preorders to sales data
     sales_data = process_released_preorders(sales_data)
 
     logging.info(f"Tracking {len(preorder_items)} new preorder items")
-    logging.info(f"Released items this week: {len(released_items)}")
+    logging.info("No items released this week")  # Changed this line since we're not tracking releases here
     
     # Add released items to sales_data
     for isbn, quantity in released_items.items():
