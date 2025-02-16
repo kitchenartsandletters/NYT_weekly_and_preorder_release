@@ -274,44 +274,42 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
     os.makedirs(preorders_dir, exist_ok=True)
     tracking_path = os.path.join(preorders_dir, tracking_file)
 
-    # Log the current state
-    if os.path.exists(tracking_path):
-        logging.info(f"Existing tracking file found at {tracking_path}")
-        try:
-            with open(tracking_path, 'r', newline='', encoding='utf-8') as f:
-                reader = csv.DictReader(f)
-                existing_rows = list(reader)
-                logging.info(f"Current tracking file has {len(existing_rows)} existing rows")
-        except Exception as e:
-            logging.error(f"Error reading existing tracking file: {e}")
-    else:
-        logging.info(f"No existing tracking file found at {tracking_path}")
-
     try:
+        # Define fieldnames without Timestamp
+        fieldnames = ['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status']
+        
+        # Check if file exists and has content
+        file_exists = os.path.exists(tracking_path) and os.path.getsize(tracking_path) > 0
+        
         with open(tracking_path, 'a', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, 
-                fieldnames=['Timestamp', 'ISBN', 'Title', 'Pub Date', 'Quantity', 'Status'],
-                extrasaction='ignore')
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
             
-            # Write header if file is empty
-            if f.tell() == 0:
+            # Write header only if it's a new file
+            if not file_exists:
                 writer.writeheader()
-                logging.info("Created new tracking file with header")
+            else:
+                # Add a newline if the file doesn't end with one
+                f.seek(0, 2)  # Go to end of file
+                if f.tell() > 0:  # If file is not empty
+                    f.seek(f.tell() - 1)  # Go to last character
+                    last_char = f.read(1)
+                    if last_char != '\n':
+                        f.write('\n')
             
             # Append each new preorder item
             for item in preorder_items:
                 writer.writerow({
-                    'Timestamp': datetime.now().isoformat(),
                     'ISBN': item['barcode'],
                     'Title': item['title'],
                     'Pub Date': item.get('pub_date', ''),
                     'Quantity': item['quantity'],
                     'Status': 'Preorder'
                 })
-            
-            logging.info(f"Appended {len(preorder_items)} new preorder items")
+        
+        logging.info(f"Successfully appended {len(preorder_items)} new preorder items to {tracking_path}")
+        
     except Exception as e:
-        logging.error(f"Error writing to tracking file: {e}")
+        logging.error(f"Error appending preorder items: {e}")
         raise
 
 def calculate_total_preorder_quantities(as_of_date=None):
