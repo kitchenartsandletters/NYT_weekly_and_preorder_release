@@ -281,13 +281,6 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
     logging.info(f"Starting preorder tracking process")
     logging.info(f"New preorder items to track: {len(preorder_items)}")
 
-    """
-    Maintains a running log of preorder sales
-    Reads existing file, merges new preorder items, logs changes
-    """
-    logging.info("Starting preorder tracking process")
-    logging.info(f"New preorder items to track: {len(preorder_items)}")
-
     # Create preorders directory if it doesn't exist
     preorders_dir = os.path.join(BASE_DIR, 'preorders')
     os.makedirs(preorders_dir, exist_ok=True)
@@ -382,23 +375,39 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
             except ValueError:
                 logging.error(f"Invalid pub date format: {pub_date}")
 
-   # Write updated tracking file
-    write_header = not os.path.exists(tracking_path) or os.path.getsize(tracking_path) == 0
-
-    with open(tracking_path, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status'])
-    
-    # Always write header
-    writer.writeheader()
-    
+    # Prepare rows to write
+    fieldnames = ['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status']
+    rows_to_write = []
     for (isbn, pub_date), data in existing_preorders.items():
-        writer.writerow({
+        rows_to_write.append({
             'ISBN': isbn,
             'Title': data['Title'],
             'Pub Date': pub_date,
             'Quantity': data['Quantity'],
             'Status': data['Status']
         })
+
+    # Explicitly log rows before writing
+    logging.info(f"Preparing to write {len(rows_to_write)} preorder rows")
+    for row in rows_to_write:
+        logging.debug(f"Row to write: {row}")
+
+    # Write rows with explicit error handling
+    try:
+        with open(tracking_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            
+            # Use writerows to write all rows at once
+            writer.writerows(rows_to_write)
+        
+        logging.info(f"Successfully wrote {len(rows_to_write)} rows to {tracking_path}")
+    except IOError as e:
+        logging.error(f"IO Error writing preorder tracking file: {e}")
+        raise
+    except Exception as e:
+        logging.error(f"Unexpected error writing preorder tracking file: {e}")
+        raise
 
     # Write detailed log file
     preorder_log_entries.append(f"\nSummary:")
