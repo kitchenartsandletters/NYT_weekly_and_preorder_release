@@ -443,22 +443,26 @@ def is_preorder_or_future_pub(product_details):
     Checks if a product is preorder or has future pub date
     """
     if not product_details:
+        logging.debug("No product details provided")
         return False, None
         
-    # Check if in Preorder collection or has preorder tag
-    is_preorder = ('Preorder' in product_details.get('collections', []) or 
-                   'preorder' in [tag.lower() for tag in product_details.get('tags', [])])
+    # Check if in Preorder collection
+    is_preorder = 'Preorder' in product_details.get('collections', [])
+    logging.info(f"Product collections: {product_details.get('collections', [])}")
+    logging.info(f"Is in Preorder collection: {is_preorder}")
     
-    # If it's marked as preorder, return True regardless of pub date
-    if is_preorder:
-        return True, 'Preorder Status Active'
-    
-    # Check pub date only if not marked as preorder
+    # Check pub date
     pub_date_str = product_details.get('pub_date')
+    logging.info(f"Product pub date: {pub_date_str}")
+    
+    if is_preorder:
+        return True, 'Preorder Collection'
+        
     if pub_date_str:
         try:
             pub_date = datetime.strptime(pub_date_str, '%Y-%m-%d').date()
             is_future = pub_date > datetime.now().date()
+            logging.info(f"Pub date {pub_date} is future: {is_future}")
             if is_future:
                 return True, f'Future Pub Date: {pub_date_str}'
         except ValueError:
