@@ -268,6 +268,23 @@ def is_valid_isbn(barcode):
     """
     return barcode and (str(barcode).startswith('978') or str(barcode).startswith('979'))
 
+def reset_tracking_file(tracking_file='NYT_preorder_tracking.csv'):
+    """Reset the preorder tracking file with just headers"""
+    preorders_dir = os.path.join(BASE_DIR, 'preorders')
+    tracking_path = os.path.join(preorders_dir, tracking_file)
+    
+    fieldnames = ['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status', 
+                  'Order ID', 'Order Name', 'Line Item ID']
+    
+    try:
+        with open(tracking_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+        logging.info("Preorder tracking file has been reset")
+    except Exception as e:
+        logging.error(f"Error resetting tracking file: {e}")
+        raise
+
 def clean_preorder_tracking_file(tracking_file='NYT_preorder_tracking.csv'):
     """Clean up formatting issues in the preorder tracking file"""
     preorders_dir = os.path.join(BASE_DIR, 'preorders')
@@ -321,39 +338,45 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
     os.makedirs(preorders_dir, exist_ok=True)
     tracking_path = os.path.join(preorders_dir, tracking_file)
 
+    # Add Order ID and Line Item ID to fieldnames
+    fieldnames = ['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status', 'Order ID', 'Order Name', 'Line Item ID']
+
     try:
-        # First, fix any formatting issues in the existing file
-        if os.path.exists(tracking_path) and os.path.getsize(tracking_path) > 0:
-            # Read all existing data
-            with open(tracking_path, 'r', encoding='utf-8') as f:
-                content = f.read().strip()  # Remove any trailing whitespace
-                lines = content.split('\n')
+        file_exists = os.path.exists(tracking_path) and os.path.getsize(tracking_path) > 0
+        
+        with open(tracking_path, 'a', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
             
-            # Rewrite the file with guaranteed proper formatting
-            with open(tracking_path, 'w', encoding='utf-8', newline='') as f:
-                for line in lines:
-                    f.write(line.strip() + '\n')
+            if not file_exists:
+                writer.writeheader()
 
-        # Now append new items
-        with open(tracking_path, 'a', encoding='utf-8', newline='') as f:
-            writer = csv.writer(f)
-            
-            # Write header if file is empty
-            if os.path.getsize(tracking_path) == 0:
-                writer.writerow(['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status'])
-            
-            # Write new items
+            # Read existing entries to check for duplicates
+            existing_orders = set()
+            if file_exists:
+                with open(tracking_path, 'r', newline='', encoding='utf-8') as read_f:
+                    reader = csv.DictReader(read_f)
+                    for row in reader:
+                        # Create unique key using Order ID and Line Item ID
+                        order_key = f"{row.get('Order ID')}_{row.get('Line Item ID')}"
+                        existing_orders.add(order_key)
+
+            # Append each new preorder item
             for item in preorder_items:
-                writer.writerow([
-                    item['barcode'],
-                    item['title'],
-                    item.get('pub_date', ''),
-                    item['quantity'],
-                    'Preorder'
-                ])
+                order_key = f"{item['order_id']}_{item['line_item_id']}"
+                if order_key not in existing_orders:
+                    writer.writerow({
+                        'ISBN': item['barcode'],
+                        'Title': item['title'],
+                        'Pub Date': item.get('pub_date', ''),
+                        'Quantity': item['quantity'],
+                        'Status': 'Preorder',
+                        'Order ID': item['order_id'],
+                        'Order Name': item['order_name'],
+                        'Line Item ID': item['line_item_id']
+                    })
 
-        logging.info(f"Successfully appended {len(preorder_items)} new preorder items")
-
+        logging.info(f"Successfully processed preorder items")
+        
     except Exception as e:
         logging.error(f"Error appending preorder items: {e}")
         raise
@@ -404,8 +427,14 @@ def process_released_preorders(sales_data):
     preorder_totals = calculate_total_preorder_quantities(current_date)
     
     # Add preorder quantities to sales data for released books
+    # but only if they're no longer in preorder status
     for isbn, quantity in preorder_totals.items():
-        sales_data[isbn] = sales_data.get(isbn, 0) + quantity
+        # Check product's current preorder status
+        product_details = fetch_product_details([isbn])  # You'll need to implement this
+        is_preorder, _ = is_preorder_or_future_pub(product_details.get(isbn, {}))
+        
+        if not is_preorder:  # Only add to sales data if no longer in preorder
+            sales_data[isbn] = sales_data.get(isbn, 0) + quantity
     
     return sales_data
 
@@ -416,10 +445,15 @@ def is_preorder_or_future_pub(product_details):
     if not product_details:
         return False, None
         
-    # Check if in Preorder collection
-    is_preorder = 'Preorder' in product_details.get('collections', [])
+    # Check if in Preorder collection or has preorder tag
+    is_preorder = ('Preorder' in product_details.get('collections', []) or 
+                   'preorder' in [tag.lower() for tag in product_details.get('tags', [])])
     
-    # Check pub date
+    # If it's marked as preorder, return True regardless of pub date
+    if is_preorder:
+        return True, 'Preorder Status Active'
+    
+    # Check pub date only if not marked as preorder
     pub_date_str = product_details.get('pub_date')
     if pub_date_str:
         try:
@@ -430,9 +464,6 @@ def is_preorder_or_future_pub(product_details):
         except ValueError:
             logging.error(f"Invalid pub date format: {pub_date_str}")
     
-    if is_preorder:
-        return True, 'Preorder Collection'
-        
     return False, None
 
 def process_refunds(order):
@@ -537,7 +568,10 @@ def aggregate_sales(orders):
                         'barcode': barcode,
                         'title': product.get('title', 'Unknown'),
                         'quantity': quantity,
-                        'pub_date': details.get('pub_date')  # This might be None, which is okay
+                        'pub_date': details.get('pub_date'),
+                        'order_id': order['id'],  # Add Shopify order ID
+                        'order_name': order['name'],  # Add order name (#number)
+                        'line_item_id': line_item_node['id']  # Add line item ID
                     })
                 
                 skipped_line_items.append({
@@ -765,6 +799,7 @@ def validate_sales_data(sales_data, skipped_items):
     return warnings
 
 def main():
+    reset_tracking_file()
     print(f"Script running from directory: {os.getcwd()}")
     print(f"BASE_DIR set to: {BASE_DIR}")
     print(f"Python version: {sys.version}")
