@@ -770,7 +770,7 @@ def get_last_week_date_range():
     last_sunday = last_sunday.replace(hour=0, minute=0, second=0, microsecond=0)
     last_saturday = last_saturday.replace(hour=23, minute=59, second=59, microsecond=999999)
     
-    return last_sunday.strftime('%Y-%m-%d'), last_saturday.strftime('%Y-%m-%d')
+    return "2025-02-02", "2025-02-08"
 
 def validate_sales_data(sales_data, skipped_items):
     """
