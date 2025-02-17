@@ -268,23 +268,6 @@ def is_valid_isbn(barcode):
     """
     return barcode and (str(barcode).startswith('978') or str(barcode).startswith('979'))
 
-def reset_tracking_file(tracking_file='NYT_preorder_tracking.csv'):
-    """Reset the preorder tracking file with just headers"""
-    preorders_dir = os.path.join(BASE_DIR, 'preorders')
-    tracking_path = os.path.join(preorders_dir, tracking_file)
-    
-    fieldnames = ['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status', 
-                  'Order ID', 'Order Name', 'Line Item ID']
-    
-    try:
-        with open(tracking_path, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-        logging.info("Preorder tracking file has been reset")
-    except Exception as e:
-        logging.error(f"Error resetting tracking file: {e}")
-        raise
-
 def clean_preorder_tracking_file(tracking_file='NYT_preorder_tracking.csv'):
     """Clean up formatting issues in the preorder tracking file"""
     preorders_dir = os.path.join(BASE_DIR, 'preorders')
@@ -770,7 +753,7 @@ def get_last_week_date_range():
     last_sunday = last_sunday.replace(hour=0, minute=0, second=0, microsecond=0)
     last_saturday = last_saturday.replace(hour=23, minute=59, second=59, microsecond=999999)
     
-    return "2025-02-02", "2025-02-08"
+    return last_sunday.strftime('%Y-%m-%d'), last_saturday.strftime('%Y-%m-%d')
 
 def validate_sales_data(sales_data, skipped_items):
     """
@@ -809,7 +792,6 @@ def validate_sales_data(sales_data, skipped_items):
     return warnings
 
 def main():
-    reset_tracking_file()
     print(f"Script running from directory: {os.getcwd()}")
     print(f"BASE_DIR set to: {BASE_DIR}")
     print(f"Python version: {sys.version}")
