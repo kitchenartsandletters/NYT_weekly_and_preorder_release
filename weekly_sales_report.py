@@ -564,15 +564,21 @@ def aggregate_sales(orders):
             if is_excluded:
                 # If it's a preorder or future pub, track it
                 if reason == 'Preorder Collection' or reason.startswith('Future Pub Date'):
+                    logging.info(f"Found preorder item - Title: {product.get('title', 'Unknown')}")
+                    logging.info(f"Order details - ID: {order.get('id')}, Name: {order.get('name')}")
+                    logging.info(f"Line item details - ID: {line_item_node.get('id')}")
+                    
                     preorder_items.append({
                         'barcode': barcode,
                         'title': product.get('title', 'Unknown'),
                         'quantity': quantity,
                         'pub_date': details.get('pub_date'),
-                        'order_id': order['id'],  # Add Shopify order ID
-                        'order_name': order['name'],  # Add order name (#number)
-                        'line_item_id': line_item_node['id']  # Add line item ID
+                        'order_id': order.get('id'),
+                        'order_name': order.get('name'),
+                        'line_item_id': line_item_node.get('id')
                     })
+                    
+                    logging.info(f"Added preorder item to tracking list - ISBN: {barcode}, Quantity: {quantity}")
                 
                 skipped_line_items.append({
                     'order_id': order_id,
