@@ -3,7 +3,7 @@ name: Generate Weekly Report
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 15 * * 1"  # 10am ET Monday
+    - cron: "0 14 * * 1"  # 10am ET Monday during DST (EDT)
 
 permissions:
   contents: write
