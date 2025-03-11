@@ -10,6 +10,7 @@ import time
 import sys
 import base64
 from dotenv import load_dotenv
+from process_approved_releases import process_approved_releases
 
 # Base directory for the script
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -37,6 +38,33 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[logging.StreamHandler(sys.stdout)]
 )
+
+def load_pub_date_overrides(override_file='pub_date_overrides.csv'):
+    """
+    Loads manual overrides for publication dates from CSV file
+    Returns a dictionary mapping ISBNs to corrected publication dates
+    """
+    overrides = {}
+    
+    override_path = os.path.join(BASE_DIR, 'overrides', override_file)
+    if not os.path.exists(override_path):
+        logging.info(f"No override file found at {override_path}")
+        return overrides
+        
+    try:
+        with open(override_path, 'r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                if 'ISBN' in row and 'Corrected_Pub_Date' in row:
+                    isbn = row['ISBN']
+                    corrected_date = row['Corrected_Pub_Date']
+                    overrides[isbn] = corrected_date
+                    logging.info(f"Loaded pub date override for ISBN {isbn}: {corrected_date}")
+    except Exception as e:
+        logging.error(f"Error loading pub date overrides: {e}")
+    
+    logging.info(f"Loaded {len(overrides)} publication date overrides")
+    return overrides
 
 def run_query_with_retries(query, variables, max_retries=3, delay=1):
     """
@@ -261,6 +289,63 @@ def fetch_product_details(product_ids):
     except Exception as e:
         logging.error(f"Error fetching product details: {e}")
         return {}
+    
+def get_product_ids_by_isbn(isbn):
+    """
+    Look up product IDs by ISBN using the Shopify GraphQL API
+    Returns a list of product IDs (should normally be just one)
+    """
+    global GRAPHQL_URL, HEADERS
+    
+    # Ensure API settings are initialized
+    if not GRAPHQL_URL or not HEADERS:
+        shop_url = os.getenv('SHOP_URL')
+        access_token = os.getenv('SHOPIFY_ACCESS_TOKEN')
+        
+        if not shop_url or not access_token:
+            logging.error("Missing SHOP_URL or SHOPIFY_ACCESS_TOKEN environment variables")
+            return []
+            
+        GRAPHQL_URL = f"https://{shop_url}/admin/api/2025-01/graphql.json"
+        HEADERS = {"Content-Type": "application/json", "X-Shopify-Access-Token": access_token}
+    
+    if not isbn:
+        return []
+        
+    query = """
+    query($query: String!) {
+        products(first: 5, query: $query) {
+            edges {
+                node {
+                    id
+                    title
+                }
+            }
+        }
+    }
+    """
+    
+    variables = {
+        "query": f"barcode:{isbn}"
+    }
+    
+    try:
+        data = run_query_with_retries(query, variables)
+        product_edges = data.get('products', {}).get('edges', [])
+        
+        product_ids = []
+        for edge in product_edges:
+            product_id = edge['node']['id']
+            product_ids.append(product_id)
+            
+        if len(product_ids) > 1:
+            logging.warning(f"Found multiple products ({len(product_ids)}) for ISBN {isbn}")
+            
+        return product_ids
+        
+    except Exception as e:
+        logging.error(f"Error looking up product ID for ISBN {isbn}: {e}")
+        return []
 
 def is_valid_isbn(barcode):
     """
@@ -404,26 +489,56 @@ def calculate_total_preorder_quantities(as_of_date=None):
     
     return preorder_totals
 
-def process_released_preorders(sales_data):
+def process_released_preorders(sales_data, pub_date_overrides=None):
     """Process released preorders and add to sales data"""
     current_date = datetime.now().date()
     preorder_totals = calculate_total_preorder_quantities(current_date)
     
+    # Create dictionary to track books that were just released this week
+    newly_released = {}
+    
     # Add preorder quantities to sales data for released books
     # but only if they're no longer in preorder status
     for isbn, quantity in preorder_totals.items():
-        # Check product's current preorder status
-        product_details = fetch_product_details([isbn])  # You'll need to implement this
-        is_preorder, _ = is_preorder_or_future_pub(product_details.get(isbn, {}))
+        # Get product details for this ISBN
+        product_ids = get_product_ids_by_isbn(isbn)  # You'll need to implement this
+        
+        if not product_ids:
+            logging.warning(f"Could not find product ID for ISBN {isbn}")
+            continue
+            
+        product_details = fetch_product_details(product_ids)
+        if not product_details:
+            logging.warning(f"Could not fetch product details for ISBN {isbn}")
+            continue
+            
+        # Use the first product (there should only be one with this ISBN)
+        product_id = product_ids[0]
+        details = product_details.get(product_id, {})
+        details['barcode'] = isbn  # Add barcode to details for override lookup
+        
+        # Check if the book is still in preorder status (with overrides)
+        is_preorder, reason = is_preorder_or_future_pub(details, pub_date_overrides)
         
         if not is_preorder:  # Only add to sales data if no longer in preorder
+            logging.info(f"Found released preorder: ISBN {isbn}, Quantity {quantity}")
             sales_data[isbn] = sales_data.get(isbn, 0) + quantity
+            newly_released[isbn] = quantity
+    
+    # Log information about newly released books
+    if newly_released:
+        logging.info(f"Added {len(newly_released)} newly released books to sales data")
+        for isbn, qty in newly_released.items():
+            logging.info(f"Released: ISBN {isbn} with {qty} copies")
+    else:
+        logging.info("No items released this week")
     
     return sales_data
 
-def is_preorder_or_future_pub(product_details):
+def is_preorder_or_future_pub(product_details, pub_date_overrides=None):
     """
     Checks if a product is preorder or has future pub date
+    Now supports manual publication date overrides
     """
     if not product_details:
         logging.debug("No product details provided")
@@ -434,8 +549,20 @@ def is_preorder_or_future_pub(product_details):
     logging.info(f"Product collections: {product_details.get('collections', [])}")
     logging.info(f"Is in Preorder collection: {is_preorder}")
     
-    # Check pub date
-    pub_date_str = product_details.get('pub_date')
+    # Get barcode/ISBN from product details if available
+    barcode = None
+    if 'barcode' in product_details:
+        barcode = product_details['barcode']
+    
+    # Check for override first
+    pub_date_str = None
+    if pub_date_overrides and barcode and barcode in pub_date_overrides:
+        pub_date_str = pub_date_overrides[barcode]
+        logging.info(f"Using overridden pub date for ISBN {barcode}: {pub_date_str} (instead of {product_details.get('pub_date', 'unknown')})")
+    else:
+        # Use the original pub date from metadata
+        pub_date_str = product_details.get('pub_date')
+        
     logging.info(f"Product pub date: {pub_date_str}")
     
     if is_preorder:
@@ -475,10 +602,10 @@ def process_refunds(order):
                 
     return refunded_quantities
 
-def aggregate_sales(orders):
+def aggregate_sales(orders, pub_date_overrides=None):
     """
     Aggregates sales data using two-phase approach
-    Now includes tracking of preorder items
+    Now includes tracking of preorder items and respects publication date overrides
     """
     sales_data = {}
     skipped_line_items = []
@@ -547,7 +674,11 @@ def aggregate_sales(orders):
             product_id = product.get('id')
             details = product_details.get(product_id, {})
             
-            is_excluded, reason = is_preorder_or_future_pub(details)
+            # Add barcode to details for override lookup
+            details['barcode'] = barcode
+            
+            # Pass pub_date_overrides to is_preorder_or_future_pub
+            is_excluded, reason = is_preorder_or_future_pub(details, pub_date_overrides)
             if is_excluded:
                 # If it's a preorder or future pub, track it
                 if reason == 'Preorder Collection' or reason.startswith('Future Pub Date'):
@@ -813,21 +944,28 @@ def main():
     GRAPHQL_URL = f"https://{SHOP_URL}/admin/api/2025-01/graphql.json"
     HEADERS = {"Content-Type": "application/json", "X-Shopify-Access-Token": ACCESS_TOKEN}
 
+    # Load publication date overrides - NEW
+    pub_date_overrides = load_pub_date_overrides()
+    
     orders = fetch_orders(start_date, end_date)
     if not orders:
         logging.error("No orders found.")
         return
 
-    sales_data, skipped_items, preorder_items = aggregate_sales(orders)
+    # Pass the overrides to aggregate_sales
+    sales_data, skipped_items, preorder_items = aggregate_sales(orders, pub_date_overrides)
     if not sales_data:
         logging.error("No sales data.")
         return
 
-     # Track preorder sales
+     # Add approved releases to sales data
+    sales_data = process_approved_releases(sales_data, BASE_DIR)
+
+    # Track preorder sales
     track_preorder_sales(preorder_items)
     
-    # Process and add released preorders to sales data
-    sales_data = process_released_preorders(sales_data)
+    # Process and add released preorders to sales data - pass overrides
+    sales_data = process_released_preorders(sales_data, pub_date_overrides)
 
     logging.info(f"Tracking {len(preorder_items)} new preorder items")
     logging.info("No items released this week")  # Changed this line since we're not tracking releases here

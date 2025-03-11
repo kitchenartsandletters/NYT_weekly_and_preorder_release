@@ -1,0 +1,133 @@
+name: Preorder Approval Workflow
+
+on:
+  # Run weekly on Friday to prepare for the Monday report
+  schedule:
+    - cron: '0 0 * * 5'  # Midnight on Friday
+  
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      run_mode:
+        description: 'Run mode (test or production)'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+          - test
+          - production
+
+jobs:
+  audit-and-approval:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Create environment file
+        run: |
+          echo "SHOP_URL=${{ secrets.SHOP_URL }}" > .env.production
+          echo "SHOPIFY_ACCESS_TOKEN=${{ secrets.SHOPIFY_ACCESS_TOKEN }}" >> .env.production
+          echo "SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}" >> .env.production
+          echo "EMAIL_SENDER=${{ secrets.EMAIL_SENDER }}" >> .env.production
+          echo "EMAIL_RECIPIENTS=${{ secrets.EMAIL_RECIPIENTS }}" >> .env.production
+          
+          # Set test mode based on input parameter
+          if [ "${{ github.event.inputs.run_mode }}" = "test" ]; then
+            echo "USE_TEST_DATA=true" >> .env.production
+            echo "🧪 Running in TEST mode"
+          else
+            echo "USE_TEST_DATA=false" >> .env.production
+            echo "🚀 Running in PRODUCTION mode"
+          fi
+      
+      - name: Run publication date audit
+        id: run-audit
+        run: |
+          # Create output directories
+          mkdir -p output audit overrides
+          
+          # Run the audit
+          TIMESTAMP=$(date +'%Y-%m-%d')
+          RELEASES_FILE="./output/pending_releases_${TIMESTAMP}.json"
+          
+          python audit_publication_dates.py --output-releases "$RELEASES_FILE"
+          
+          echo "releases_file=$RELEASES_FILE" >> $GITHUB_OUTPUT
+      
+      - name: Check for pending releases
+        id: check-releases
+        run: |
+          if [ -f "${{ steps.run-audit.outputs.releases_file }}" ]; then
+            PENDING_COUNT=$(python -c "import json; f=open('${{ steps.run-audit.outputs.releases_file }}'); data=json.load(f); print(data.get('total_pending_books', 0))")
+            echo "Found $PENDING_COUNT pending book releases"
+            echo "pending_count=$PENDING_COUNT" >> $GITHUB_OUTPUT
+          else
+            echo "No pending releases file found"
+            echo "pending_count=0" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create approval issue
+        if: steps.check-releases.outputs.pending_count > '0'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const releasesFile = '${{ steps.run-audit.outputs.releases_file }}';
+            const pendingData = JSON.parse(fs.readFileSync(releasesFile, 'utf8'));
+            const timestamp = new Date().toISOString().split('T')[0];
+            
+            // Format books as a markdown table
+            let booksTable = '| Approve | ISBN | Title | Quantity | Pub Date | Publisher |\n|---------|------|-------|----------|----------|----------|\n';
+            
+            pendingData.pending_releases.forEach(book => {
+              booksTable += `| [ ] | ${book.isbn} | ${book.title} | ${book.quantity} | ${book.pub_date || 'Unknown'} | ${book.vendor || 'Unknown'} |\n`;
+            });
+            
+            // Create issue with approval checkboxes
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📚 Preorder Approval: ${pendingData.total_pending_books} Books Ready for Release (${timestamp})`,
+              body: `## Preorder Books Ready for Release Approval
+
+            **Important: Please review these preorder books before they are included in the weekly sales report.**
+
+            Check the boxes for books that should be included in this week's report. Books with unchecked boxes will remain in preorder status.
+
+            ### Instructions
+            1. Review each book's details
+            2. Check the box in the "Approve" column for books that should be included
+            3. Add the label \`approved\` to this issue when you've finished reviewing
+            4. Only checked books will have their sales included in the next report
+
+            ### Books Pending Approval
+
+            ${booksTable}
+
+            ### Notes
+            - This approval is required by: Monday at 8:00 AM
+            - Books not approved will remain in preorder status
+            - Data file: \`${releasesFile}\``,
+                  labels: ['pending-approval', 'preorders']
+                });
+                
+                console.log(`Created approval issue #${issue.data.number}`);
+      
+      - name: Upload pending releases file
+        if: steps.check-releases.outputs.pending_count > '0'
+        uses: actions/upload-artifact@v3
+        with:
+          name: pending-releases
+          path: ${{ steps.run-audit.outputs.releases_file }}

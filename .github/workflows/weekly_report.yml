@@ -1,0 +1,225 @@
+name: Weekly Sales Report
+
+on:
+  # Run every Monday at 8am UTC
+  schedule:
+    - cron: '0 8 * * 1'
+  
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      run_mode:
+        description: 'Run mode (test or production)'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+          - test
+          - production
+
+jobs:
+  check-approvals:
+    runs-on: ubuntu-latest
+    outputs:
+      approval_status: ${{ steps.check-approvals.outputs.status }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Check for pending approval issues
+        id: check-approvals
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Find open issues with pending-approval label
+            const pendingIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'pending-approval'
+            });
+            
+            if (pendingIssues.data.length > 0) {
+              // Check if any have the 'approved' label
+              const approvedIssues = pendingIssues.data.filter(issue => 
+                issue.labels.some(label => label.name === 'approved')
+              );
+              
+              if (approvedIssues.length > 0) {
+                console.log("Found approved issues, proceeding with report");
+                core.setOutput("status", "approved");
+              } else {
+                console.log("Found pending issues without approval");
+                core.setOutput("status", "waiting");
+              }
+            } else {
+              console.log("No pending approval issues found");
+              core.setOutput("status", "no_pending");
+            }
+  
+  process-approvals:
+    needs: check-approvals
+    if: needs.check-approvals.outputs.approval_status == 'approved'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Process approved issues
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            
+            // Find approved issues
+            const approvedIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['pending-approval', 'approved']
+            });
+            
+            if (approvedIssues.data.length === 0) {
+              console.log("No approved issues found");
+              return;
+            }
+            
+            // Process most recent approved issue
+            const issue = approvedIssues.data[0];
+            console.log(`Processing approved issue #${issue.number}: ${issue.title}`);
+            
+            // Save issue body to file
+            fs.writeFileSync('./issue_body.txt', issue.body);
+            
+            // Extract the pending releases file path from the issue body
+            const releasesMatch = issue.body.match(/Data file: `(.+?)`/);
+            let releasesFile = null;
+            
+            if (releasesMatch && releasesMatch[1]) {
+              releasesFile = releasesMatch[1];
+            } else {
+              // If not found, use the most recent pending_releases file
+              const files = fs.readdirSync('./output').filter(f => f.startsWith('pending_releases_') && f.endsWith('.json'));
+              if (files.length > 0) {
+                files.sort().reverse();
+                releasesFile = `./output/${files[0]}`;
+              }
+            }
+            
+            if (!releasesFile) {
+              console.log("Could not find pending releases file");
+              return;
+            }
+            
+            console.log(`Using pending releases file: ${releasesFile}`);
+      
+      - name: Download artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: pending-releases
+          path: ./output/
+      
+      - name: Process approvals
+        run: |
+          PENDING_FILE=$(ls output/pending_releases_*.json | sort -r | head -n1)
+          python process_approvals.py --pending-file "$PENDING_FILE" --issue-body issue_body.txt
+      
+      - name: Close approval issue
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Find approved issues
+            const approvedIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['pending-approval', 'approved']
+            });
+            
+            if (approvedIssues.data.length === 0) {
+              return;
+            }
+            
+            // Close issue and add processed label
+            const issue = approvedIssues.data[0];
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              state: 'closed',
+              labels: ['pending-approval', 'approved', 'processed']
+            });
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: '✅ Approved books have been processed and will be included in the weekly report.'
+            });
+  
+  generate-report:
+    needs: [check-approvals, process-approvals]
+    if: always() && (needs.check-approvals.outputs.approval_status == 'approved' || needs.check-approvals.outputs.approval_status == 'no_pending')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Create environment file
+        run: |
+          echo "SHOP_URL=${{ secrets.SHOP_URL }}" > .env.production
+          echo "SHOPIFY_ACCESS_TOKEN=${{ secrets.SHOPIFY_ACCESS_TOKEN }}" >> .env.production
+          echo "SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}" >> .env.production
+          echo "EMAIL_SENDER=${{ secrets.EMAIL_SENDER }}" >> .env.production
+          echo "EMAIL_RECIPIENTS=${{ secrets.EMAIL_RECIPIENTS }}" >> .env.production
+          
+          # Set test mode based on input parameter
+          if [ "${{ github.event.inputs.run_mode }}" = "test" ]; then
+            echo "USE_TEST_DATA=true" >> .env.production
+            echo "🧪 Running weekly report in TEST mode"
+          else
+            echo "USE_TEST_DATA=false" >> .env.production
+            echo "🚀 Running weekly report in PRODUCTION mode"
+          fi
+      
+      - name: Download processed approvals
+        if: needs.check-approvals.outputs.approval_status == 'approved'
+        uses: actions/download-artifact@v2
+        with:
+          name: processed-approvals
+          path: ./output/
+      
+      - name: Run weekly sales report
+        run: python weekly_sales_report.py
+      
+      - name: Upload report results
+        uses: actions/upload-artifact@v3
+        with:
+          name: weekly-report
+          path: |
+            ./output/NYT_weekly_sales_report_*.csv
+            ./output/NYT_excluded_items_*.csv
+            ./preorders/NYT_preorder_tracking.csv
