@@ -51,19 +51,39 @@ jobs:
             echo "🚀 Running in PRODUCTION mode"
           fi
       
-      - name: Run publication date audit
-        id: run-audit
-        run: |
-          # Create output directories
-          mkdir -p output audit overrides
-          
-          # Run the audit
-          TIMESTAMP=$(date +'%Y-%m-%d')
-          RELEASES_FILE="./output/pending_releases_${TIMESTAMP}.json"
-          
-          python audit_publication_dates.py --output-releases "$RELEASES_FILE"
-          
-          echo "releases_file=$RELEASES_FILE" >> $GITHUB_OUTPUT
+          - name: Run publication date audit
+          id: run-audit
+          run: |
+            # Create output directories
+            mkdir -p output audit overrides
+            
+            # Run the audit
+            TIMESTAMP=$(date +'%Y-%m-%d')
+            RELEASES_FILE="./output/pending_releases_${TIMESTAMP}.json"
+            
+            python audit_publication_dates.py --output-releases "$RELEASES_FILE"
+            
+            echo "releases_file=$RELEASES_FILE" >> $GITHUB_OUTPUT
+            
+            # List directory contents for debugging
+            echo "Contents of directories after audit:"
+            echo "Output directory:"
+            ls -la ./output/
+            echo "Audit directory:"
+            ls -la ./audit/
+            echo "Overrides directory:"
+            ls -la ./overrides/
+            
+            # Look for the releases file explicitly
+            if [ -f "$RELEASES_FILE" ]; then
+              echo "Found releases file at: $RELEASES_FILE"
+              echo "File content preview:"
+              head -n 20 "$RELEASES_FILE"
+            else
+              echo "WARNING: Releases file not found at: $RELEASES_FILE"
+              # Try to find it elsewhere
+              find . -name "pending_releases_*.json" -type f
+            fi
       
       - name: Check for pending releases
         id: check-releases
