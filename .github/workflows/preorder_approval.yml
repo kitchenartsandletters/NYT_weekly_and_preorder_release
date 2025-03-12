@@ -54,7 +54,10 @@ jobs:
       - name: Run publication date audit
         id: run-audit
         run: |
+          # Create output directories
           mkdir -p output audit overrides
+          
+          # Run the audit
           TIMESTAMP=$(date +'%Y-%m-%d')
           RELEASES_FILE="./output/pending_releases_${TIMESTAMP}.json"
           
@@ -76,6 +79,43 @@ jobs:
             ls -la ./output/
             echo "Trying to find any pending_releases files:"
             find ./ -name "pending_releases*" 2>/dev/null || echo "No files found in current directory"
+          fi
+      
+      - name: Create test release file if needed
+        id: create-manual-file
+        run: |
+          if [ ! -f "${{ steps.run-audit.outputs.releases_file }}" ]; then
+            echo "Creating a test release file manually"
+            mkdir -p output
+            MANUAL_FILE="./output/pending_releases_manual.json"
+            cat > $MANUAL_FILE << 'EOF'
+            {
+              "pending_releases": [
+                {
+                  "isbn": "9780262551311",
+                  "title": "Modern Chinese Foodways",
+                  "quantity": 2,
+                  "pub_date": "2025-03-01"
+                },
+                {
+                  "isbn": "9784756256522",
+                  "title": "Fishes of Edo: A Guide to Classical Japanese Fishes",
+                  "quantity": 10,
+                  "pub_date": "2025-03-01" 
+                }
+              ],
+              "error_cases": [],
+              "total_quantity": 12,
+              "run_date": "2025-03-12",
+              "total_pending_books": 2
+            }
+            EOF
+            
+            echo "manual_file=$MANUAL_FILE" >> $GITHUB_OUTPUT
+            echo "Created manual test file: $MANUAL_FILE"
+            cat $MANUAL_FILE
+          else
+            echo "Audit file exists, no need to create manual file"
           fi
       
       - name: Check for pending releases
@@ -105,10 +145,15 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const releasesFile = '${{ steps.check-releases.outputs.releases_file }}';
-            console.log(`Reading releases from: ${releasesFile}`);
+            // Try to use the audit file first, fall back to manual file if it exists
+            let releasesFile = '${{ steps.check-releases.outputs.releases_file }}';
             
-            // Check if file exists and list directory contents
+            if (!fs.existsSync(releasesFile)) {
+              console.log(`Audit file not found: ${releasesFile}`);
+              releasesFile = 'output/pending_releases_manual.json';
+              console.log(`Trying manual file: ${releasesFile}`);
+            }
+            
             try {
               fs.accessSync(releasesFile, fs.constants.F_OK);
               console.log(`File exists: ${releasesFile}`);
@@ -122,83 +167,51 @@ jobs:
               
               const pendingData = JSON.parse(fs.readFileSync(releasesFile, 'utf8'));
               const timestamp = new Date().toISOString().split('T')[0];
-          
-            // Format books as a markdown table
-            let booksTable = '| Approve | ISBN | Title | Quantity | Pub Date | Publisher |\n|---------|------|-------|----------|----------|----------|\n';
-            
-            pendingData.pending_releases.forEach(book => {
-              booksTable += `| [ ] | ${book.isbn} | ${book.title} | ${book.quantity} | ${book.pub_date || 'Unknown'} | ${book.vendor || 'Unknown'} |\n`;
-            });
-            
-            // Create issue with approval checkboxes
-            const issue = await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: `📚 Preorder Approval: ${pendingData.total_pending_books} Books Ready for Release (${timestamp})`,
-              body: `## Preorder Books Ready for Release Approval
-
-            **Important: Please review these preorder books before they are included in the weekly sales report.**
-
-            Check the boxes for books that should be included in this week's report. Books with unchecked boxes will remain in preorder status.
-
-            ### Instructions
-            1. Review each book's details
-            2. Check the box in the "Approve" column for books that should be included
-            3. Add the label \`approved\` to this issue when you've finished reviewing
-            4. Only checked books will have their sales included in the next report
-
-            ### Books Pending Approval
-
-            ${booksTable}
-
-            ### Notes
-            - This approval is required by: Monday at 8:00 AM
-            - Books not approved will remain in preorder status
-            - Data file: \`${releasesFile}\``,
-                  labels: ['pending-approval', 'preorders']
-                });
-                
-                console.log(`Created approval issue #${issue.data.number}`);
+              
+              // Format books as a markdown table
+              let booksTable = '| Approve | ISBN | Title | Quantity | Pub Date | Publisher |\n|---------|------|-------|----------|----------|----------|\n';
+              
+              pendingData.pending_releases.forEach(book => {
+                booksTable += `| [ ] | ${book.isbn} | ${book.title} | ${book.quantity} | ${book.pub_date || 'Unknown'} | ${book.vendor || 'Unknown'} |\n`;
+              });
+              
+              // Create issue with approval checkboxes
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: `📚 Preorder Approval: ${pendingData.total_pending_books} Books Ready for Release (${timestamp})`,
+                body: `## Preorder Books Ready for Release Approval
+              
+              **Important: Please review these preorder books before they are included in the weekly sales report.**
+              
+              Check the boxes for books that should be included in this week's report. Books with unchecked boxes will remain in preorder status.
+              
+              ### Instructions
+              1. Review each book's details
+              2. Check the box in the "Approve" column for books that should be included
+              3. Add the label \`approved\` to this issue when you've finished reviewing
+              4. Only checked books will have their sales included in the next report
+              
+              ### Books Pending Approval
+              
+              ${booksTable}
+              
+              ### Notes
+              - This approval is required by: Monday at 8:00 AM
+              - Books not approved will remain in preorder status
+              - Data file: \`${releasesFile}\``,
+                labels: ['pending-approval', 'preorders']
+              });
+              
+              console.log(`Created approval issue #${issue.data.number}`);
+            } catch (error) {
+              console.error(`Error processing releases file: ${error.message}`);
+              core.setFailed(`Could not create approval issue: ${error.message}`);
+            }
       
       - name: Upload pending releases file
         if: steps.check-releases.outputs.pending_count > '0'
         uses: actions/upload-artifact@v4
         with:
           name: pending-releases
-          path: ${{ steps.run-audit.outputs.releases_file }}
-
-      - name: Create manual test file if needed
-        run: |
-          RELEASES_FILE="${{ steps.run-audit.outputs.releases_file }}"
-          if [ ! -f "$RELEASES_FILE" ]; then
-            echo "Creating manual test file because audit didn't create one"
-            MANUAL_FILE="./output/pending_releases_manual.json"
-            cat > $MANUAL_FILE << 'EOF'
-            {
-              "pending_releases": [
-                {
-                  "isbn": "9780262551311",
-                  "title": "Modern Chinese Foodways",
-                  "quantity": 2,
-                  "pub_date": "2025-03-01"
-                },
-                {
-                  "isbn": "9784756256522",
-                  "title": "Fishes of Edo: A Guide to Classical Japanese Fishes",
-                  "quantity": 10,
-                  "pub_date": "2025-03-01" 
-                }
-              ],
-              "error_cases": [],
-              "total_quantity": 12,
-              "run_date": "2025-03-11",
-              "total_pending_books": 2
-            }
-            EOF
-            
-            echo "manual_file=$MANUAL_FILE" >> $GITHUB_OUTPUT
-            echo "Created manual test file: $MANUAL_FILE"
-            cat $MANUAL_FILE
-          else
-            echo "Audit file exists, no need to create manual file"
-          fi
+          path: ${{ steps.check-releases.outputs.releases_file }}
