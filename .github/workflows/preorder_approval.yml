@@ -1,5 +1,9 @@
 name: Preorder Approval Workflow
 
+permissions:
+  contents: read
+  issues: write
+
 on:
   # Run weekly on Friday to prepare for the Monday report
   schedule:
