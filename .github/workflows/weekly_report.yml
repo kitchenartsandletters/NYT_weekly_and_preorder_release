@@ -129,17 +129,34 @@ jobs:
             
             console.log(`Using pending releases file: ${releasesFile}`);
       
-      - name: Download artifact
+      - name: Download artifact (if available)
+        id: download-artifact
+        continue-on-error: true  # Continue even if this step fails
         uses: actions/download-artifact@v4
         with:
           name: pending-releases
           path: ./output/
+          
+      - name: Check if artifact was downloaded
+        id: check-artifact
+        run: |
+          echo "Checking for downloaded artifacts in output directory:"
+          ls -la ./output/ || echo "Output directory is empty or doesn't exist"
+          
+          if ls ./output/pending_releases_*.json 1> /dev/null 2>&1; then
+            echo "Found pending releases file"
+            echo "has_artifact=true" >> $GITHUB_OUTPUT
+          else
+            echo "No pending releases file found from artifact"
+            echo "has_artifact=false" >> $GITHUB_OUTPUT
+          fi
       
       - name: Process approvals
+        if: steps.check-artifact.outputs.has_artifact == 'true'
         run: |
           PENDING_FILE=$(ls output/pending_releases_*.json | sort -r | head -n1)
           python process_approvals.py --pending-file "$PENDING_FILE" --issue-body issue_body.txt
-      
+
       - name: Close approval issue
         uses: actions/github-script@v6
         with:
