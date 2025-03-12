@@ -58,23 +58,24 @@ jobs:
           TIMESTAMP=$(date +'%Y-%m-%d')
           RELEASES_FILE="./output/pending_releases_${TIMESTAMP}.json"
           
-          # Run the audit and save all output for examination
-          python audit_publication_dates.py --output-releases "$RELEASES_FILE" --test-mode > audit_output.log 2>&1
-          
-          # Show the log
-          echo "==== AUDIT LOG START ===="
-          cat audit_output.log
-          echo "==== AUDIT LOG END ===="
+          # Run the audit with verbose output
+          echo "Running audit script with output to console..."
+          python -u audit_publication_dates.py --output-releases "$RELEASES_FILE" --test-mode || echo "Audit script exited with non-zero code"
           
           echo "releases_file=$RELEASES_FILE" >> $GITHUB_OUTPUT
           
           # See if the file exists
           if [ -f "$RELEASES_FILE" ]; then
             echo "File exists: $RELEASES_FILE"
+            ls -la "$RELEASES_FILE"
+            echo "File contents (first 20 lines):"
+            head -n 20 "$RELEASES_FILE"
           else
             echo "File does not exist: $RELEASES_FILE"
+            echo "Contents of output directory:"
+            ls -la ./output/
             echo "Trying to find any pending_releases files:"
-            find / -name "pending_releases*" 2>/dev/null || echo "No files found"
+            find ./ -name "pending_releases*" 2>/dev/null || echo "No files found in current directory"
           fi
       
       - name: Check for pending releases
