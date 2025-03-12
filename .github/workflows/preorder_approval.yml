@@ -88,7 +88,7 @@ jobs:
             echo "Creating a test release file manually"
             mkdir -p output
             MANUAL_FILE="./output/pending_releases_manual.json"
-            cat > $MANUAL_FILE << 'EOF'
+            cat > $MANUAL_FILE << 'EOFMARKER'
             {
               "pending_releases": [
                 {
@@ -109,7 +109,7 @@ jobs:
               "run_date": "2025-03-12",
               "total_pending_books": 2
             }
-            EOF
+            EOFMARKER
             
             echo "manual_file=$MANUAL_FILE" >> $GITHUB_OUTPUT
             echo "Created manual test file: $MANUAL_FILE"
