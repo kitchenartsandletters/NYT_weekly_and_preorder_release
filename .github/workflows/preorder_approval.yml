@@ -88,28 +88,27 @@ jobs:
             echo "Creating a test release file manually"
             mkdir -p output
             MANUAL_FILE="./output/pending_releases_manual.json"
-            cat > $MANUAL_FILE << 'EOFMARKER'
-            {
-              "pending_releases": [
-                {
-                  "isbn": "9780262551311",
-                  "title": "Modern Chinese Foodways",
-                  "quantity": 2,
-                  "pub_date": "2025-03-01"
-                },
-                {
-                  "isbn": "9784756256522",
-                  "title": "Fishes of Edo: A Guide to Classical Japanese Fishes",
-                  "quantity": 10,
-                  "pub_date": "2025-03-01" 
-                }
-              ],
-              "error_cases": [],
-              "total_quantity": 12,
-              "run_date": "2025-03-12",
-              "total_pending_books": 2
-            }
-            EOFMARKER
+            
+            echo "{" > $MANUAL_FILE
+            echo '  "pending_releases": [' >> $MANUAL_FILE
+            echo '    {' >> $MANUAL_FILE
+            echo '      "isbn": "9780262551311",' >> $MANUAL_FILE
+            echo '      "title": "Modern Chinese Foodways",' >> $MANUAL_FILE
+            echo '      "quantity": 2,' >> $MANUAL_FILE
+            echo '      "pub_date": "2025-03-01"' >> $MANUAL_FILE
+            echo '    },' >> $MANUAL_FILE
+            echo '    {' >> $MANUAL_FILE
+            echo '      "isbn": "9784756256522",' >> $MANUAL_FILE
+            echo '      "title": "Fishes of Edo: A Guide to Classical Japanese Fishes",' >> $MANUAL_FILE
+            echo '      "quantity": 10,' >> $MANUAL_FILE
+            echo '      "pub_date": "2025-03-01"' >> $MANUAL_FILE
+            echo '    }' >> $MANUAL_FILE
+            echo '  ],' >> $MANUAL_FILE
+            echo '  "error_cases": [],' >> $MANUAL_FILE
+            echo '  "total_quantity": 12,' >> $MANUAL_FILE
+            echo '  "run_date": "2025-03-12",' >> $MANUAL_FILE
+            echo '  "total_pending_books": 2' >> $MANUAL_FILE
+            echo "}" >> $MANUAL_FILE
             
             echo "manual_file=$MANUAL_FILE" >> $GITHUB_OUTPUT
             echo "Created manual test file: $MANUAL_FILE"
