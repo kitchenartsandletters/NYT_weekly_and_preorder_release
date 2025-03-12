@@ -1,5 +1,9 @@
 name: Weekly Sales Report
 
+permissions:
+  contents: read
+  issues: write
+
 on:
   # Run every Monday at 8am UTC
   schedule:
