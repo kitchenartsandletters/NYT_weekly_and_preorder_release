@@ -151,6 +151,13 @@ jobs:
             echo "has_artifact=false" >> $GITHUB_OUTPUT
           fi
       
+      - name: Upload processed approvals
+        if: needs.check-approvals.outputs.approval_status == 'approved'
+        uses: actions/upload-artifact@v4
+        with:
+          name: processed-approvals
+          path: ./output/approved_releases_*.json
+
       - name: Process approvals
         if: steps.check-artifact.outputs.has_artifact == 'true'
         run: |
