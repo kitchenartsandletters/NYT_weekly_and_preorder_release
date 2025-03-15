@@ -141,76 +141,84 @@ jobs:
             echo "pending_count=0" >> $GITHUB_OUTPUT
           fi
       
-      - name: Create approval issue
-        if: steps.check-releases.outputs.pending_count > '0'
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            // Try to use the audit file first, fall back to manual file if it exists
-            let releasesFile = '${{ steps.check-releases.outputs.releases_file }}';
-            
-            if (!fs.existsSync(releasesFile)) {
-              console.log(`Audit file not found: ${releasesFile}`);
-              releasesFile = 'output/pending_releases_manual.json';
-              console.log(`Trying manual file: ${releasesFile}`);
-            }
-            
-            try {
-              fs.accessSync(releasesFile, fs.constants.F_OK);
-              console.log(`File exists: ${releasesFile}`);
+          - name: Create approval issue
+          if: steps.check-releases.outputs.pending_count > '0'
+          uses: actions/github-script@v6
+          with:
+            github-token: ${{ secrets.GITHUB_TOKEN }}
+            script: |
+              const fs = require('fs');
+              // Try to use the audit file first, fall back to manual file if it exists
+              let releasesFile = '${{ steps.check-releases.outputs.releases_file }}';
               
-              const fileStats = fs.statSync(releasesFile);
-              console.log(`File size: ${fileStats.size} bytes`);
+              if (!fs.existsSync(releasesFile)) {
+                console.log(`Audit file not found: ${releasesFile}`);
+                releasesFile = 'output/pending_releases_manual.json';
+                console.log(`Trying manual file: ${releasesFile}`);
+              }
               
-              const dirName = require('path').dirname(releasesFile);
-              const dirContents = fs.readdirSync(dirName);
-              console.log(`Directory contents of ${dirName}:`, dirContents);
-              
-              const pendingData = JSON.parse(fs.readFileSync(releasesFile, 'utf8'));
-              const timestamp = new Date().toISOString().split('T')[0];
-              
-              // Format books as a markdown table
-              let booksTable = '| Approve | ISBN | Title | Quantity | Pub Date | Publisher |\n|---------|------|-------|----------|----------|----------|\n';
-              
-              pendingData.pending_releases.forEach(book => {
-                booksTable += `| [ ] | ${book.isbn} | ${book.title} | ${book.quantity} | ${book.pub_date || 'Unknown'} | ${book.vendor || 'Unknown'} |\n`;
-              });
-              
-              // Create issue with approval checkboxes
-              const issue = await github.rest.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: `📚 Preorder Approval: ${pendingData.total_pending_books} Books Ready for Release (${timestamp})`,
-                body: `## Preorder Books Ready for Release Approval
-              
-              **Important: Please review these preorder books before they are included in the weekly sales report.**
-              
-              Check the boxes for books that should be included in this week's report. Books with unchecked boxes will remain in preorder status.
-              
-              ### Instructions
-              1. Review each book's details
-              2. Check the box in the "Approve" column for books that should be included
-              3. Add the label \`approved\` to this issue when you've finished reviewing
-              4. Only checked books will have their sales included in the next report
-              
-              ### Books Pending Approval
-              
-              ${booksTable}
-              
-              ### Notes
-              - This approval is required by: Monday at 8:00 AM
-              - Books not approved will remain in preorder status
-              - Data file: \`${releasesFile}\``,
-                labels: ['pending-approval', 'preorders']
-              });
-              
-              console.log(`Created approval issue #${issue.data.number}`);
-            } catch (error) {
-              console.error(`Error processing releases file: ${error.message}`);
-              core.setFailed(`Could not create approval issue: ${error.message}`);
-            }
+              try {
+                fs.accessSync(releasesFile, fs.constants.F_OK);
+                console.log(`File exists: ${releasesFile}`);
+                
+                const fileStats = fs.statSync(releasesFile);
+                console.log(`File size: ${fileStats.size} bytes`);
+                
+                const dirName = require('path').dirname(releasesFile);
+                const dirContents = fs.readdirSync(dirName);
+                console.log(`Directory contents of ${dirName}:`, dirContents);
+                
+                const pendingData = JSON.parse(fs.readFileSync(releasesFile, 'utf8'));
+                const timestamp = new Date().toISOString().split('T')[0];
+                
+                // Format books as a markdown table with updated column names
+                let booksTable = '| Approve | ISBN | Title | QTY Presold | Inventory | Pub Date | Publisher |\n|---------|------|-------|------------|-----------|----------|----------|\n';
+                
+                pendingData.pending_releases.forEach(book => {
+                  // Use original_pub_date as the pub date if it exists
+                  const pubDate = book.original_pub_date || book.pub_date || 'Unknown';
+                  // Use publisher field or fall back to vendor if publisher doesn't exist
+                  const publisher = book.publisher || book.vendor || 'Unknown';
+                  const inventory = book.inventory || 0;
+                  
+                  booksTable += `| [ ] | ${book.isbn} | ${book.title} | ${book.quantity} | ${inventory} | ${pubDate} | ${publisher} |\n`;
+                });
+                
+                // Create issue with approval checkboxes and more detailed instructions
+                const issue = await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: `📚 Preorder Approval: ${pendingData.total_pending_books} Books Ready for Release (${timestamp})`,
+                  body: `## Preorder Books Ready for Release Approval
+  
+          **Important: Please review these preorder books before they are included in the weekly sales report.**
+          
+          Check the boxes for books that should be included in this week's report. Books with unchecked boxes will remain in preorder status.
+          
+          ### Instructions
+          1. Review each book's details
+          2. Check the box in the "Approve" column for books that should be included
+            - IMPORTANT: Use exactly \`[x]\` for approved books (lowercase x, no spaces)
+            - Incorrect formats like \`[ x]\`, \`[X]\`, or \`[ x ]\` won't be recognized
+          3. Add the label \`approved\` to this issue when you've finished reviewing
+          4. Only checked books will have their sales included in the next report
+          
+          ### Books Pending Approval
+          
+          ${booksTable}
+          
+          ### Notes
+          - This approval is required by: Monday at 8:00 AM
+          - Books not approved will remain in preorder status
+          - Data file: \`${releasesFile}\``,
+                          labels: ['pending-approval', 'preorders']
+                        });
+                        
+                        console.log(`Created approval issue #${issue.data.number}`);
+                      } catch (error) {
+                        console.error(`Error processing releases file: ${error.message}`);
+                        core.setFailed(`Could not create approval issue: ${error.message}`);
+                      }
       
       - name: Upload pending releases file
         if: steps.check-releases.outputs.pending_count > '0'

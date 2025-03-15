@@ -128,10 +128,12 @@ def fetch_preorder_products():
                     node {
                         id
                         title
+                        vendor
                         variants(first: 1) {
                             edges {
                                 node {
                                     barcode
+                                    inventoryQuantity
                                 }
                             }
                         }
@@ -160,8 +162,11 @@ def fetch_preorder_products():
             
             # Get barcode (ISBN)
             barcode = None
+            inventory = 0
             if product.get('variants', {}).get('edges'):
-                barcode = product['variants']['edges'][0]['node'].get('barcode')
+                variant = product['variants']['edges'][0]['node']
+                barcode = variant.get('barcode')
+                inventory = variant.get('inventoryQuantity', 0)
             
             # Get pub_date
             pub_date = None
@@ -175,7 +180,9 @@ def fetch_preorder_products():
                 'id': product['id'],
                 'title': product['title'],
                 'barcode': barcode,
-                'pub_date': pub_date
+                'pub_date': pub_date,
+                'vendor': product.get('vendor', 'Unknown'),
+                'inventory': inventory
             })
         
         return products
@@ -369,6 +376,40 @@ def suggest_overrides(audit_results, output_file=None):
     logging.info(f"Suggested overrides generated: {output_file}")
     return output_file
 
+def get_inventory_level(product_id):
+    """Get current inventory level for a product"""
+    # If in test mode, return a random inventory number
+    if USE_TEST_DATA:
+        import random
+        return random.randint(0, 50)
+        
+    query = """
+    query($id: ID!) {
+        product(id: $id) {
+            variants(first: 1) {
+                edges {
+                    node {
+                        inventoryQuantity
+                    }
+                }
+            }
+        }
+    }
+    """
+    
+    try:
+        variables = {"id": product_id}
+        data = run_query_with_retries(query, variables)
+        
+        variant_edges = data.get('product', {}).get('variants', {}).get('edges', [])
+        if variant_edges:
+            return variant_edges[0]['node'].get('inventoryQuantity', 0)
+        
+        return 0
+    except Exception as e:
+        logging.error(f"Error fetching inventory: {e}")
+        return 0
+
 def identify_pending_releases(pub_date_overrides=None):
     """
     Identify books that are about to be released based on their pub dates
@@ -405,6 +446,28 @@ def identify_pending_releases(pub_date_overrides=None):
             details = product_details.get(product_id, {})
             details['barcode'] = isbn
             
+            # Get inventory and vendor information
+            try:
+                inventory = get_inventory_level(product_id)
+                vendor = details.get('vendor', 'Unknown')
+                
+                # If vendor not in details, try to get it from Shopify
+                if vendor == 'Unknown' and not USE_TEST_DATA:
+                    query = """
+                    query($id: ID!) {
+                        product(id: $id) {
+                            vendor
+                        }
+                    }
+                    """
+                    variables = {"id": product_id}
+                    data = run_query_with_retries(query, variables)
+                    vendor = data.get('product', {}).get('vendor', 'Unknown')
+            except Exception as e:
+                logging.warning(f"Could not get inventory/vendor for {isbn}: {e}")
+                inventory = 0
+                vendor = 'Unknown'
+            
             # Check if the book is no longer in preorder status (with overrides)
             is_preorder, reason = is_preorder_or_future_pub(details, pub_date_overrides)
             
@@ -416,7 +479,9 @@ def identify_pending_releases(pub_date_overrides=None):
                     'quantity': quantity,
                     'original_pub_date': details.get('pub_date', 'Unknown'),
                     'overridden_pub_date': pub_date_overrides.get(isbn) if pub_date_overrides else None,
-                    'reason': 'No longer in preorder status'
+                    'reason': 'No longer in preorder status',
+                    'inventory': inventory,
+                    'publisher': vendor
                 })
                 total_quantity += quantity
         except Exception as e:
@@ -439,7 +504,7 @@ def identify_pending_releases(pub_date_overrides=None):
 def save_pending_releases(pending_data, output_file=None):
     """Save pending releases to a JSON file"""
     if not output_file:
-        output_dir = os.path.join(BASE_DIR, 'audit')
+        output_dir = os.path.join(BASE_DIR, 'output')  # Changed from 'audit' to 'output'
         os.makedirs(output_dir, exist_ok=True)
         output_file = os.path.join(output_dir, f'pending_releases_{datetime.now().strftime("%Y-%m-%d")}.json')
     
@@ -551,31 +616,41 @@ def generate_test_preorder_data():
             "id": "gid://shopify/Product/1111111111",
             "title": "Future Release Book",
             "barcode": "9781234567890",
-            "pub_date": future_date
+            "pub_date": future_date,
+            "vendor": "Test Publisher",
+            "inventory": 25
         },
         {
             "id": "gid://shopify/Product/2222222222",
             "title": "Recent Release Book",
             "barcode": "9781234567891",
-            "pub_date": recent_date
+            "pub_date": recent_date,
+            "vendor": "Example Press",
+            "inventory": 15
         },
         {
             "id": "gid://shopify/Product/3333333333",
             "title": "Past Due Book",
             "barcode": "9781234567892",
-            "pub_date": past_date
+            "pub_date": past_date,
+            "vendor": "Sample Publishing",
+            "inventory": 10
         },
         {
             "id": "gid://shopify/Product/4444444444",
             "title": "Missing Date Book",
             "barcode": "9781234567893",
-            "pub_date": None
+            "pub_date": None,
+            "vendor": "Unknown Publisher",
+            "inventory": 5
         },
         {
             "id": "gid://shopify/Product/5555555555",
             "title": "Malformed Date Book",
             "barcode": "9781234567894",
-            "pub_date": malformed_date
+            "pub_date": malformed_date,
+            "vendor": "Demo Books",
+            "inventory": 0
         }
     ]
     
@@ -585,11 +660,13 @@ def generate_test_preorder_data():
         node = {
             "id": product["id"],
             "title": product["title"],
+            "vendor": product["vendor"],
             "variants": {
                 "edges": [
                     {
                         "node": {
-                            "barcode": product["barcode"]
+                            "barcode": product["barcode"],
+                            "inventoryQuantity": product["inventory"]
                         }
                     }
                 ]
