@@ -1,30 +1,199 @@
-name: Generate Weekly Report
+name: Weekly Sales Report with Audit
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 14 * * 1"  # 10am ET Monday during DST (EDT)
+  # schedule:
+  # - cron: "0 14 * * 1"  # 10am ET Monday during DST (EDT)
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
-  generate_report:
+  audit_preorders:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3  # Match your test version
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
           
       - name: Set up Python
-        uses: actions/setup-python@v4  # Match your test version
+        uses: actions/setup-python@v4
         with:
           python-version: "3.12"
           
       - name: Install dependencies
         run: pip install -r requirements.txt
         
+      - name: Run preorder audit
+        env:
+          SHOP_URL: ${{ secrets.SHOP_URL }}
+          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+        run: python audit_publication_dates.py --output-releases ./output/pending_releases.json --output-audit ./audit/pub_date_audit.csv --output-suggested ./overrides/suggested_overrides.csv
+        
+      - name: Upload audit artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-reports
+          path: |
+            ./output/pending_releases.json
+            ./audit/pub_date_audit.csv
+            ./overrides/suggested_overrides.csv
+          
+      - name: Check for pending releases
+        id: check_releases
+        run: |
+          if [ -f "./output/pending_releases.json" ]; then
+            PENDING_COUNT=$(jq '.total_pending_books' ./output/pending_releases.json)
+            echo "pending_count=$PENDING_COUNT" >> $GITHUB_OUTPUT
+            if [ "$PENDING_COUNT" -gt "0" ]; then
+              echo "has_pending=true" >> $GITHUB_OUTPUT
+              echo "Found $PENDING_COUNT books pending release"
+            else
+              echo "has_pending=false" >> $GITHUB_OUTPUT
+              echo "No books pending release"
+            fi
+          else
+            echo "pending_count=0" >> $GITHUB_OUTPUT
+            echo "has_pending=false" >> $GITHUB_OUTPUT
+            echo "No pending releases file found"
+          fi
+          
+      - name: Create pending releases issue
+        if: steps.check_releases.outputs.has_pending == 'true'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const pendingData = JSON.parse(fs.readFileSync('./output/pending_releases.json', 'utf8'));
+            
+            // Create a formatted table for the issue
+            let booksTable = '| ISBN | Title | Quantity | Publication Date |\n|------|-------|----------|------------------|\n';
+            
+            pendingData.pending_releases.forEach(book => {
+              const pubDate = book.overridden_pub_date || book.original_pub_date;
+              booksTable += `| ${book.isbn} | ${book.title} | ${book.quantity} | ${pubDate} |\n`;
+            });
+            
+            const issueBody = `## Pending Book Releases: Action Required
+
+            The weekly audit has identified ${pendingData.total_pending_books} books with a total of ${pendingData.total_quantity} copies that are ready to be released from preorder status and included in this week's sales report.
+
+            ### Books Pending Release
+            ${booksTable}
+
+            ### Next Steps
+            1. Review these books to confirm they should be included in this week's report
+            2. If any books should NOT be included, add them to the publication date override file
+            3. Add a comment to this i`ssue with your decision for each book
+            4. Close this issue when ready to proceed with the weekly report
+
+            **Note:** The weekly report will not run until this issue is closed.`;
+
+            // Create the issue
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Weekly Report: ${pendingData.total_pending_books} books pending release (${pendingData.run_date})`,
+              body: issueBody,
+              labels: ['pending-release', 'needs-review']
+            });
+            
+      - name: Upload pending release issue ID
+        if: steps.check_releases.outputs.has_pending == 'true'
+        run: |
+          # Get the latest issue number
+          ISSUE_NUMBER=$(gh issue list --label pending-release --json number --limit 1 | jq '.[0].number')
+          echo $ISSUE_NUMBER > ./output/pending_issue.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Upload issue number
+        if: steps.check_releases.outputs.has_pending == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pending-issue
+          path: ./output/pending_issue.txt
+
+  wait_for_approval:
+    needs: audit_preorders
+    runs-on: ubuntu-latest
+    if: success()
+    steps:
+      - name: Check for pending releases
+        id: check_pending
+        run: |
+          # Download artifacts to check if there's a pending issue
+          mkdir -p artifacts
+          cd artifacts
+          
+          # Try to download the pending issue number
+          if curl -s -f -o pending_issue.txt "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/pending-issue/pending_issue.txt"; then
+            ISSUE_NUMBER=$(cat pending_issue.txt)
+            echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+            echo "has_pending=true" >> $GITHUB_OUTPUT
+          else
+            echo "No pending issues found, proceeding with report"
+            echo "has_pending=false" >> $GITHUB_OUTPUT
+          fi
+        continue-on-error: true
+      
+      - name: Wait for issue to be closed
+        if: steps.check_pending.outputs.has_pending == 'true'
+        id: wait_for_issue
+        run: |
+          ISSUE_NUMBER=${{ steps.check_pending.outputs.issue_number }}
+          MAX_ATTEMPTS=720  # Wait up to 6 hours (30 sec * 720 = 6 hours)
+          
+          echo "Waiting for issue #$ISSUE_NUMBER to be closed before proceeding..."
+          
+          for ((i=1; i<=MAX_ATTEMPTS; i++)); do
+            ISSUE_STATE=$(gh issue view $ISSUE_NUMBER --json state --jq '.state')
+            
+            if [ "$ISSUE_STATE" = "CLOSED" ]; then
+              echo "Issue #$ISSUE_NUMBER has been closed, proceeding with report generation"
+              echo "issue_closed=true" >> $GITHUB_OUTPUT
+              break
+            fi
+            
+            if [ $i -eq $MAX_ATTEMPTS ]; then
+              echo "Timeout waiting for issue to be closed. Proceeding with report generation anyway."
+              echo "issue_closed=false" >> $GITHUB_OUTPUT
+              break
+            fi
+            
+            echo "Attempt $i: Issue is still open. Waiting 30 seconds..."
+            sleep 30
+          done
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  generate_report:
+    needs: [audit_preorders, wait_for_approval]
+    if: always() && needs.audit_preorders.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+          
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        
+      - name: Download audit artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: audit-reports
+          path: ./
+          
       - name: Generate and send report
         env:
           SHOP_URL: ${{ secrets.SHOP_URL }}
@@ -40,6 +209,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add preorders/NYT_preorder_tracking.csv
+          git add overrides/pub_date_overrides.csv
           git diff --quiet && git diff --staged --quiet || (git commit -m "Update preorder tracking data [skip ci]" && git push)
       
       - name: Upload report artifacts
