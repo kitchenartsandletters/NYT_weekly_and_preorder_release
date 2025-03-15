@@ -171,17 +171,31 @@ jobs:
               const pendingData = JSON.parse(fs.readFileSync(releasesFile, 'utf8'));
               const timestamp = new Date().toISOString().split('T')[0];
               
+              // Function to format date from YYYY-MM-DD to Month DD, YYYY
+              const formatDate = (dateStr) => {
+                if (!dateStr || dateStr === 'Unknown') return 'Unknown';
+                try {
+                  const [year, month, day] = dateStr.split('-');
+                  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                } catch (e) {
+                  return dateStr; // Return original string if parsing fails
+                }
+              };
+              
               // Format books as a markdown table with updated column names
               let booksTable = '| Approve | ISBN | Title | QTY Presold | Inventory | Pub Date | Publisher |\n|---------|------|-------|------------|-----------|----------|----------|\n';
               
               pendingData.pending_releases.forEach(book => {
                 // Use original_pub_date as the pub date if it exists
                 const pubDate = book.original_pub_date || book.pub_date || 'Unknown';
-                // Use publisher field or fall back to vendor if publisher doesn't exist
-                const publisher = book.publisher || book.vendor || 'Unknown';
+                const formattedPubDate = formatDate(pubDate);
+                
+                // Use vendor directly as the publisher
+                const publisher = book.vendor || 'Unknown';
                 const inventory = book.inventory || 0;
                 
-                booksTable += `| [ ] | ${book.isbn} | ${book.title} | ${book.quantity} | ${inventory} | ${pubDate} | ${publisher} |\n`;
+                booksTable += `| [ ] | ${book.isbn} | ${book.title} | ${book.quantity} | ${inventory} | ${formattedPubDate} | ${publisher} |\n`;
               });
               
               // Create issue with approval checkboxes and more detailed instructions
@@ -190,36 +204,36 @@ jobs:
                 repo: context.repo.repo,
                 title: `📚 Preorder Approval: ${pendingData.total_pending_books} Books Ready for Release (${timestamp})`,
                 body: `## Preorder Books Ready for Release Approval
-
-            **Important: Please review these preorder books before they are included in the weekly sales report.**
-            
-            Check the boxes for books that should be included in this week's report. Books with unchecked boxes will remain in preorder status.
-            
-            ### Instructions
-            1. Review each book's details
-            2. Check the box in the "Approve" column for books that should be included
-              - IMPORTANT: Use exactly \`[x]\` for approved books (lowercase x, no spaces)
-              - Incorrect formats like \`[ x]\`, \`[X]\`, or \`[ x ]\` won't be recognized
-            3. Add the label \`approved\` to this issue when you've finished reviewing
-            4. Only checked books will have their sales included in the next report
-            
-            ### Books Pending Approval
-            
-            ${booksTable}
-            
-            ### Notes
-            - This approval is required by: Monday at 8:00 AM
-            - Books not approved will remain in preorder status
-            - Data file: \`${releasesFile}\``,
-                            labels: ['pending-approval', 'preorders']
-                          });
-                          
-                          console.log(`Created approval issue #${issue.data.number}`);
-                        } catch (error) {
-                          console.error(`Error processing releases file: ${error.message}`);
-                          core.setFailed(`Could not create approval issue: ${error.message}`);
-                      }
-    
+  
+              **Important: Please review these preorder books before they are included in the weekly sales report.**
+              
+              Check the boxes for books that should be included in this week's report. Books with unchecked boxes will remain in preorder status.
+              
+              ### Instructions
+              1. Review each book's details
+              2. Check the box in the "Approve" column for books that should be included
+                - IMPORTANT: Use exactly \`[x]\` for approved books (lowercase x, no spaces)
+                - Incorrect formats like \`[ x]\`, \`[X]\`, or \`[ x ]\` won't be recognized
+              3. Add the label \`approved\` to this issue when you've finished reviewing
+              4. Only checked books will have their sales included in the next report
+              
+              ### Books Pending Approval
+              
+              ${booksTable}
+              
+              ### Notes
+              - This approval is required by: Monday at 8:00 AM
+              - Books not approved will remain in preorder status
+              - Data file: \`${releasesFile}\``,
+                              labels: ['pending-approval', 'preorders']
+                            });
+                            
+                            console.log(`Created approval issue #${issue.data.number}`);
+                          } catch (error) {
+                            console.error(`Error processing releases file: ${error.message}`);
+                            core.setFailed(`Could not create approval issue: ${error.message}`);
+                          }
+                
       - name: Upload pending releases file
         if: steps.check-releases.outputs.pending_count > '0'
         uses: actions/upload-artifact@v4

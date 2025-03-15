@@ -233,6 +233,7 @@ def fetch_product_details(product_ids):
             ... on Product {
                 id
                 title
+                vendor
                 collections(first: 4) {
                     edges {
                         node {
@@ -245,6 +246,13 @@ def fetch_product_details(product_ids):
                         node {
                             key
                             value
+                        }
+                    }
+                }
+                variants(first: 1) {
+                    edges {
+                        node {
+                            inventoryQuantity
                         }
                     }
                 }
@@ -267,10 +275,18 @@ def fetch_product_details(product_ids):
             for node in data.get('nodes', []):
                 if node:
                     product_id = node['id']
+                    
+                    # Extract inventory quantity if available
+                    inventory = 0
+                    if node.get('variants', {}).get('edges') and len(node['variants']['edges']) > 0:
+                        inventory = node['variants']['edges'][0]['node'].get('inventoryQuantity', 0)
+                    
                     all_product_details[product_id] = {
                         'title': node['title'],
+                        'vendor': node.get('vendor', 'Unknown'),
                         'collections': [edge['node']['title'] for edge in node.get('collections', {}).get('edges', [])],
-                        'pub_date': None
+                        'pub_date': None,
+                        'inventory': inventory
                     }
                     
                     # Extract pub_date if it exists

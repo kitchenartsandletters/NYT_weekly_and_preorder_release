@@ -446,27 +446,9 @@ def identify_pending_releases(pub_date_overrides=None):
             details = product_details.get(product_id, {})
             details['barcode'] = isbn
             
-            # Get inventory and vendor information
-            try:
-                inventory = get_inventory_level(product_id)
-                vendor = details.get('vendor', 'Unknown')
-                
-                # If vendor not in details, try to get it from Shopify
-                if vendor == 'Unknown' and not USE_TEST_DATA:
-                    query = """
-                    query($id: ID!) {
-                        product(id: $id) {
-                            vendor
-                        }
-                    }
-                    """
-                    variables = {"id": product_id}
-                    data = run_query_with_retries(query, variables)
-                    vendor = data.get('product', {}).get('vendor', 'Unknown')
-            except Exception as e:
-                logging.warning(f"Could not get inventory/vendor for {isbn}: {e}")
-                inventory = 0
-                vendor = 'Unknown'
+            # Get vendor and inventory information directly from product details
+            vendor = details.get('vendor', 'Unknown')
+            inventory = details.get('inventory', 0)
             
             # Check if the book is no longer in preorder status (with overrides)
             is_preorder, reason = is_preorder_or_future_pub(details, pub_date_overrides)
@@ -481,7 +463,7 @@ def identify_pending_releases(pub_date_overrides=None):
                     'overridden_pub_date': pub_date_overrides.get(isbn) if pub_date_overrides else None,
                     'reason': 'No longer in preorder status',
                     'inventory': inventory,
-                    'publisher': vendor
+                    'vendor': vendor  # Use vendor directly
                 })
                 total_quantity += quantity
         except Exception as e:
