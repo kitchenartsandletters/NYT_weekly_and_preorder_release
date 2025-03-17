@@ -38,6 +38,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      - name: Verify preorder history file
+        run: python verify-history-file.py
+      
       - name: Create environment file
         run: |
           echo "SHOP_URL=${{ secrets.SHOP_URL }}" > .env.production

@@ -777,12 +777,30 @@ def send_email(report_filename, skipped_filename, preorder_filename, start_date,
     """
     api_key = os.getenv('SENDGRID_API_KEY')
     sender_email = os.getenv('EMAIL_SENDER')
-    recipient_emails = os.getenv('EMAIL_RECIPIENTS').split(',')
-
+    recipient_emails_raw = os.getenv('EMAIL_RECIPIENTS', '')
+    
+    # Improved recipient email parsing
+    recipient_emails = []
+    if recipient_emails_raw:
+        # Split by comma, handle potential spaces
+        for email in recipient_emails_raw.split(','):
+            clean_email = email.strip()
+            if clean_email:  # Only add non-empty emails
+                recipient_emails.append(clean_email)
+    
     if not api_key or not sender_email or not recipient_emails:
-        logging.error("Error: Missing email configuration.")
+        logging.error(f"Error: Missing email configuration. API Key: {'Present' if api_key else 'Missing'}, "
+                      f"Sender: {'Present' if sender_email else 'Missing'}, "
+                      f"Recipients: {len(recipient_emails) if recipient_emails else 'Missing'}")
+        if recipient_emails_raw:
+            logging.error(f"Raw recipient string: '{recipient_emails_raw}'")
+            logging.error(f"Parsed recipients: {recipient_emails}")
         return
 
+    # Log email configuration
+    logging.info(f"Sending email from: {sender_email}")
+    logging.info(f"Sending to {len(recipient_emails)} recipients")
+    
     output_dir = os.path.join(BASE_DIR, 'output')
     abs_report_path = os.path.join(output_dir, report_filename)
     abs_skipped_path = os.path.join(output_dir, skipped_filename)

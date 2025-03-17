@@ -250,6 +250,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      - name: Verify preorder history file
+        run: python verify-history-file.py
+      
       - name: Create environment file
         run: |
           echo "SHOP_URL=${{ secrets.SHOP_URL }}" > .env.production
@@ -414,3 +417,25 @@ jobs:
             ./output/NYT_weekly_sales_report_*.csv
             ./output/NYT_excluded_items_*.csv
             ./preorders/NYT_preorder_tracking.csv
+
+      - name: Persist important files to repository
+        if: always()  # Run even if previous steps failed
+        run: |
+          echo "Preparing to persist important files"
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+          
+          # Create directories if they don't exist
+          mkdir -p preorders output
+          
+          # Check if there are any changes to commit
+          git add preorders/*.json preorders/*.csv output/approved_releases_*.json
+          
+          # Only commit if there are changes
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            echo "Committing changes to repository"
+            git commit -m "Auto-update tracking files from workflow run [skip ci]"
+            git push
+          fi
