@@ -10,7 +10,9 @@ import time
 import sys
 import base64
 from dotenv import load_dotenv
+print("Importing process_approved_releases...")
 from process_approved_releases import process_approved_releases
+print("Successfully imported process_approved_releases")
 
 # Base directory for the script
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
