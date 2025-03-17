@@ -40,31 +40,68 @@ def get_latest_approvals_file(base_dir):
     return latest_file
 
 def process_approved_releases(sales_data, base_dir):
+    # Log initial sales data
+    logging.info(f"Initial sales data before processing approved releases: {len(sales_data)} items")
     logging.info("=" * 50)
     logging.info("PROCESS APPROVED RELEASES FUNCTION CALLED")
     logging.info(f"Base directory: {base_dir}")
     
-    # Check for history file
+    # Enhanced directory checking and creation
+    preorders_dir = os.path.join(base_dir, 'preorders')
+    if not os.path.exists(preorders_dir):
+        logging.info(f"Creating missing preorders directory: {preorders_dir}")
+        os.makedirs(preorders_dir, exist_ok=True)
+    
+    # Check for history file with more fallback options
     history_file = os.path.join(base_dir, 'preorders', 'preorder_history.json')
     logging.info(f"Looking for history file at: {history_file}")
-    logging.info(f"File exists: {os.path.exists(history_file)}")
     
-    # Print history file contents if it exists
-    if os.path.exists(history_file):
-        with open(history_file, 'r') as f:
-            history_content = f.read()
-            logging.info(f"History file contents: {history_content}")
-
-    """
-    Process approved releases and add to sales data
-    
-    Args:
-        sales_data: Dictionary mapping ISBNs to quantities
-        base_dir: Base directory of the project
+    # Check if history file exists
+    if not os.path.exists(history_file):
+        logging.warning(f"History file not found at primary location: {history_file}")
         
-    Returns:
-        Updated sales data with approved releases included
-    """
+        # Try alternative locations
+        alt_locations = [
+            os.path.join(base_dir, 'preorder_history.json'),
+            os.path.join(os.getcwd(), 'preorders', 'preorder_history.json'),
+            os.path.join(os.getcwd(), 'preorder_history.json')
+        ]
+        
+        for alt_location in alt_locations:
+            logging.info(f"Checking alternative location: {alt_location}")
+            if os.path.exists(alt_location):
+                logging.info(f"Found history file at alternative location: {alt_location}")
+                # Copy to expected location
+                import shutil
+                shutil.copy2(alt_location, history_file)
+                logging.info(f"Copied history file to expected location: {history_file}")
+                break
+        
+        # If still not found, create a new file
+        if not os.path.exists(history_file):
+            logging.warning("History file not found in any location, creating new file")
+            # Create a simple template file
+            history_data = {
+                "reported_preorders": [],
+                "last_updated": datetime.now().isoformat()
+            }
+            try:
+                with open(history_file, 'w') as f:
+                    json.dump(history_data, f, indent=2)
+                logging.info(f"Created new history file at: {history_file}")
+            except Exception as e:
+                logging.error(f"Failed to create new history file: {e}")
+    
+    # Show history file contents once we definitely have one
+    if os.path.exists(history_file):
+        try:
+            with open(history_file, 'r') as f:
+                history_content = f.read()
+                logging.info(f"History file contents: {history_content}")
+        except Exception as e:
+            logging.error(f"Error reading history file: {e}")
+    
+    # Rest of the function remains the same
     approvals_file = get_latest_approvals_file(base_dir)
     
     if not approvals_file:
@@ -87,6 +124,11 @@ def process_approved_releases(sales_data, base_dir):
         
         # Load preorder history to check for duplicates
         history_data = load_preorder_history()
+        
+        # Enhanced error handling for history loading
+        if not history_data:
+            logging.warning("Could not load preorder history, creating empty history")
+            history_data = {"reported_preorders": [], "last_updated": datetime.now().isoformat()}
         
         # Track new books added to the report
         newly_reported_books = []
@@ -122,11 +164,15 @@ def process_approved_releases(sales_data, base_dir):
                         'title': book.get('title', 'Unknown')
                     })
         
-        # Add newly reported books to history
+        # Add newly reported books to history with enhanced error handling
         if newly_reported_books:
-            report_date = datetime.now().strftime('%Y-%m-%d')
-            batch_add_to_history(newly_reported_books, report_date)
-            logging.info(f"Added {len(newly_reported_books)} books to preorder history")
+            try:
+                report_date = datetime.now().strftime('%Y-%m-%d')
+                batch_add_to_history(newly_reported_books, report_date)
+                logging.info(f"Added {len(newly_reported_books)} books to preorder history")
+            except Exception as e:
+                logging.error(f"Error adding books to preorder history: {e}")
+                # Continue execution despite history update error
         
         # Mark file as processed
         processed_marker = approvals_file + '.processed'
@@ -143,6 +189,9 @@ def process_approved_releases(sales_data, base_dir):
         if skipped_books:
             for book in skipped_books:
                 logging.info(f"    - Skipped: {book['title']} (ISBN: {book['isbn']}) - Previously reported on {book['prev_report_date']}")
+    
+        # Log updated sales data at the end
+        logging.info(f"Final sales data after processing approved releases: {len(sales_data)} items")
         
     except Exception as e:
         logging.error(f"Error processing approved releases: {e}")

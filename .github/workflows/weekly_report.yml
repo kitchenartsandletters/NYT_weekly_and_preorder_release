@@ -361,6 +361,48 @@ jobs:
           echo "Checking for approved_releases files:"
           find ./output -name "approved_releases_*.json" || echo "No approved_releases files found"
       
+      - name: Set up directory structure
+        run: |
+          echo "Setting up directory structure"
+          mkdir -p preorders output overrides
+          ls -la ./
+          
+          # Check if preorder_history.json exists in the repository
+          if [ -f "preorder_history.json" ]; then
+            echo "Found preorder_history.json in root, moving to correct directory"
+            cp preorder_history.json ./preorders/
+          fi
+          
+          # Check if the file exists in preorders directory
+          if [ ! -f "./preorders/preorder_history.json" ]; then
+            echo "Creating template preorder history file"
+            echo '{
+              "reported_preorders": [],
+              "last_updated": "'$(date -u +"%Y-%m-%dT%H:%M:%S.000000Z")'"
+            }' > ./preorders/preorder_history.json
+          fi
+          
+          echo "Directory structure:"
+          find ./ -type d -maxdepth 2
+          
+          echo "Preorders directory contents:"
+          ls -la ./preorders/
+          
+          echo "Output directory contents:"
+          ls -la ./output/
+      
+      - name: Run directory verification script
+        run: |
+          echo "Running directory verification script"
+          python directory_test.py
+          
+          # After verification, check file paths again
+          echo "Checking file paths after verification:"
+          ls -la ./preorders/preorder_history.json || echo "History file not found"
+          
+          # Show all possible locations of the history file
+          echo "Searching for preorder_history.json:"
+          find ./ -name "preorder_history.json" || echo "No history files found" 
       - name: Run weekly sales report
         run: python weekly_sales_report.py
       
