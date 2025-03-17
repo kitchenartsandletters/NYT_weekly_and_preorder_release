@@ -197,7 +197,41 @@ jobs:
               issue_number: issue.number,
               body: '✅ Approved books have been processed and will be included in the weekly report.'
             });
-  
+
+      - name: Create test approved releases file
+        run: |
+          mkdir -p output
+          TIMESTAMP=$(date +'%Y-%m-%d')
+          APPROVED_FILE="./output/approved_releases_${TIMESTAMP}.json"
+          
+          echo '{
+            "approved_releases": [
+              {
+                "isbn": "9780262551311",
+                "title": "Modern Chinese Foodways",
+                "quantity": 2,
+                "approved": true
+              },
+              {
+                "isbn": "9784756256522",
+                "title": "Fishes of Edo",
+                "quantity": 10,
+                "approved": true
+              },
+              {
+                "isbn": "9781234567890",
+                "title": "New Book Not In History",
+                "quantity": 3,
+                "approved": true
+              }
+            ],
+            "total_approved_books": 3,
+            "approval_date": "'$TIMESTAMP'"
+          }' > "$APPROVED_FILE"
+          
+          echo "Created test approved releases file: $APPROVED_FILE"
+          ls -la "$APPROVED_FILE"
+
   generate-report:
     needs: [check-approvals, process-approvals]
     if: always() && (needs.check-approvals.outputs.approval_status == 'approved' || needs.check-approvals.outputs.approval_status == 'no_pending')
@@ -239,6 +273,14 @@ jobs:
         with:
           name: processed-approvals
           path: ./output/
+
+      - name: Verify files in output directory
+        run: |
+          echo "Files in output directory:"
+          ls -la ./output/
+          
+          echo "Checking for approved_releases files:"
+          find ./output -name "approved_releases_*.json" || echo "No approved_releases files found"
       
       - name: Run weekly sales report
         run: python weekly_sales_report.py
