@@ -64,6 +64,7 @@ jobs:
   
   process-approvals:
     needs: check-approvals
+    # if: needs.check-approvals.outputs.approval_status == 'approved'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
