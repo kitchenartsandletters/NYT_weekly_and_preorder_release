@@ -40,6 +40,21 @@ def get_latest_approvals_file(base_dir):
     return latest_file
 
 def process_approved_releases(sales_data, base_dir):
+    logging.info("=" * 50)
+    logging.info("PROCESS APPROVED RELEASES FUNCTION CALLED")
+    logging.info(f"Base directory: {base_dir}")
+    
+    # Check for history file
+    history_file = os.path.join(base_dir, 'preorders', 'preorder_history.json')
+    logging.info(f"Looking for history file at: {history_file}")
+    logging.info(f"File exists: {os.path.exists(history_file)}")
+    
+    # Print history file contents if it exists
+    if os.path.exists(history_file):
+        with open(history_file, 'r') as f:
+            history_content = f.read()
+            logging.info(f"History file contents: {history_content}")
+
     """
     Process approved releases and add to sales data
     
