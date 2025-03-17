@@ -10,9 +10,7 @@ import time
 import sys
 import base64
 from dotenv import load_dotenv
-print("Importing process_approved_releases...")
 from process_approved_releases import process_approved_releases
-print("Successfully imported process_approved_releases")
 
 # Base directory for the script
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -983,7 +981,7 @@ def main():
     track_preorder_sales(preorder_items)
     
     # Process and add released preorders to sales data - pass overrides
-    sales_data = process_released_preorders(sales_data, pub_date_overrides)
+    # sales_data = process_released_preorders(sales_data, pub_date_overrides)
 
     logging.info(f"Tracking {len(preorder_items)} new preorder items")
     logging.info("No items released this week")  # Changed this line since we're not tracking releases here
