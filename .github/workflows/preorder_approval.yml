@@ -1,7 +1,7 @@
 name: Preorder Approval Workflow
 
 permissions:
-  contents: read
+  contents: write
   issues: write
 
 on:
