@@ -1,0 +1,24 @@
+{
+  "approved_releases": [
+    {
+      "isbn": "9780262551311",
+      "title": "Modern Chinese Foodways",
+      "quantity": 2,
+      "approved": true
+    },
+    {
+      "isbn": "9784756256522",
+      "title": "Fishes of Edo",
+      "quantity": 10,
+      "approved": true
+    },
+    {
+      "isbn": "9781234567890",
+      "title": "New Book Not In History",
+      "quantity": 3,
+      "approved": true
+    }
+  ],
+  "total_approved_books": 3,
+  "approval_date": "2025-03-17"
+}
