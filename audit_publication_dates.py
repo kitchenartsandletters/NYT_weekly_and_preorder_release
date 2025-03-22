@@ -105,7 +105,44 @@ def run_query_with_retries(query, variables, max_retries=3, delay=1):
 
 def fetch_preorder_products():
     """Fetch all products in the Preorder collection"""
-    global GRAPHQL_URL, HEADERS
+    global GRAPHQL_URL, HEADERS, USE_TEST_DATA
+
+    # For test mode, use the generated test data directly
+    if USE_TEST_DATA:
+        logging.info("🧪 Test mode active - using simulated preorder data")
+        test_data = generate_test_preorder_data()
+        product_edges = test_data.get('collectionByHandle', {}).get('products', {}).get('edges', [])
+        
+        products = []
+        for edge in product_edges:
+            product = edge['node']
+            
+            # Get barcode (ISBN)
+            barcode = None
+            inventory = 0
+            if product.get('variants', {}).get('edges'):
+                variant = product['variants']['edges'][0]['node']
+                barcode = variant.get('barcode')
+                inventory = variant.get('inventoryQuantity', 0)
+            
+            # Get pub_date
+            pub_date = None
+            metafields = product.get('metafields', {}).get('edges', [])
+            for metafield in metafields:
+                if metafield['node']['key'] == 'pub_date':
+                    pub_date = metafield['node']['value']
+                    break
+            
+            products.append({
+                'id': product['id'],
+                'title': product['title'],
+                'barcode': barcode,
+                'pub_date': pub_date,
+                'vendor': product.get('vendor', 'Unknown'),
+                'inventory': inventory
+            })
+        
+        return products
     
     # Ensure API settings are initialized
     if not GRAPHQL_URL or not HEADERS:

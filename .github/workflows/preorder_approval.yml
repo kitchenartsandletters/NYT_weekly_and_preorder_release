@@ -146,67 +146,132 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require('fs');
-            // Try to use the audit file first, fall back to manual file if it exists
-            let releasesFile = '${{ steps.check-releases.outputs.releases_file }}';
-
-            if (!fs.existsSync(releasesFile)) {
-              console.log(`Audit file not found: ${releasesFile}`);
-              releasesFile = 'output/pending_releases_manual.json';
-              console.log(`Trying manual file: ${releasesFile}`);
-            }
-
             try {
-              fs.accessSync(releasesFile, fs.constants.F_OK);
-              console.log(`File exists: ${releasesFile}`);
+              const fs = require('fs');
+              let releasesFile = '${{ steps.check-releases.outputs.releases_file }}';
               
-              const fileStats = fs.statSync(releasesFile);
-              console.log(`File size: ${fileStats.size} bytes`);
+              console.log(`Starting issue creation process with file: ${releasesFile}`);
               
-              const dirName = require('path').dirname(releasesFile);
-              const dirContents = fs.readdirSync(dirName);
-              console.log(`Directory contents of ${dirName}:`, dirContents);
+              if (!fs.existsSync(releasesFile)) {
+                console.log(`Audit file not found: ${releasesFile}`);
+                releasesFile = 'output/pending_releases_manual.json';
+                console.log(`Trying manual file: ${releasesFile}`);
+              }
               
-              const pendingData = JSON.parse(fs.readFileSync(releasesFile, 'utf8'));
-              const timestamp = new Date().toISOString().split('T')[0];
-              
-              // Function to format date from YYYY-MM-DD to Month DD, YYYY
-              const formatDate = (dateStr) => {
-                if (!dateStr || dateStr === 'Unknown') return 'Unknown';
-                try {
-                  const [year, month, day] = dateStr.split('-');
-                  const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-                  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-                } catch (e) {
-                  return dateStr; // Return original string if parsing fails
+              try {
+                fs.accessSync(releasesFile, fs.constants.F_OK);
+                console.log(`File exists: ${releasesFile}`);
+                
+                const fileStats = fs.statSync(releasesFile);
+                console.log(`File size: ${fileStats.size} bytes`);
+                
+                const dirName = require('path').dirname(releasesFile);
+                const dirContents = fs.readdirSync(dirName);
+                console.log(`Directory contents of ${dirName}:`, dirContents);
+                
+                const fileContent = fs.readFileSync(releasesFile, 'utf8');
+                console.log(`File content: ${fileContent}`);
+                
+                const pendingData = JSON.parse(fileContent);
+                console.log("Parsed data structure:", JSON.stringify(pendingData, null, 2));
+                
+                // Check if problematic_books exists
+                if (!pendingData.problematic_books) {
+                  console.log("No problematic_books found in the data - creating empty structure");
+                  pendingData.problematic_books = {
+                    past_pub_dates: [],
+                    missing_pub_dates: [],
+                    malformed_dates: []
+                  };
+                  pendingData.total_problematic_books = 0;
+                } else {
+                  console.log(`Found problematic_books with structure: ${JSON.stringify(pendingData.problematic_books, null, 2)}`);
                 }
-              };
-              
-              // Format books as a markdown table with updated column names
-              let booksTable = '| Approve | ISBN | Title | QTY Presold | Inventory | Pub Date | Publisher |\n|---------|------|-------|------------|-----------|----------|----------|\n';
-              
-              pendingData.pending_releases.forEach(book => {
-                // Use original_pub_date as the pub date if it exists
-                const pubDate = book.original_pub_date || book.pub_date || 'Unknown';
-                const formattedPubDate = formatDate(pubDate);
                 
-                // Use vendor directly as the publisher
-                const publisher = book.vendor || 'Unknown';
-                const inventory = book.inventory || 0;
+                // If in test mode, add some simulated problematic books data
+                // This ensures the problematic section appears during testing
+                if (process.env.USE_TEST_DATA === 'true' || '${{ github.event.inputs.run_mode }}' === 'test') {
+                  console.log("In test mode - adding simulated problematic books");
+                  
+                  // Add simulated data for testing
+                  pendingData.problematic_books = {
+                    past_pub_dates: [
+                      {
+                        isbn: '9780123456789',
+                        title: 'Past Publication Test Book',
+                        pub_date: '2025-01-01',
+                        issue: 'Past publication date'
+                      }
+                    ],
+                    missing_pub_dates: [
+                      {
+                        isbn: '9780987654321',
+                        title: 'Missing Publication Date Test Book',
+                        issue: 'Missing publication date'
+                      }
+                    ],
+                    malformed_dates: [
+                      {
+                        isbn: '9781234567890',
+                        title: 'Malformed Date Test Book',
+                        pub_date: 'Coming Soon',
+                        issue: 'Malformed date format'
+                      }
+                    ]
+                  };
+                  pendingData.total_problematic_books = 3;
+                  
+                  console.log("Added simulated problematic books for testing");
+                }
                 
-                booksTable += `| [ ] | ${book.isbn} | ${book.title} | ${book.quantity} | ${inventory} | ${formattedPubDate} | ${publisher} |\n`;
-              });
-              
-              // Add section for problematic books
-              let problematicBooksSection = '';
-              if (pendingData.problematic_books) {
-                const totalProblematic = pendingData.total_problematic_books || 0;
+                const timestamp = new Date().toISOString().split('T')[0];
                 
+                // Function to format date from YYYY-MM-DD to Month DD, YYYY
+                const formatDate = (dateStr) => {
+                  if (!dateStr || dateStr === 'Unknown') return 'Unknown';
+                  try {
+                    const [year, month, day] = dateStr.split('-');
+                    const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                    return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                  } catch (e) {
+                    console.log(`Error formatting date ${dateStr}: ${e.message}`);
+                    return dateStr; // Return original string if parsing fails
+                  }
+                };
+                
+                // Format books as a markdown table with updated column names
+                let booksTable = '| Approve | ISBN | Title | QTY Presold | Inventory | Pub Date | Publisher |\n|---------|------|-------|------------|-----------|----------|----------|\n';
+                
+                pendingData.pending_releases.forEach(book => {
+                  // Use original_pub_date as the pub date if it exists
+                  const pubDate = book.original_pub_date || book.pub_date || 'Unknown';
+                  const formattedPubDate = formatDate(pubDate);
+                  
+                  // Use vendor directly as the publisher
+                  const publisher = book.vendor || 'Unknown';
+                  const inventory = book.inventory || 0;
+                  
+                  booksTable += `| [ ] | ${book.isbn} | ${book.title} | ${book.quantity} | ${inventory} | ${formattedPubDate} | ${publisher} |\n`;
+                });
+                
+                // IMPROVED PROBLEMATIC BOOKS SECTION
+                // Calculate total number of problematic books
+                const totalProblematic = 
+                  (pendingData.problematic_books.past_pub_dates?.length || 0) +
+                  (pendingData.problematic_books.missing_pub_dates?.length || 0) +
+                  (pendingData.problematic_books.malformed_dates?.length || 0);
+                
+                console.log(`Total problematic books: ${totalProblematic}`);
+                
+                // Add section for problematic books
+                let problematicBooksSection = '';
                 if (totalProblematic > 0) {
+                  console.log("Adding problematic books section to issue");
                   problematicBooksSection = `\n## ⚠️ Issues Requiring Attention (${totalProblematic} books)\n\n`;
                   
                   // Past publication dates
                   if (pendingData.problematic_books.past_pub_dates && pendingData.problematic_books.past_pub_dates.length > 0) {
+                    console.log(`Adding ${pendingData.problematic_books.past_pub_dates.length} past pub dates books`);
                     problematicBooksSection += '### Books with Past Publication Dates\n';
                     problematicBooksSection += '| ISBN | Title | Publication Date | Issue |\n|------|-------|-----------------|-------|\n';
                     pendingData.problematic_books.past_pub_dates.forEach(book => {
@@ -217,6 +282,7 @@ jobs:
                   
                   // Missing publication dates
                   if (pendingData.problematic_books.missing_pub_dates && pendingData.problematic_books.missing_pub_dates.length > 0) {
+                    console.log(`Adding ${pendingData.problematic_books.missing_pub_dates.length} missing pub dates books`);
                     problematicBooksSection += '### Books with Missing Publication Dates\n';
                     problematicBooksSection += '| ISBN | Title | Issue |\n|------|-------|-------|\n';
                     pendingData.problematic_books.missing_pub_dates.forEach(book => {
@@ -227,6 +293,7 @@ jobs:
                   
                   // Malformed dates
                   if (pendingData.problematic_books.malformed_dates && pendingData.problematic_books.malformed_dates.length > 0) {
+                    console.log(`Adding ${pendingData.problematic_books.malformed_dates.length} malformed dates books`);
                     problematicBooksSection += '### Books with Malformed Dates\n';
                     problematicBooksSection += '| ISBN | Title | Date Format | Issue |\n|------|-------|------------|-------|\n';
                     pendingData.problematic_books.malformed_dates.forEach(book => {
@@ -235,20 +302,22 @@ jobs:
                     problematicBooksSection += '\n';
                   }
                   
-                  // Add remediation suggestions
+                  // Add note about fixing these issues
                   problematicBooksSection += `\n> **Suggested Actions:**
             > - For past pub dates: Verify if these books are still preorders. If so, update their publication dates.
             > - For missing dates: Add publication dates through Shopify admin or the overrides file.
             > - For malformed dates: Ensure all dates follow the YYYY-MM-DD format.\n`;
+                } else {
+                  console.log("No problematic books found, skipping section");
                 }
-              }
-              
-              // Create issue with approval checkboxes and more detailed instructions
-              const issue = await github.rest.issues.create({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                title: `📚 Preorder Approval: ${pendingData.total_pending_books} Books Ready for Release (${timestamp})${pendingData.total_problematic_books > 0 ? ` + ${pendingData.total_problematic_books} Issues` : ''}`,
-                body: `## Preorder Books Ready for Release Approval
+                
+                console.log("Problematic books section content:", problematicBooksSection);
+                
+                // Create issue with approval checkboxes and more detailed instructions
+                const issueTitle = `📚 Preorder Approval: ${pendingData.total_pending_books} Books Ready for Release (${timestamp})${totalProblematic > 0 ? ` + ${totalProblematic} Issues` : ''}`;
+                console.log(`Creating issue with title: ${issueTitle}`);
+                
+                const issueBody = `## Preorder Books Ready for Release Approval
 
             **Important: Please review these preorder books before they are included in the weekly sales report.**
 
@@ -271,14 +340,28 @@ jobs:
             ### Notes
             - This approval is required by: Monday at 8:00 AM
             - Books not approved will remain in preorder status
-            - Data file: \`${releasesFile}\``,
-                labels: ['pending-approval', 'preorders']
-              });
-              
-              console.log(`Created approval issue #${issue.data.number}`);
-            } catch (error) {
-              console.error(`Error processing releases file: ${error.message}`);
-              core.setFailed(`Could not create approval issue: ${error.message}`);
+            - Data file: \`${releasesFile}\``;
+
+                console.log("Creating issue with body:", issueBody);
+                
+                const issue = await github.rest.issues.create({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  title: issueTitle,
+                  body: issueBody,
+                  labels: ['pending-approval', 'preorders']
+                });
+                
+                console.log(`Created approval issue #${issue.data.number}`);
+              } catch (error) {
+                console.error(`Error processing releases file: ${error.message}`);
+                console.error(error.stack);
+                core.setFailed(`Could not create approval issue: ${error.message}`);
+              }
+            } catch (outerError) {
+              console.error(`Outer error: ${outerError.message}`);
+              console.error(outerError.stack);
+              core.setFailed(`Outer error in issue creation: ${outerError.message}`);
             }
                 
       - name: Upload pending releases file
