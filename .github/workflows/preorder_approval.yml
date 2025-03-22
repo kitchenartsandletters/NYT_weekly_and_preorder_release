@@ -149,13 +149,13 @@ jobs:
             const fs = require('fs');
             // Try to use the audit file first, fall back to manual file if it exists
             let releasesFile = '${{ steps.check-releases.outputs.releases_file }}';
-            
+
             if (!fs.existsSync(releasesFile)) {
               console.log(`Audit file not found: ${releasesFile}`);
               releasesFile = 'output/pending_releases_manual.json';
               console.log(`Trying manual file: ${releasesFile}`);
             }
-            
+
             try {
               fs.accessSync(releasesFile, fs.constants.F_OK);
               console.log(`File exists: ${releasesFile}`);
@@ -197,41 +197,89 @@ jobs:
                 booksTable += `| [ ] | ${book.isbn} | ${book.title} | ${book.quantity} | ${inventory} | ${formattedPubDate} | ${publisher} |\n`;
               });
               
+              // Add section for problematic books
+              let problematicBooksSection = '';
+              if (pendingData.problematic_books) {
+                const totalProblematic = pendingData.total_problematic_books || 0;
+                
+                if (totalProblematic > 0) {
+                  problematicBooksSection = `\n## ⚠️ Issues Requiring Attention (${totalProblematic} books)\n\n`;
+                  
+                  // Past publication dates
+                  if (pendingData.problematic_books.past_pub_dates && pendingData.problematic_books.past_pub_dates.length > 0) {
+                    problematicBooksSection += '### Books with Past Publication Dates\n';
+                    problematicBooksSection += '| ISBN | Title | Publication Date | Issue |\n|------|-------|-----------------|-------|\n';
+                    pendingData.problematic_books.past_pub_dates.forEach(book => {
+                      problematicBooksSection += `| ${book.isbn || 'N/A'} | ${book.title || 'Unknown'} | ${book.pub_date || 'N/A'} | ${book.issue} |\n`;
+                    });
+                    problematicBooksSection += '\n';
+                  }
+                  
+                  // Missing publication dates
+                  if (pendingData.problematic_books.missing_pub_dates && pendingData.problematic_books.missing_pub_dates.length > 0) {
+                    problematicBooksSection += '### Books with Missing Publication Dates\n';
+                    problematicBooksSection += '| ISBN | Title | Issue |\n|------|-------|-------|\n';
+                    pendingData.problematic_books.missing_pub_dates.forEach(book => {
+                      problematicBooksSection += `| ${book.isbn || 'N/A'} | ${book.title || 'Unknown'} | ${book.issue} |\n`;
+                    });
+                    problematicBooksSection += '\n';
+                  }
+                  
+                  // Malformed dates
+                  if (pendingData.problematic_books.malformed_dates && pendingData.problematic_books.malformed_dates.length > 0) {
+                    problematicBooksSection += '### Books with Malformed Dates\n';
+                    problematicBooksSection += '| ISBN | Title | Date Format | Issue |\n|------|-------|------------|-------|\n';
+                    pendingData.problematic_books.malformed_dates.forEach(book => {
+                      problematicBooksSection += `| ${book.isbn || 'N/A'} | ${book.title || 'Unknown'} | ${book.pub_date || 'N/A'} | ${book.issue} |\n`;
+                    });
+                    problematicBooksSection += '\n';
+                  }
+                  
+                  // Add remediation suggestions
+                  problematicBooksSection += `\n> **Suggested Actions:**
+            > - For past pub dates: Verify if these books are still preorders. If so, update their publication dates.
+            > - For missing dates: Add publication dates through Shopify admin or the overrides file.
+            > - For malformed dates: Ensure all dates follow the YYYY-MM-DD format.\n`;
+                }
+              }
+              
               // Create issue with approval checkboxes and more detailed instructions
               const issue = await github.rest.issues.create({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                title: `📚 Preorder Approval: ${pendingData.total_pending_books} Books Ready for Release (${timestamp})`,
+                title: `📚 Preorder Approval: ${pendingData.total_pending_books} Books Ready for Release (${timestamp})${pendingData.total_problematic_books > 0 ? ` + ${pendingData.total_problematic_books} Issues` : ''}`,
                 body: `## Preorder Books Ready for Release Approval
-  
-              **Important: Please review these preorder books before they are included in the weekly sales report.**
+
+            **Important: Please review these preorder books before they are included in the weekly sales report.**
+
+            Check the boxes for books that should be included in this week's report. Books with unchecked boxes will remain in preorder status.
+
+            ### Instructions
+            1. Review each book's details
+            2. Check the box in the "Approve" column for books that should be included
+              - IMPORTANT: Use exactly \`[x]\` for approved books (lowercase x, no spaces)
+              - Incorrect formats like \`[ x]\`, \`[X]\`, or \`[ x ]\` won't be recognized
+            3. Add the label \`approved\` to this issue when you've finished reviewing
+            4. Only checked books will have their sales included in the next report
+
+            ### Books Pending Approval
+
+            ${booksTable}
+
+            ${problematicBooksSection}
+
+            ### Notes
+            - This approval is required by: Monday at 8:00 AM
+            - Books not approved will remain in preorder status
+            - Data file: \`${releasesFile}\``,
+                labels: ['pending-approval', 'preorders']
+              });
               
-              Check the boxes for books that should be included in this week's report. Books with unchecked boxes will remain in preorder status.
-              
-              ### Instructions
-              1. Review each book's details
-              2. Check the box in the "Approve" column for books that should be included
-                - IMPORTANT: Use exactly \`[x]\` for approved books (lowercase x, no spaces)
-                - Incorrect formats like \`[ x]\`, \`[X]\`, or \`[ x ]\` won't be recognized
-              3. Add the label \`approved\` to this issue when you've finished reviewing
-              4. Only checked books will have their sales included in the next report
-              
-              ### Books Pending Approval
-              
-              ${booksTable}
-              
-              ### Notes
-              - This approval is required by: Monday at 8:00 AM
-              - Books not approved will remain in preorder status
-              - Data file: \`${releasesFile}\``,
-                              labels: ['pending-approval', 'preorders']
-                            });
-                            
-                            console.log(`Created approval issue #${issue.data.number}`);
-                          } catch (error) {
-                            console.error(`Error processing releases file: ${error.message}`);
-                            core.setFailed(`Could not create approval issue: ${error.message}`);
-                          }
+              console.log(`Created approval issue #${issue.data.number}`);
+            } catch (error) {
+              console.error(`Error processing releases file: ${error.message}`);
+              core.setFailed(`Could not create approval issue: ${error.message}`);
+            }
                 
       - name: Upload pending releases file
         if: steps.check-releases.outputs.pending_count > '0'

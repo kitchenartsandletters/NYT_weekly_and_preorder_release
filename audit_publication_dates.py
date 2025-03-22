@@ -411,11 +411,22 @@ def get_inventory_level(product_id):
         logging.error(f"Error fetching inventory: {e}")
         return 0
 
-def identify_pending_releases(pub_date_overrides=None):
+def identify_pending_releases(pub_date_overrides=None, audit_results=None):
     """
     Identify books that are about to be released based on their pub dates
-    and determine which preorders should be moved to the regular sales report
+    and determine which preorders should be moved to the regular sales report.
+    Also includes problematic books from audit results if provided.
     """
+    # Default empty audit results if not provided
+    if audit_results is None:
+        audit_results = {
+            'past_pub_dates': [],
+            'recent_releases': [],
+            'upcoming_releases': [],
+            'missing_pub_dates': [],
+            'malformed_dates': []
+        }
+    
     # ADD THE NEW DEBUG LOGGING CODE HERE
     current_date = datetime.now().date()
     
@@ -501,12 +512,48 @@ def identify_pending_releases(pub_date_overrides=None):
                 'error': str(e)
             })
     
+    # Format problematic books data for the issue
+    problematic_books = {
+        'past_pub_dates': [
+            {
+                'isbn': product.get('barcode'),
+                'title': product.get('title'),
+                'pub_date': product.get('pub_date'),
+                'issue': 'Past publication date'
+            } for product in audit_results['past_pub_dates']
+        ],
+        'missing_pub_dates': [
+            {
+                'isbn': product.get('barcode'),
+                'title': product.get('title'),
+                'issue': 'Missing publication date'
+            } for product in audit_results['missing_pub_dates']
+        ],
+        'malformed_dates': [
+            {
+                'isbn': product.get('barcode'),
+                'title': product.get('title'),
+                'pub_date': product.get('pub_date'),
+                'issue': 'Malformed date format'
+            } for product in audit_results['malformed_dates']
+        ]
+    }
+    
+    # Add metadata about problematic books count
+    total_problematic = (
+        len(problematic_books['past_pub_dates']) +
+        len(problematic_books['missing_pub_dates']) +
+        len(problematic_books['malformed_dates'])
+    )
+    
     result = {
         'pending_releases': pending_releases,
         'error_cases': error_cases,
         'total_quantity': total_quantity,
         'run_date': datetime.now().strftime('%Y-%m-%d'),
-        'total_pending_books': len(pending_releases)
+        'total_pending_books': len(pending_releases),
+        'problematic_books': problematic_books,
+        'total_problematic_books': total_problematic
     }
     
     return result
@@ -583,15 +630,16 @@ def main():
     audit_report = generate_audit_report(audit_results, args.output_audit)
     suggestions = suggest_overrides(audit_results, args.output_suggested)
     
-    # Identify and save pending releases
+    # Identify and save pending releases - PASS AUDIT RESULTS
     logging.info("Identifying pending releases from preorders")
-    pending_data = identify_pending_releases(pub_date_overrides)
+    pending_data = identify_pending_releases(pub_date_overrides, audit_results)
     pending_file = save_pending_releases(pending_data, args.output_releases)
     
     # Print pending release summary
     logging.info("=== Pending Releases ===")
     logging.info(f"Books ready to be released: {pending_data['total_pending_books']}")
     logging.info(f"Total quantity to be released: {pending_data['total_quantity']}")
+    logging.info(f"Books with issues requiring attention: {pending_data.get('total_problematic_books', 0)}")
     
     if pending_data['pending_releases']:
         logging.info("Books pending release:")
