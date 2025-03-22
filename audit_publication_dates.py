@@ -15,6 +15,7 @@ import time
 
 # Import the new environment loading module
 from env_loader import load_environment_variables, initialize_api_credentials
+from preorder_history_tracker import is_preorder_reported
 
 # Configure logging
 logging.basicConfig(
@@ -415,7 +416,28 @@ def identify_pending_releases(pub_date_overrides=None):
     Identify books that are about to be released based on their pub dates
     and determine which preorders should be moved to the regular sales report
     """
+    # ADD THE NEW DEBUG LOGGING CODE HERE
     current_date = datetime.now().date()
+    
+    # Debug log for test mode
+    is_test_mode = os.environ.get('USE_TEST_DATA', '').lower() in ('true', '1', 't', 'yes')
+    logging.info(f"identify_pending_releases running in {'TEST' if is_test_mode else 'PRODUCTION'} mode")
+    
+    # Load and log preorder history
+    from preorder_history_tracker import load_preorder_history, is_preorder_reported
+    history_data = load_preorder_history()
+    history_count = len(history_data.get('reported_preorders', []))
+    logging.info(f"Loaded preorder history with {history_count} entries")
+    
+    # Log a sample of history entries if available
+    if history_count > 0:
+        sample_size = min(3, history_count)
+        logging.info(f"Sample of history entries (first {sample_size}):")
+        for i in range(sample_size):
+            entry = history_data['reported_preorders'][i]
+            logging.info(f"  - ISBN: {entry.get('isbn')}, Quantity: {entry.get('quantity')}, Reported: {entry.get('report_date')}")
+    
+    # KEEP THE EXISTING CODE FROM HERE
     preorder_totals = calculate_total_preorder_quantities(current_date)
     
     pending_releases = []
@@ -431,6 +453,12 @@ def identify_pending_releases(pub_date_overrides=None):
                     'quantity': quantity,
                     'error': 'Product not found in Shopify'
                 })
+                continue
+            
+            # IMPORTANT NEW CODE: Check if already reported in history
+            already_reported, record = is_preorder_reported(isbn, history_data)
+            if already_reported:
+                logging.info(f"Skipping ISBN {isbn} - already reported on {record.get('report_date')} with quantity {record.get('quantity')}")
                 continue
                 
             product_details = fetch_product_details(product_ids)

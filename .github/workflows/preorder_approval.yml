@@ -49,14 +49,18 @@ jobs:
           echo "EMAIL_SENDER=${{ secrets.EMAIL_SENDER }}" >> .env.production
           echo "EMAIL_RECIPIENTS=${{ secrets.EMAIL_RECIPIENTS }}" >> .env.production
           
-          # Set test mode based on input parameter
+          # Set test mode based on input parameter - ONLY set this in test mode
           if [ "${{ github.event.inputs.run_mode }}" = "test" ]; then
             echo "USE_TEST_DATA=true" >> .env.production
             echo "🧪 Running in TEST mode"
           else
+            # Make sure it's explicitly set to false in production mode
             echo "USE_TEST_DATA=false" >> .env.production
             echo "🚀 Running in PRODUCTION mode"
           fi
+          
+          # Display the file contents (mask sensitive values)
+          cat .env.production | sed 's/\(.*TOKEN.*=\).*/\1****/' | sed 's/\(.*KEY.*=\).*/\1****/'
       
       - name: Run publication date audit
         id: run-audit
@@ -70,23 +74,14 @@ jobs:
           
           # Run the audit with verbose output
           echo "Running audit script with output to console..."
-          python -u audit_publication_dates.py --output-releases "$RELEASES_FILE" --test-mode || echo "Audit script exited with non-zero code"
+
+          if [ "${{ github.event.inputs.run_mode }}" = "test" ]; then
+            python -u audit_publication_dates.py --output-releases "$RELEASES_FILE" --test-mode
+          else
+            python -u audit_publication_dates.py --output-releases "$RELEASES_FILE"
+          fi
           
           echo "releases_file=$RELEASES_FILE" >> $GITHUB_OUTPUT
-          
-          # See if the file exists
-          if [ -f "$RELEASES_FILE" ]; then
-            echo "File exists: $RELEASES_FILE"
-            ls -la "$RELEASES_FILE"
-            echo "File contents (first 20 lines):"
-            head -n 20 "$RELEASES_FILE"
-          else
-            echo "File does not exist: $RELEASES_FILE"
-            echo "Contents of output directory:"
-            ls -la ./output/
-            echo "Trying to find any pending_releases files:"
-            find ./ -name "pending_releases*" 2>/dev/null || echo "No files found in current directory"
-          fi
       
       - name: Create test release file if needed
         id: create-manual-file
