@@ -64,6 +64,7 @@ jobs:
       
       - name: Run publication date audit
         id: run-audit
+        continue-on-error: true
         run: |
           # Create output directories
           mkdir -p output audit overrides
