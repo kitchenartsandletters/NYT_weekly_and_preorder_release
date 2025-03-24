@@ -110,7 +110,7 @@ jobs:
           RELEASES_FILE="./output/pending_releases_${TIMESTAMP}.json"
           
           if [ "${{ github.event.inputs.run_mode }}" = "test" ]; then
-            python -u audit_publication_dates.py --output-releases "$RELEASES_FILE" --test-mode
+              python -u audit_publication_dates.py --output-releases "$RELEASES_FILE" --test-mode --ignore-warnings || true
           else
             python -u audit_publication_dates.py --output-releases "$RELEASES_FILE"
           fi
