@@ -81,6 +81,7 @@ jobs:
           pip install -r requirements.txt
       
       - name: Process approved issues
+        id: process-approved-issues
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -107,18 +108,25 @@ jobs:
             // Save issue body to file
             fs.writeFileSync('./issue_body.txt', issue.body);
             
+            // Create the output directory if it doesn't exist
+            if (!fs.existsSync('./output')) {
+              fs.mkdirSync('./output', { recursive: true });
+            }
+            
             // Extract the pending releases file path from the issue body
             const releasesMatch = issue.body.match(/Data file: `(.+?)`/);
             let releasesFile = null;
             
             if (releasesMatch && releasesMatch[1]) {
               releasesFile = releasesMatch[1];
+              console.log(`Found releases file reference in issue: ${releasesFile}`);
             } else {
               // If not found, use the most recent pending_releases file
               const files = fs.readdirSync('./output').filter(f => f.startsWith('pending_releases_') && f.endsWith('.json'));
               if (files.length > 0) {
                 files.sort().reverse();
                 releasesFile = `./output/${files[0]}`;
+                console.log(`Using most recent pending releases file: ${releasesFile}`);
               }
             }
             
@@ -127,7 +135,72 @@ jobs:
               return;
             }
             
-            console.log(`Using pending releases file: ${releasesFile}`);
+            // Parse the issue body to extract approved books (lines with [x])
+            const lines = issue.body.split('\n');
+            const approvedBooks = [];
+            
+            for (const line of lines) {
+              // Match lines that have a checked box in a table row format
+              if (line.match(/\|\s*\[x\]/i)) {
+                // Extract ISBN from the line (second column in the table)
+                const match = line.match(/\|\s*\[x\]\s*\|\s*([0-9]+)/i);
+                if (match) {
+                  const isbn = match[1];
+                  console.log(`Found approved ISBN: ${isbn}`);
+                  approvedBooks.push(isbn);
+                }
+              }
+            }
+            
+            console.log(`Total approved ISBNs found: ${approvedBooks.length}`);
+            
+            // Create a JSON file with approved books from pending releases
+            if (releasesFile && fs.existsSync(releasesFile)) {
+              try {
+                const pendingData = JSON.parse(fs.readFileSync(releasesFile, 'utf8'));
+                const pendingReleases = pendingData.pending_releases || [];
+                
+                // Filter to only include approved books
+                const approvedReleases = pendingReleases.filter(book => 
+                  approvedBooks.includes(book.isbn)
+                );
+                
+                console.log(`Filtered ${pendingReleases.length} pending books to ${approvedReleases.length} approved books`);
+                
+                // Mark books as approved
+                approvedReleases.forEach(book => {
+                  book.approved = true;
+                  book.approval_date = new Date().toISOString().split('T')[0];
+                });
+                
+                // Create approved releases data
+                const timestamp = new Date().toISOString().split('T')[0];
+                const approvedData = {
+                  approved_releases: approvedReleases,
+                  total_approved_books: approvedReleases.length,
+                  total_approved_quantity: approvedReleases.reduce((sum, book) => sum + (book.quantity || 0), 0),
+                  approval_date: timestamp
+                };
+                
+                // Save the approved releases file
+                const outputFile = `./output/approved_releases_${timestamp}.json`;
+                fs.writeFileSync(outputFile, JSON.stringify(approvedData, null, 2));
+                
+                console.log(`Created approved releases file: ${outputFile}`);
+                console.log(`Approved books: ${approvedReleases.length}`);
+                console.log(`Total quantity: ${approvedData.total_approved_quantity}`);
+                
+                return {
+                  approved_books: approvedReleases.length,
+                  approved_file: outputFile
+                };
+              } catch (error) {
+                console.error(`Error processing pending releases: ${error.message}`);
+                console.error(error.stack);
+              }
+            } else {
+              console.log(`Releases file not found or accessible: ${releasesFile}`);
+            }
       
       - name: Download artifact (if available)
         id: download-artifact
@@ -198,39 +271,47 @@ jobs:
               body: '✅ Approved books have been processed and will be included in the weekly report.'
             });
 
-      - name: Create test approved releases file
+      # IMPORTANT: This step should only run in test mode when no real approvals are found
+      - name: Create test approved releases file (test mode only)
+        if: github.event.inputs.run_mode == 'test' && steps.process-approved-issues.outputs.approved_books == ''
         run: |
           mkdir -p output
           TIMESTAMP=$(date +'%Y-%m-%d')
           APPROVED_FILE="./output/approved_releases_${TIMESTAMP}.json"
           
-          echo '{
-            "approved_releases": [
-              {
-                "isbn": "9780262551311",
-                "title": "Modern Chinese Foodways",
-                "quantity": 2,
-                "approved": true
-              },
-              {
-                "isbn": "9784756256522",
-                "title": "Fishes of Edo",
-                "quantity": 10,
-                "approved": true
-              },
-              {
-                "isbn": "9781234567890",
-                "title": "New Book Not In History",
-                "quantity": 3,
-                "approved": true
-              }
-            ],
-            "total_approved_books": 3,
-            "approval_date": "'$TIMESTAMP'"
-          }' > "$APPROVED_FILE"
-          
-          echo "Created test approved releases file: $APPROVED_FILE"
-          ls -la "$APPROVED_FILE"
+          # Only create test file if no real approved releases file exists
+          if ! ls ./output/approved_releases_*.json 1> /dev/null 2>&1; then
+            echo '{
+              "approved_releases": [
+                {
+                  "isbn": "9780262551311",
+                  "title": "Modern Chinese Foodways",
+                  "quantity": 2,
+                  "approved": true
+                },
+                {
+                  "isbn": "9784756256522",
+                  "title": "Fishes of Edo",
+                  "quantity": 10,
+                  "approved": true
+                },
+                {
+                  "isbn": "9781234567890",
+                  "title": "New Book Not In History",
+                  "quantity": 3,
+                  "approved": true
+                }
+              ],
+              "total_approved_books": 3,
+              "approval_date": "'$TIMESTAMP'",
+              "test_data": true
+            }' > "$APPROVED_FILE"
+            
+            echo "Created test approved releases file: $APPROVED_FILE"
+            ls -la "$APPROVED_FILE"
+          else
+            echo "Skipping test file creation because real approved releases file exists"
+          fi
 
   generate-report:
     needs: [check-approvals, process-approvals]
@@ -250,9 +331,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
-      - name: Verify preorder history file
-        run: python verify-history-file.py
-      
       - name: Create environment file
         run: |
           echo "SHOP_URL=${{ secrets.SHOP_URL }}" > .env.production
@@ -270,7 +348,7 @@ jobs:
             echo "🚀 Running weekly report in PRODUCTION mode"
           fi
       
-      - name: Download processed approvals (optional)
+      - name: Download processed approvals
         if: needs.check-approvals.outputs.approval_status == 'approved'
         continue-on-error: true  # Don't fail if artifact doesn't exist
         uses: actions/download-artifact@v4
@@ -278,84 +356,6 @@ jobs:
           name: processed-approvals
           path: ./output/
       
-      - name: Prepare test files for report
-        run: |
-          mkdir -p output
-          TIMESTAMP=$(date +'%Y-%m-%d')
-          
-          # Create a test approved_releases file
-          APPROVED_FILE="./output/approved_releases_${TIMESTAMP}.json"
-          echo '{
-            "approved_releases": [
-              {
-                "isbn": "9780262551311",
-                "title": "Modern Chinese Foodways",
-                "quantity": 2,
-                "approved": true
-              },
-              {
-                "isbn": "9784756256522",
-                "title": "Fishes of Edo",
-                "quantity": 10,
-                "approved": true
-              },
-              {
-                "isbn": "9781234567890",
-                "title": "New Book Not In History",
-                "quantity": 3,
-                "approved": true
-              }
-            ],
-            "total_approved_books": 3,
-            "approval_date": "'$TIMESTAMP'"
-          }' > "$APPROVED_FILE"
-          
-          echo "Created test approved releases file: $APPROVED_FILE"
-          
-          # Verify files and history
-          echo "Files in output directory:"
-          ls -la ./output/
-          
-          echo "Checking for approved_releases files:"
-          find ./output -name "approved_releases_*.json" || echo "No approved_releases files found"
-          
-          echo "Checking for preorder history file:"
-          ls -la ./preorders/preorder_history.json || echo "History file not found"
-
-      - name: Create test approved releases file in generate-report
-        run: |
-          mkdir -p output
-          TIMESTAMP=$(date +'%Y-%m-%d')
-          APPROVED_FILE="./output/approved_releases_${TIMESTAMP}.json"
-          
-          echo '{
-            "approved_releases": [
-              {
-                "isbn": "9780262551311",
-                "title": "Modern Chinese Foodways",
-                "quantity": 2,
-                "approved": true
-              },
-              {
-                "isbn": "9784756256522",
-                "title": "Fishes of Edo",
-                "quantity": 10,
-                "approved": true
-              },
-              {
-                "isbn": "9781234567890",
-                "title": "New Book Not In History",
-                "quantity": 3,
-                "approved": true
-              }
-            ],
-            "total_approved_books": 3,
-            "approval_date": "'$TIMESTAMP'"
-          }' > "$APPROVED_FILE"
-          
-          echo "Created test approved releases file: $APPROVED_FILE"
-          ls -la "$APPROVED_FILE"
-
       - name: Verify files in output directory
         run: |
           echo "Files in output directory:"
@@ -363,49 +363,64 @@ jobs:
           
           echo "Checking for approved_releases files:"
           find ./output -name "approved_releases_*.json" || echo "No approved_releases files found"
-      
-      - name: Set up directory structure
-        run: |
-          echo "Setting up directory structure"
-          mkdir -p preorders output overrides
-          ls -la ./
           
-          # Check if preorder_history.json exists in the repository
-          if [ -f "preorder_history.json" ]; then
-            echo "Found preorder_history.json in root, moving to correct directory"
-            cp preorder_history.json ./preorders/
-          fi
+          # Make directories if they don't exist
+          mkdir -p preorders
           
-          # Check if the file exists in preorders directory
+          # Check if preorder history file exists
           if [ ! -f "./preorders/preorder_history.json" ]; then
-            echo "Creating template preorder history file"
+            echo "Creating initial preorder history file"
             echo '{
               "reported_preorders": [],
-              "last_updated": "'$(date -u +"%Y-%m-%dT%H:%M:%S.000000Z")'"
+              "last_updated": "'$(date -Iseconds)'"
             }' > ./preorders/preorder_history.json
           fi
           
-          echo "Directory structure:"
-          find ./ -type d -maxdepth 2
-          
-          echo "Preorders directory contents:"
-          ls -la ./preorders/
-          
-          echo "Output directory contents:"
-          ls -la ./output/
+          echo "Preorder history file contents:"
+          cat ./preorders/preorder_history.json || echo "Could not display history file"
       
-      - name: Run directory verification script
+      # IMPORTANT: This step should only run in test mode when no real approvals were found
+      - name: Create test approved releases file (test mode only)
+        if: github.event.inputs.run_mode == 'test'
         run: |
-          echo "Running directory verification script"
-          python directory_test.py
-          
-          # After verification, check file paths again
-          echo "Checking file paths after verification:"
-          ls -la ./preorders/preorder_history.json || echo "History file not found"
-          
-          # Show all possible locations of the history file
-          echo "Searching for preorder_history.json:"
-          find ./ -name "preorder_history.json" || echo "No history files found" 
+          # Only create test file if no real approved releases file exists
+          if ! ls ./output/approved_releases_*.json 1> /dev/null 2>&1; then
+            mkdir -p output
+            TIMESTAMP=$(date +'%Y-%m-%d')
+            APPROVED_FILE="./output/approved_releases_${TIMESTAMP}.json"
+            
+            echo '{
+              "approved_releases": [
+                {
+                  "isbn": "9780262551311",
+                  "title": "Modern Chinese Foodways",
+                  "quantity": 2,
+                  "approved": true
+                },
+                {
+                  "isbn": "9784756256522",
+                  "title": "Fishes of Edo",
+                  "quantity": 10,
+                  "approved": true
+                },
+                {
+                  "isbn": "9781234567890",
+                  "title": "New Book Not In History",
+                  "quantity": 3,
+                  "approved": true
+                }
+              ],
+              "total_approved_books": 3,
+              "approval_date": "'$TIMESTAMP'",
+              "test_data": true
+            }' > "$APPROVED_FILE"
+            
+            echo "Created test approved releases file: $APPROVED_FILE"
+            ls -la "$APPROVED_FILE"
+          else
+            echo "Skipping test file creation because real approved releases file exists"
+          fi
+      
       - name: Run weekly sales report
         run: python weekly_sales_report.py
       
@@ -417,25 +432,3 @@ jobs:
             ./output/NYT_weekly_sales_report_*.csv
             ./output/NYT_excluded_items_*.csv
             ./preorders/NYT_preorder_tracking.csv
-
-      - name: Persist important files to repository
-        if: always()  # Run even if previous steps failed
-        run: |
-          echo "Preparing to persist important files"
-          git config --global user.name "GitHub Actions Bot"
-          git config --global user.email "actions@github.com"
-          
-          # Create directories if they don't exist
-          mkdir -p preorders output
-          
-          # Check if there are any changes to commit
-          git add preorders/*.json preorders/*.csv output/approved_releases_*.json
-          
-          # Only commit if there are changes
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            echo "Committing changes to repository"
-            git commit -m "Auto-update tracking files from workflow run [skip ci]"
-            git push
-          fi
