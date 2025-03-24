@@ -338,14 +338,17 @@ jobs:
       
       - name: Process approved issue
         id: process-issue
-        if: fromJSON(steps.check-approvals.outputs.result).status == 'approved' || fromJSON(steps.check-approvals.outputs.result).status == 'manual_issue'
+        # Fixed conditional statement
+        if: steps.check-approvals.outputs.result != '' && (fromJSON(steps.check-approvals.outputs.result).status == 'approved' || fromJSON(steps.check-approvals.outputs.result).status == 'manual_issue')
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
             
-            const issueNumber = fromJSON('${{ steps.check-approvals.outputs.result }}').issue_number;
+            // Parse the JSON string into an object
+            const resultsObj = JSON.parse('${{ steps.check-approvals.outputs.result }}');
+            const issueNumber = resultsObj.issue_number;
             
             try {
               // Get the issue
@@ -476,7 +479,8 @@ jobs:
       
       - name: Process manual ISBN override
         id: process-override
-        if: fromJSON(steps.check-approvals.outputs.result).status == 'manual_override'
+        # Fixed conditional statement
+        if: steps.check-approvals.outputs.result != '' && fromJSON(steps.check-approvals.outputs.result).status == 'manual_override'
         run: |
           # Create a file with approved ISBNs
           mkdir -p output
@@ -484,8 +488,9 @@ jobs:
           APPROVED_FILE="./output/approved_releases_${TIMESTAMP}.json"
           
           # Get the list of ISBNs from the input
-          ISBNS="${{ join(fromJSON(steps.check-approvals.outputs.result).isbns, ',') }}"
-          ISBN_ARRAY=(${ISBNS//,/ })
+          RESULT='${{ steps.check-approvals.outputs.result }}'
+          ISBNS=$(echo $RESULT | jq -r '.isbns | join(",")')
+          IFS=',' read -ra ISBN_ARRAY <<< "$ISBNS"
           
           # Start creating the JSON file
           echo "{" > "$APPROVED_FILE"
@@ -532,7 +537,8 @@ jobs:
       
       - name: Create fallback approved releases if needed
         id: create-fallback-approved
-        if: fromJSON(steps.check-approvals.outputs.result).status == 'no_pending' && github.event.inputs.run_mode == 'test'
+        # Fixed conditional statement
+        if: steps.check-approvals.outputs.result != '' && fromJSON(steps.check-approvals.outputs.result).status == 'no_pending' && github.event.inputs.run_mode == 'test'
         run: |
           mkdir -p output
           TIMESTAMP=$(date +'%Y-%m-%d')
