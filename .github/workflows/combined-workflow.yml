@@ -1,0 +1,618 @@
+name: Preorder Management and Weekly Report
+
+permissions:
+  contents: write
+  issues: write
+
+on:
+  # Run every Friday for preorder identification and approval creation
+  schedule:
+    - cron: '0 0 * * 5'  # Midnight on Friday
+    - cron: '0 8 * * 1'  # 8am on Monday
+  
+  # Allow manual trigger with options
+  workflow_dispatch:
+    inputs:
+      workflow_type:
+        description: 'Workflow type to run'
+        required: true
+        default: 'full'
+        type: choice
+        options:
+          - full
+          - identify-preorders
+          - generate-report
+      run_mode:
+        description: 'Run mode'
+        required: true
+        default: 'test'
+        type: choice
+        options:
+          - test
+          - production
+      issue_number:
+        description: 'Issue number for manual approval (leave empty for automatic)'
+        required: false
+      isbn_list:
+        description: 'Comma-separated list of ISBNs to approve (overrides issue)'
+        required: false
+
+jobs:
+  determine-job:
+    runs-on: ubuntu-latest
+    outputs:
+      job_type: ${{ steps.set-job.outputs.job_type }}
+      day_of_week: ${{ steps.set-job.outputs.day_of_week }}
+    steps:
+      - name: Determine job type based on day or manual input
+        id: set-job
+        run: |
+          # Get current day of week (0 is Sunday, 1 is Monday, etc.)
+          DAY_OF_WEEK=$(date +%u)
+          echo "day_of_week=$DAY_OF_WEEK" >> $GITHUB_OUTPUT
+          
+          # For scheduled runs, determine based on day of week
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            if [[ "$DAY_OF_WEEK" == "5" ]]; then
+              echo "job_type=identify-preorders" >> $GITHUB_OUTPUT
+            elif [[ "$DAY_OF_WEEK" == "1" ]]; then
+              echo "job_type=generate-report" >> $GITHUB_OUTPUT
+            else
+              echo "job_type=none" >> $GITHUB_OUTPUT
+            fi
+          # For manual runs, use input parameter
+          else
+            echo "job_type=${{ github.event.inputs.workflow_type }}" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "Determined job type: ${{ steps.set-job.outputs.job_type }}"
+
+  identify-preorders:
+    needs: determine-job
+    if: needs.determine-job.outputs.job_type == 'identify-preorders' || needs.determine-job.outputs.job_type == 'full'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Create environment file
+        run: |
+          echo "SHOP_URL=${{ secrets.SHOP_URL }}" > .env.production
+          echo "SHOPIFY_ACCESS_TOKEN=${{ secrets.SHOPIFY_ACCESS_TOKEN }}" >> .env.production
+          echo "SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}" >> .env.production
+          echo "EMAIL_SENDER=${{ secrets.EMAIL_SENDER }}" >> .env.production
+          echo "EMAIL_RECIPIENTS=${{ secrets.EMAIL_RECIPIENTS }}" >> .env.production
+          
+          # Set test mode based on input parameter
+          if [ "${{ github.event.inputs.run_mode }}" = "test" ]; then
+            echo "USE_TEST_DATA=true" >> .env.production
+            echo "🧪 Running in TEST mode"
+          else
+            echo "USE_TEST_DATA=false" >> .env.production
+            echo "🚀 Running in PRODUCTION mode"
+          fi
+      
+      - name: Run publication date audit
+        id: run-audit
+        run: |
+          mkdir -p output audit overrides
+          TIMESTAMP=$(date +'%Y-%m-%d')
+          RELEASES_FILE="./output/pending_releases_${TIMESTAMP}.json"
+          
+          if [ "${{ github.event.inputs.run_mode }}" = "test" ]; then
+            python -u audit_publication_dates.py --output-releases "$RELEASES_FILE" --test-mode
+          else
+            python -u audit_publication_dates.py --output-releases "$RELEASES_FILE"
+          fi
+          
+          if [ -f "$RELEASES_FILE" ]; then
+            echo "releases_file=$RELEASES_FILE" >> $GITHUB_OUTPUT
+            echo "has_pending_releases=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_pending_releases=false" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create fallback pending releases if needed
+        id: create-fallback
+        if: steps.run-audit.outputs.has_pending_releases != 'true'
+        run: |
+          mkdir -p output
+          TIMESTAMP=$(date +'%Y-%m-%d')
+          FALLBACK_FILE="./output/pending_releases_${TIMESTAMP}.json"
+          
+          # Create a minimal test file
+          echo '{
+            "pending_releases": [
+              {
+                "isbn": "9780262551311",
+                "title": "Test Book 1",
+                "quantity": 2,
+                "pub_date": "'$TIMESTAMP'"
+              },
+              {
+                "isbn": "9784756256522",
+                "title": "Test Book 2",
+                "quantity": 3,
+                "pub_date": "'$TIMESTAMP'"
+              }
+            ],
+            "error_cases": [],
+            "total_quantity": 5,
+            "run_date": "'$TIMESTAMP'",
+            "total_pending_books": 2,
+            "test_data": true
+          }' > "$FALLBACK_FILE"
+          
+          echo "releases_file=$FALLBACK_FILE" >> $GITHUB_OUTPUT
+          echo "Created fallback pending releases file: $FALLBACK_FILE"
+      
+      - name: Create approval issue
+        id: create-issue
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            let releasesFile = '${{ steps.run-audit.outputs.releases_file || steps.create-fallback.outputs.releases_file }}';
+            
+            try {
+              // Read the pending releases file
+              const fileContent = fs.readFileSync(releasesFile, 'utf8');
+              const pendingData = JSON.parse(fileContent);
+              
+              const timestamp = new Date().toISOString().split('T')[0];
+              const isTestData = pendingData.test_data === true;
+              const testPrefix = isTestData ? '[TEST] ' : '';
+              
+              // Format books as a markdown table
+              let booksTable = '| Approve | ISBN | Title | QTY Presold | Pub Date |\n|---------|------|-------|------------|----------|\n';
+              
+              pendingData.pending_releases.forEach(book => {
+                booksTable += `| [ ] | ${book.isbn} | ${book.title} | ${book.quantity} | ${book.pub_date || 'Unknown'} |\n`;
+              });
+              
+              // Create issue title
+              const issueTitle = `${testPrefix}📚 Preorder Approval: ${pendingData.total_pending_books} Books Ready for Release (${timestamp})`;
+              
+              // Create issue body
+              const issueBody = `## Preorder Books Ready for Release Approval
+              
+              **Important: Please review these preorder books before they are included in the weekly sales report.**
+              
+              Check the boxes for books that should be included in this week's report. Books with unchecked boxes will remain in preorder status.
+              
+              ### Instructions
+              1. Review each book's details
+              2. Check the box in the "Approve" column for books that should be included
+                 - IMPORTANT: Use exactly \`[x]\` for approved books (lowercase x, no spaces)
+              3. Add the label \`approved\` to this issue when you've finished reviewing
+              4. Only checked books will have their sales included in the next report
+              
+              ### Books Pending Approval
+              
+              ${booksTable}
+              
+              ### Notes
+              - This approval is required by: Monday at 8:00 AM
+              - Books not approved will remain in preorder status
+              - Data file: \`${releasesFile}\`
+              ${isTestData ? '- ⚠️ THIS IS A TEST ISSUE WITH SIMULATED DATA ⚠️' : ''}`;
+              
+              // Create the issue
+              const issue = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: issueTitle,
+                body: issueBody,
+                labels: ['pending-approval', 'preorders', ...(isTestData ? ['test-data'] : [])]
+              });
+              
+              console.log(`Created approval issue #${issue.data.number}`);
+              return issue.data.number;
+            } catch (error) {
+              console.error(`Error creating approval issue: ${error}`);
+              core.setFailed(`Failed to create approval issue: ${error.message}`);
+            }
+      
+      - name: Save pending releases file
+        uses: actions/upload-artifact@v4
+        with:
+          name: pending-releases-${{ github.run_id }}
+          path: ${{ steps.run-audit.outputs.releases_file || steps.create-fallback.outputs.releases_file }}
+          retention-days: 7
+
+  generate-report:
+    needs: determine-job
+    if: needs.determine-job.outputs.job_type == 'generate-report' || needs.determine-job.outputs.job_type == 'full'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Create environment file
+        run: |
+          echo "SHOP_URL=${{ secrets.SHOP_URL }}" > .env.production
+          echo "SHOPIFY_ACCESS_TOKEN=${{ secrets.SHOPIFY_ACCESS_TOKEN }}" >> .env.production
+          echo "SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}" >> .env.production
+          echo "EMAIL_SENDER=${{ secrets.EMAIL_SENDER }}" >> .env.production
+          echo "EMAIL_RECIPIENTS=${{ secrets.EMAIL_RECIPIENTS }}" >> .env.production
+          
+          # Set test mode based on input parameter
+          if [ "${{ github.event.inputs.run_mode }}" = "test" ]; then
+            echo "USE_TEST_DATA=true" >> .env.production
+            echo "🧪 Running in TEST mode"
+          else
+            echo "USE_TEST_DATA=false" >> .env.production
+            echo "🚀 Running in PRODUCTION mode"
+          fi
+      
+      - name: Check for approved issues or manual overrides
+        id: check-approvals
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Check for manual ISBN override
+            const manualISBNs = '${{ github.event.inputs.isbn_list }}';
+            if (manualISBNs && manualISBNs.trim() !== '') {
+              console.log("Using manual ISBN list: " + manualISBNs);
+              return {
+                status: 'manual_override',
+                isbns: manualISBNs.split(',').map(isbn => isbn.trim()),
+                issue_number: null
+              };
+            }
+            
+            // Check for manual issue number
+            const manualIssueNumber = '${{ github.event.inputs.issue_number }}';
+            if (manualIssueNumber && manualIssueNumber.trim() !== '') {
+              try {
+                const issueNumber = parseInt(manualIssueNumber.trim());
+                const issue = await github.rest.issues.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber
+                });
+                
+                console.log(`Using manually specified issue #${issueNumber}`);
+                return {
+                  status: 'manual_issue',
+                  issue_number: issueNumber,
+                  isbns: []
+                };
+              } catch (error) {
+                console.error(`Error getting issue #${manualIssueNumber}: ${error.message}`);
+              }
+            }
+            
+            // Find open issues with pending-approval label
+            const pendingIssues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'pending-approval'
+            });
+            
+            if (pendingIssues.data.length > 0) {
+              // Check if any have the 'approved' label
+              const approvedIssues = pendingIssues.data.filter(issue => 
+                issue.labels.some(label => label.name === 'approved')
+              );
+              
+              if (approvedIssues.length > 0) {
+                const issue = approvedIssues[0];
+                console.log(`Found approved issue #${issue.number}: ${issue.title}`);
+                return {
+                  status: 'approved',
+                  issue_number: issue.number,
+                  isbns: []
+                };
+              } else {
+                console.log("Found pending issues without approval");
+                return { status: 'waiting', issue_number: null, isbns: [] };
+              }
+            } else {
+              console.log("No pending approval issues found");
+              return { status: 'no_pending', issue_number: null, isbns: [] };
+            }
+      
+      - name: Process approved issue
+        id: process-issue
+        if: fromJSON(steps.check-approvals.outputs.result).status == 'approved' || fromJSON(steps.check-approvals.outputs.result).status == 'manual_issue'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            
+            const issueNumber = fromJSON('${{ steps.check-approvals.outputs.result }}').issue_number;
+            
+            try {
+              // Get the issue
+              const issue = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber
+              });
+              
+              console.log(`Processing issue #${issueNumber}: ${issue.data.title}`);
+              
+              // Save issue body to file
+              fs.writeFileSync('./issue_body.txt', issue.data.body);
+              
+              // Create the output directory if it doesn't exist
+              if (!fs.existsSync('./output')) {
+                fs.mkdirSync('./output', { recursive: true });
+              }
+              
+              // Extract the pending releases file path from the issue body
+              const releasesMatch = issue.data.body.match(/Data file: `(.+?)`/);
+              let releasesFile = null;
+              
+              if (releasesMatch && releasesMatch[1]) {
+                releasesFile = releasesMatch[1];
+                console.log(`Found releases file reference in issue: ${releasesFile}`);
+              } else {
+                console.log("Could not find releases file reference in issue body");
+              }
+              
+              // Parse the issue body to extract approved books (lines with [x])
+              const lines = issue.data.body.split('\n');
+              const approvedBooks = [];
+              
+              for (const line of lines) {
+                // Match lines that have a checked box in a table row format
+                if (line.match(/\|\s*\[x\]/i)) {
+                  // Extract ISBN from the line (second column in the table)
+                  const match = line.match(/\|\s*\[x\]\s*\|\s*([0-9]+)/i);
+                  if (match) {
+                    const isbn = match[1];
+                    console.log(`Found approved ISBN: ${isbn}`);
+                    approvedBooks.push(isbn);
+                  }
+                }
+              }
+              
+              console.log(`Total approved ISBNs found: ${approvedBooks.length}`);
+              
+              // Extract title, quantity, and pub date for each approved book
+              const approvedDetails = [];
+              for (const line of lines) {
+                for (const isbn of approvedBooks) {
+                  if (line.includes(isbn)) {
+                    // Parse the table row to extract title and quantity
+                    const columns = line.split('|').map(col => col.trim());
+                    if (columns.length >= 5) {
+                      // Table format: | Approve | ISBN | Title | Quantity | Pub Date |
+                      const title = columns[3] || `Book with ISBN ${isbn}`;
+                      const quantity = parseInt(columns[4]) || 5;
+                      const pubDate = columns[5] || new Date().toISOString().split('T')[0];
+                      
+                      approvedDetails.push({
+                        isbn: isbn,
+                        title: title,
+                        quantity: quantity,
+                        pub_date: pubDate
+                      });
+                      
+                      break;
+                    }
+                  }
+                }
+              }
+              
+              // Check if this is a test issue
+              const isTestData = issue.data.labels.some(label => label.name === 'test-data');
+              
+              // Create approved releases file
+              const timestamp = new Date().toISOString().split('T')[0];
+              const approvedReleases = {
+                approved_releases: approvedDetails.map(book => ({
+                  ...book,
+                  approved: true,
+                  approval_date: timestamp
+                })),
+                total_approved_books: approvedDetails.length,
+                total_approved_quantity: approvedDetails.reduce((sum, book) => sum + (book.quantity || 0), 0),
+                approval_date: timestamp,
+                test_data: isTestData
+              };
+              
+              // Save the approved releases file
+              const outputFile = `./output/approved_releases_${timestamp}.json`;
+              fs.writeFileSync(outputFile, JSON.stringify(approvedReleases, null, 2));
+              
+              console.log(`Created approved releases file: ${outputFile}`);
+              console.log(`Approved books: ${approvedReleases.approved_releases.length}`);
+              console.log(`Total quantity: ${approvedReleases.total_approved_quantity}`);
+              console.log(`Is test data: ${isTestData}`);
+              
+              // Close the issue and add processed label
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                state: 'closed',
+                labels: [...issue.data.labels.map(label => label.name), 'processed']
+              });
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: `✅ Approved books have been processed and will be included in the weekly report.`
+              });
+              
+              return {
+                approved_file: outputFile,
+                approved_books: approvedReleases.approved_releases.length,
+                is_test_data: isTestData
+              };
+            } catch (error) {
+              console.error(`Error processing issue #${issueNumber}: ${error.message}`);
+              console.error(error.stack);
+              core.setFailed(`Error processing issue: ${error.message}`);
+            }
+      
+      - name: Process manual ISBN override
+        id: process-override
+        if: fromJSON(steps.check-approvals.outputs.result).status == 'manual_override'
+        run: |
+          # Create a file with approved ISBNs
+          mkdir -p output
+          TIMESTAMP=$(date +'%Y-%m-%d')
+          APPROVED_FILE="./output/approved_releases_${TIMESTAMP}.json"
+          
+          # Get the list of ISBNs from the input
+          ISBNS="${{ join(fromJSON(steps.check-approvals.outputs.result).isbns, ',') }}"
+          ISBN_ARRAY=(${ISBNS//,/ })
+          
+          # Start creating the JSON file
+          echo "{" > "$APPROVED_FILE"
+          echo '  "approved_releases": [' >> "$APPROVED_FILE"
+          
+          # Add each ISBN as an entry
+          for i in "${!ISBN_ARRAY[@]}"; do
+            ISBN="${ISBN_ARRAY[$i]}"
+            echo "Processing ISBN: $ISBN"
+            
+            # Add comma for all but the last entry
+            if [ $i -gt 0 ]; then
+              echo "," >> "$APPROVED_FILE"
+            fi
+            
+            # Add the book entry
+            echo "    {" >> "$APPROVED_FILE"
+            echo "      \"isbn\": \"$ISBN\"," >> "$APPROVED_FILE"
+            echo "      \"title\": \"Manual Override Book $((i+1))\"," >> "$APPROVED_FILE"
+            echo "      \"quantity\": 5," >> "$APPROVED_FILE"
+            echo "      \"approved\": true," >> "$APPROVED_FILE"
+            echo "      \"approval_date\": \"$TIMESTAMP\"" >> "$APPROVED_FILE"
+            echo -n "    }" >> "$APPROVED_FILE"
+          done
+          
+          # Close the JSON structure
+          echo "" >> "$APPROVED_FILE"
+          echo "  ]," >> "$APPROVED_FILE"
+          echo "  \"total_approved_books\": ${#ISBN_ARRAY[@]}," >> "$APPROVED_FILE"
+          echo "  \"total_approved_quantity\": $((${#ISBN_ARRAY[@]} * 5))," >> "$APPROVED_FILE"
+          echo "  \"approval_date\": \"$TIMESTAMP\"," >> "$APPROVED_FILE"
+          
+          # Check if we're in test mode
+          if [ "${{ github.event.inputs.run_mode }}" = "test" ]; then
+            echo "  \"test_data\": true" >> "$APPROVED_FILE"
+          else
+            echo "  \"test_data\": false" >> "$APPROVED_FILE"
+          fi
+          
+          echo "}" >> "$APPROVED_FILE"
+          
+          echo "Created manual override approved releases file: $APPROVED_FILE"
+          echo "approved_file=$APPROVED_FILE" >> $GITHUB_OUTPUT
+      
+      - name: Create fallback approved releases if needed
+        id: create-fallback-approved
+        if: fromJSON(steps.check-approvals.outputs.result).status == 'no_pending' && github.event.inputs.run_mode == 'test'
+        run: |
+          mkdir -p output
+          TIMESTAMP=$(date +'%Y-%m-%d')
+          APPROVED_FILE="./output/approved_releases_${TIMESTAMP}.json"
+          
+          echo '{
+            "approved_releases": [
+              {
+                "isbn": "9780262551311",
+                "title": "Fallback Test Book 1",
+                "quantity": 2,
+                "approved": true,
+                "approval_date": "'$TIMESTAMP'"
+              },
+              {
+                "isbn": "9784756256522",
+                "title": "Fallback Test Book 2",
+                "quantity": 3,
+                "approved": true,
+                "approval_date": "'$TIMESTAMP'"
+              }
+            ],
+            "total_approved_books": 2,
+            "total_approved_quantity": 5,
+            "approval_date": "'$TIMESTAMP'",
+            "test_data": true
+          }' > "$APPROVED_FILE"
+          
+          echo "Created fallback approved releases file: $APPROVED_FILE"
+          echo "approved_file=$APPROVED_FILE" >> $GITHUB_OUTPUT
+      
+      - name: Verify preorder history file
+        run: |
+          mkdir -p preorders
+          
+          # Check if preorder history file exists
+          if [ ! -f "./preorders/preorder_history.json" ]; then
+            echo "Creating initial preorder history file"
+            echo '{
+              "reported_preorders": [],
+              "last_updated": "'$(date -Iseconds)'"
+            }' > ./preorders/preorder_history.json
+          fi
+          
+          echo "Preorder history file contents:"
+          cat ./preorders/preorder_history.json || echo "Could not display history file"
+      
+      - name: Verify files in output directory
+        run: |
+          echo "Files in output directory:"
+          ls -la ./output/
+          
+          echo "Checking for approved_releases files:"
+          find ./output -name "approved_releases_*.json" || echo "No approved_releases files found"
+      
+      - name: Run weekly sales report
+        id: run-report
+        run: |
+          # Set a flag to indicate this is a manual run if applicable
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "MANUAL_RUN=true" >> $GITHUB_ENV
+          fi
+          
+          # Run the weekly report
+          python weekly_sales_report.py
+          
+          # Check if report was generated
+          REPORT_FILE=$(find ./output -name "NYT_weekly_sales_report_*.csv" | sort -r | head -n1)
+          if [ -n "$REPORT_FILE" ]; then
+            echo "report_file=$REPORT_FILE" >> $GITHUB_OUTPUT
+          else
+            echo "No report file generated" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Upload report results
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-report-${{ github.run_id }}
+          path: |
+            ./output/NYT_weekly_sales_report_*.csv
+            ./output/NYT_excluded_items_*.csv
+            ./preorders/NYT_preorder_tracking.csv
+          retention-days: 30
