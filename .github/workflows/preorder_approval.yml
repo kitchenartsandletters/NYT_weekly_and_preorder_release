@@ -6,8 +6,8 @@ permissions:
 
 on:
   # Run weekly on Friday to prepare for the Monday report
-  schedule:
-    - cron: '0 0 * * 5'  # Midnight on Friday
+  # schedule:
+  #  - cron: '0 0 * * 5'  # Midnight on Friday
   
   # Allow manual trigger
   workflow_dispatch:
