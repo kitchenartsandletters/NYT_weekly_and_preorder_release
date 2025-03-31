@@ -151,20 +151,110 @@ def batch_add_to_history(preorders, report_date=None, history_file=None):
         preorders: List of dicts with 'isbn' and 'quantity' keys
         report_date: Date when reported (defaults to today)
         history_file: Path to the history JSON file
+        
+    Returns:
+        Updated history data
     """
+    if not preorders:
+        logging.warning("batch_add_to_history called with empty preorders list")
+        return None
+    
     if not report_date:
         report_date = datetime.now().strftime('%Y-%m-%d')
     
-    history_data = load_preorder_history(history_file)
+    # Set default history file path if not provided
+    if not history_file:
+        history_file = os.path.join(BASE_DIR, 'preorders', 'preorder_history.json')
     
+    # Make sure the directory exists
+    os.makedirs(os.path.dirname(history_file), exist_ok=True)
+    
+    # Load existing history data
+    history_data = None
+    try:
+        if os.path.exists(history_file):
+            with open(history_file, 'r', encoding='utf-8') as f:
+                history_data = json.load(f)
+            
+            # Verify structure
+            if not isinstance(history_data, dict) or 'reported_preorders' not in history_data:
+                logging.warning("Invalid history file structure, creating new")
+                history_data = None
+        
+    except Exception as e:
+        logging.error(f"Error loading history file: {e}")
+        # Continue with empty history data
+    
+    # Create default history data if not loaded
+    if not history_data:
+        history_data = {
+            "reported_preorders": [],
+            "last_updated": datetime.now().isoformat()
+        }
+    
+    # Keep track of updates
+    added_count = 0
+    updated_count = 0
+    
+    # Process each preorder
     for preorder in preorders:
         isbn = preorder.get('isbn')
         quantity = preorder.get('quantity', 0)
+        title = preorder.get('title', 'Unknown Title')
         
-        if isbn and quantity > 0:
-            add_to_preorder_history(isbn, quantity, report_date, history_data, history_file)
+        if not isbn:
+            logging.warning(f"Skipping preorder with missing ISBN: {preorder}")
+            continue
+        
+        try:
+            quantity_int = int(quantity)
+        except (ValueError, TypeError):
+            logging.warning(f"Invalid quantity for ISBN {isbn}: {quantity}")
+            quantity_int = 0
+        
+        if quantity_int <= 0:
+            logging.warning(f"Skipping preorder with zero or negative quantity: ISBN {isbn}, quantity {quantity}")
+            continue
+        
+        # Check if already reported
+        already_reported = False
+        for existing in history_data['reported_preorders']:
+            if existing.get('isbn') == isbn:
+                already_reported = True
+                # Update existing record
+                existing['quantity'] = quantity_int
+                existing['report_date'] = report_date
+                existing['title'] = title
+                existing['last_updated'] = datetime.now().isoformat()
+                updated_count += 1
+                logging.info(f"Updated existing record for ISBN {isbn}")
+                break
+        
+        # Add new record if not found
+        if not already_reported:
+            history_data['reported_preorders'].append({
+                'isbn': isbn,
+                'quantity': quantity_int,
+                'title': title,
+                'report_date': report_date,
+                'added': datetime.now().isoformat()
+            })
+            added_count += 1
+            logging.info(f"Added new record for ISBN {isbn}")
     
-    return history_data
+    # Update the last_updated timestamp
+    history_data['last_updated'] = datetime.now().isoformat()
+    
+    # Save the updated history data
+    try:
+        with open(history_file, 'w', encoding='utf-8') as f:
+            json.dump(history_data, f, indent=2)
+        logging.info(f"Successfully saved preorder history with {len(history_data['reported_preorders'])} entries")
+        logging.info(f"Added {added_count} new entries, updated {updated_count} existing entries")
+        return history_data
+    except Exception as e:
+        logging.error(f"Error saving preorder history: {e}")
+        return None
 
 def initialize_history_with_reported_preorders(preorders, report_date, history_file=None):
     """

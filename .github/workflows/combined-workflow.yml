@@ -690,15 +690,119 @@ jobs:
             echo "MANUAL_RUN=true" >> $GITHUB_ENV
           fi
           
-          # Run the weekly report
-          python weekly_sales_report.py
+          # Verify preorder history file exists and has valid structure
+          echo "Verifying preorder history file..."
+          mkdir -p preorders
+          HISTORY_FILE="./preorders/preorder_history.json"
+          
+          if [ ! -f "$HISTORY_FILE" ]; then
+            echo "Creating initial preorder history file"
+            echo '{
+              "reported_preorders": [],
+              "last_updated": "'$(date -Iseconds)'"
+            }' > "$HISTORY_FILE"
+          else
+            # Verify it's valid JSON
+            if ! jq . "$HISTORY_FILE" > /dev/null 2>&1; then
+              echo "Invalid JSON in history file, creating backup and resetting"
+              cp "$HISTORY_FILE" "${HISTORY_FILE}.bak.$(date +%Y%m%d%H%M%S)"
+              echo '{
+                "reported_preorders": [],
+                "last_updated": "'$(date -Iseconds)'"
+              }' > "$HISTORY_FILE"
+            fi
+          fi
+          
+          # Check output directory
+          mkdir -p output
+          
+          # List directories for debugging
+          echo "Current directory contents:"
+          ls -la ./
+          
+          echo "Preorders directory contents:"
+          ls -la ./preorders/
+          
+          echo "Output directory contents:"
+          ls -la ./output/
+          
+          # Check for approved releases files
+          APPROVED_FILES=$(find ./output -name "approved_releases_*.json" | sort -r)
+          if [ -n "$APPROVED_FILES" ]; then
+            echo "Found approved releases files:"
+            echo "$APPROVED_FILES"
+            
+            # Check if the latest file is valid JSON
+            LATEST_FILE=$(echo "$APPROVED_FILES" | head -n1)
+            echo "Validating latest file: $LATEST_FILE"
+            if ! jq . "$LATEST_FILE" > /dev/null 2>&1; then
+              echo "WARNING: Latest approved releases file contains invalid JSON!"
+            else
+              echo "Latest approved releases file is valid JSON"
+            fi
+          else
+            echo "No approved releases files found"
+          fi
+          
+          # Run the weekly report with better error handling
+          echo "Running weekly sales report..."
+          set +e  # Don't exit on error
+          python -u weekly_sales_report.py
+          REPORT_EXIT_CODE=$?
+          set -e  # Restore exit on error
+          
+          if [ $REPORT_EXIT_CODE -ne 0 ]; then
+            echo "ERROR: Weekly sales report script exited with code $REPORT_EXIT_CODE"
+            echo "Checking for errors in log output..."
+            
+            # Try to find error messages in recent logs
+            if [ -f "./preorders/preorder_history.json" ]; then
+              echo "Preorder history file contents:"
+              cat "./preorders/preorder_history.json"
+            fi
+            
+            # Create an error report
+            echo "Creating error report..."
+            {
+              echo "=== ERROR REPORT ==="
+              echo "Exit code: $REPORT_EXIT_CODE"
+              echo "Date: $(date)"
+              echo ""
+              echo "=== DIRECTORY STRUCTURE ==="
+              echo "Root directory:"
+              ls -la ./ || echo "Failed to list root directory"
+              echo ""
+              echo "Preorders directory:"
+              ls -la ./preorders/ || echo "Failed to list preorders directory"
+              echo ""
+              echo "Output directory:"
+              ls -la ./output/ || echo "Failed to list output directory"
+              echo ""
+              
+              # Include latest approved releases file if it exists
+              if [ -n "$LATEST_FILE" ]; then
+                echo "=== LATEST APPROVED RELEASES FILE ==="
+                echo "File: $LATEST_FILE"
+                cat "$LATEST_FILE" || echo "Failed to read file"
+              fi
+              
+              echo ""
+              echo "=== PREORDER HISTORY FILE ==="
+              cat "$HISTORY_FILE" || echo "Failed to read preorder history file"
+            } > "error_report_$(date +%Y%m%d%H%M%S).txt"
+            
+            echo "Error report created. Weekly report script failed."
+            exit 1
+          fi
           
           # Check if report was generated
           REPORT_FILE=$(find ./output -name "NYT_weekly_sales_report_*.csv" | sort -r | head -n1)
           if [ -n "$REPORT_FILE" ]; then
             echo "report_file=$REPORT_FILE" >> $GITHUB_OUTPUT
+            echo "Weekly report successfully generated: $REPORT_FILE"
           else
-            echo "No report file generated" >> $GITHUB_OUTPUT
+            echo "No report file was generated!"
+            exit 1
           fi
       
       - name: Upload report results
