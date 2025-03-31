@@ -517,6 +517,9 @@ def identify_pending_releases(pub_date_overrides=None, audit_results=None):
                     'error': 'Could not fetch product details'
                 })
                 continue
+
+            # Ensure pub_date is properly extracted
+            pub_date = details.get('pub_date', 'Unknown')
                 
             product_id = product_ids[0]
             details = product_details.get(product_id, {})
@@ -535,7 +538,7 @@ def identify_pending_releases(pub_date_overrides=None, audit_results=None):
                     'isbn': isbn,
                     'title': details.get('title', 'Unknown'),
                     'quantity': quantity,
-                    'original_pub_date': details.get('pub_date', 'Unknown'),
+                    'pub_date': pub_date,
                     'overridden_pub_date': pub_date_overrides.get(isbn) if pub_date_overrides else None,
                     'reason': 'No longer in preorder status',
                     'inventory': inventory,
