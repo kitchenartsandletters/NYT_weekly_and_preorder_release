@@ -1,4 +1,4 @@
-#!/Users/gilcalderon/ShopifyReport/env/bin/python3
+#!/Users/gilcalderon/shopify-projects/NYT_weekly_and_preorder_release/env/bin/python3.13
 # -*- coding: utf-8 -*-
 import re
 import sys
