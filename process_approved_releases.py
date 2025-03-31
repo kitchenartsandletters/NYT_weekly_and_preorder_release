@@ -39,6 +39,39 @@ def get_latest_approvals_file(base_dir):
     
     return latest_file
 
+def find_latest_approved_releases(base_dir=None):
+    """Find the most recent approved releases file"""
+    import os
+    import logging
+    
+    if base_dir is None:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    output_dir = os.path.join(base_dir, 'output')
+    
+    if not os.path.exists(output_dir):
+        logging.warning(f"Output directory does not exist: {output_dir}")
+        return None, False
+    
+    # Find approved_releases files
+    approval_files = [f for f in os.listdir(output_dir) if f.startswith('approved_releases_') and f.endswith('.json')]
+    
+    if not approval_files:
+        logging.info("No approved releases files found")
+        return None, False
+    
+    # Sort by filename (which contains date) to get the most recent
+    approval_files.sort(reverse=True)
+    latest_file = os.path.join(output_dir, approval_files[0])
+    
+    # Check if file has already been processed
+    processed_marker = latest_file + '.processed'
+    if os.path.exists(processed_marker):
+        logging.info(f"Latest approval file has already been processed: {latest_file}")
+        return latest_file, True
+    
+    return latest_file, False
+
 def process_approved_releases(sales_data=None, base_dir=None):
     """
     Process approved releases and add to sales data
