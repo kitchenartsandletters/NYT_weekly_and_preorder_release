@@ -1,15 +1,35 @@
 # Shopify Sales Report
 
 ## Overview
-This script fetches Shopify orders within a specified date range using the GraphQL API, maps variants to barcodes, accumulates quantities, and exports the data to a CSV report.
+This script fetches Shopify orders within a specified date range using the GraphQL API, maps variants to barcodes, accumulates quantities, and exports the data to a CSV report. It also handles preorder management through a two-phase workflow.
 
 ## Current Status
-- **Fetched Orders:** 418
-- **Missing Records:** 29
-- **Discrepancies:** Some quantities are inaccurate compared to manual reports.
+- **Preorder Flow:** Successfully identifies preorders ready for release, creates GitHub issues for approval, and processes approved preorders into the weekly sales report
+- **Weekly Report:** Generates sales report CSV with regular sales and approved preorders
+- **Preorder History:** Tracks which preorders have been reported to prevent duplicates
+- **Workflow Automation:** GitHub Actions workflow handles both identification and reporting phases
+
+## Workflow Process
+1. **Identify Preorders** (Friday)
+   - Runs audit of publication dates to find books ready for release
+   - Creates GitHub issue with books for approval
+   - Issue displays inventory levels and formatted publication dates
+
+2. **Generate Report** (Monday)
+   - Processes any approved preorder issues
+   - Adds approved preorders to weekly sales
+   - Updates preorder history tracking
+   - Generates and emails sales report
+
+## Resolved Issues
+- ✅ Preorder inventory levels now displaying in approval issues
+- ✅ Publication dates display in human-friendly format (Month DD, YYYY)
+- ✅ Preorder books approved through GitHub issues successfully pass to weekly report
+- ✅ Preorder history tracking preserves record of reported preorders
+- ✅ Automated workflow commits preorder history changes to repository
 
 ## Known Issues
-1. **Missing Records:**
+1. **Missing Records (Original):**
    - Description: 29 orders are not being fetched.
    - Possible Causes:
      - Pagination errors.
@@ -18,7 +38,7 @@ This script fetches Shopify orders within a specified date range using the Graph
      - Investigate the missing orders' details.
      - Check if they fall outside the date range or have unique attributes.
 
-2. **Quantity Discrepancies:**
+2. **Quantity Discrepancies (Partially Resolved):**
    - Description: Some product quantities do not match manual reports.
    - Possible Causes:
      - Duplicate processing.
@@ -27,132 +47,94 @@ This script fetches Shopify orders within a specified date range using the Graph
      - Validate aggregation logic.
      - Ensure no duplicate orders are processed.
 
+3. **Edge Case Handling:**
+   - Description: Need better handling of edge cases in preorder processing.
+   - Possible Causes:
+     - Books with missing or malformed publication dates.
+     - Books released during blackout periods.
+   - Actions to Take:
+     - Enhance error handling for malformed data.
+     - Add logic for special handling periods.
+
 ## Next Steps
-- **Investigate Missing Records:**
-  - Identify patterns or commonalities among missing orders.
-  - Enhance the GraphQL query to ensure all relevant orders are fetched.
+- **Enhance Logging:**
+  - Implement more detailed logging for troubleshooting
+  - Store logs for future reference
 
-- **Resolve Quantity Discrepancies:**
-  - Implement more robust aggregation checks.
-  - Add detailed logging for discrepancies.
+- **Refund Integration:**
+  - Improve handling of refunds for preorders
+  - Track refunded preorders in history
 
-- **Enhance Error Handling:**
-  - Implement retries with exponential backoff.
-  - Handle more specific exceptions.
+- **Testing Improvements:**
+  - Add more comprehensive test cases
+  - Create testing fixtures for common scenarios
+
+- **Documentation:**
+  - Create detailed operation guide
+  - Document GitHub issue approval process
+  - Provide examples of common workflows
 
 ## How to Run
 ```bash
+# Identify preorders ready for release
+python audit_publication_dates.py --output-releases ./output/pending_releases_$(date +%Y-%m-%d).json
+
+# Run the weekly sales report (includes approved preorders)
 python weekly_sales_report.py --start-date YYYY-MM-DD --end-date YYYY-MM-DD
 
+# Manual preorder approval (if needed)
+python preorder-manager.py process-issue --issue-file ./issue_body.txt
+```
 
-## Test Scripts Overview
+## Scripts Overview
 
-Below is a summary of the primary scripts in this repository, their purpose, and how to use them.
+### Main Scripts
+1. **weekly_sales_report.py**
+   - Generates weekly sales report from Shopify using GraphQL
+   - Filters line items with barcodes beginning with 978
+   - Integrates approved preorders into the sales report
 
-1. weekly_sales_report.py
-	•	Purpose:
-	•	Generates a weekly (or any date-range) sales report from Shopify using GraphQL.
-	•	Filters line items so that only barcodes beginning with 978 are included in the final CSV output.
-	•	Logs order IDs in fetched_order_ids.log for cross-referencing or manual checks.
-	•	Key Features:
-	•	Line Items and Barcodes: Aggregates the total quantity of items with barcodes starting with 978.
-	•	Skipped Items: Logs items in skipped_line_items.log if they have missing barcodes or do not meet the criteria.
-	•	Export: Produces a CSV file (shopify_sales_report_<date>.csv) with columns Barcode and QTY.
-	•	Date Range Filtering: Accepts --start-date and --end-date arguments in YYYY-MM-DD format.
-	•	Usage Example:
+2. **audit_publication_dates.py**
+   - Checks for books ready to be released based on publication dates
+   - Identifies preorders to include in next sales report
+   - Creates JSON file with books pending approval
 
-python weekly_sales_report.py --start-date 2024-12-02 --end-date 2024-12-08
+3. **process_approved_releases.py**
+   - Processes approved preorders from GitHub issues
+   - Updates preorder history tracking
+   - Adds approved books to sales report
 
-This will fetch all orders created between December 2, 2024, and December 8, 2024, then produce a report.
+4. **preorder_history_tracker.py**
+   - Manages tracking of preorders already reported
+   - Prevents duplicate reporting of preorder books
+   - Maintains history of reported preorders
 
-2. test_refunds.py
-	•	Purpose:
-	•	A test script (located in the tests/ folder, if following best practices) designed to explore how refunds can be pulled from the Shopify GraphQL API.
-	•	Checks if refunds are being retrieved accurately and processes line items associated with those refunds.
-	•	Key Features:
-	•	Refund Checking: Queries Shopify for each order’s refunds field (if available) and logs details to confirm which fields are accessible via the GraphQL version in use.
-	•	Error Handling: Helps identify the “Field ‘edges’ doesn’t exist on type ‘Refund’” or similar GraphQL errors for troubleshooting.
-	•	Usage Example:
+### Utility Scripts
+1. **env_loader.py**
+   - Handles environment variable loading with better error checking
+   - Supports test mode for running without API credentials
 
-python tests/test_refunds.py
+2. **preorder-manager.py**
+   - Comprehensive script for managing preorder workflow
+   - Supports manual operations when needed
 
-This script is meant for debugging; it won’t produce a final CSV report but will log or print relevant debug information.
+### Supporting Files
+- **preorder_history.json**
+  - Tracks which preorders have been reported
+  - Prevents duplicate reporting across weeks
 
-3. test_barcode_validation.py (Example)
-	•	Purpose:
-	•	Validates that barcodes in fetched orders meet the expected format (particularly those starting with 978).
-	•	Ensures that the script can handle edge cases: empty barcodes, barcodes with whitespace, or barcodes that do not match the 978 prefix.
-	•	Usage Example:
+- **pending_releases_*.json**
+  - Contains books ready for release pending approval
+  - Created by the audit script
 
-python tests/test_barcode_validation.py
+- **approved_releases_*.json**
+  - Contains books approved for release
+  - Created from GitHub issue approvals
 
-This script might print out or log mismatched or invalid barcodes to assist in ensuring data correctness.
+## GitHub Workflow
+The repository includes a GitHub Actions workflow that automates both the identification and reporting processes:
 
-Other Supporting Files
-	•	fetched_order_ids.log
-	•	Automatically generated by weekly_sales_report.py when run.
-	•	Contains a tab-separated list of order IDs and creation timestamps, primarily used for cross-referencing.
-	•	skipped_line_items.log
-	•	Automatically generated by weekly_sales_report.py if any line items are missing barcodes or do not start with 978.
-	•	Useful for investigating data issues or anomalies that caused items to be excluded.
-	•	manual_order_ids.txt (optional)
-	•	A file containing manually tracked order IDs for direct comparison to what the script retrieves.
-	•	If provided to weekly_sales_report.py via --manual-order-ids, the script will compare and produce missing_order_ids.txt and extra_order_ids.txt.
+- **Friday:** Runs the preorder identification process and creates approval issues
+- **Monday:** Processes approvals and generates the weekly report
 
-How to Run & Compare Reports
-	1.	Activate Your Virtual Environment:
-
-source env/bin/activate
-
-
-	2.	Run the Main Report Script:
-
-python weekly_sales_report.py --start-date 2024-12-02 --end-date 2024-12-08
-
-	•	Produces a CSV named shopify_sales_report_<YYYY-MM-DD>.csv.
-	•	Logs data in fetched_order_ids.log and skipped_line_items.log.
-
-	3.	Optional: Compare Against Manual Orders:
-
-python weekly_sales_report.py \
-    --start-date 2024-12-02 \
-    --end-date 2024-12-08 \
-    --manual-order-ids manual_order_ids.txt
-
-	•	Generates missing_order_ids.txt and extra_order_ids.txt in addition to the CSV and log files.
-
-	4.	Run Test Scripts:
-	•	test_refunds.py (in tests/ folder) to debug refund fields.
-	•	test_barcode_validation.py (in tests/ folder) to validate barcode logic.
-
-Notes on Further Development
-	•	Refund Integration:
-	•	If you plan to factor refunds into net quantities, a future iteration of weekly_sales_report.py will need an updated GraphQL query capable of retrieving refunds in a version of the Shopify API that supports those fields.
-	•	For now, the test_refunds.py script is an exploratory tool to see which fields exist under your current API version.
-	•	Error Handling & GraphQL Fields:
-	•	Errors like "Field 'edges' doesn't exist on type 'Refund'" typically mean your shop’s API version doesn’t expose that field. You may need to change your approach or find an API version/field combination that does.
-
-Helpful Formulas (Google Sheets)
-
-To compare manual and automated data:
-	1.	Matching Barcodes in Two Columns
-
-=IF(
-    ISERROR(VLOOKUP(A2, C:D, 2, FALSE)), 
-    "Missing in Automated", 
-    IF(VLOOKUP(A2, C:D, 2, FALSE) = B2, 
-       "Match", 
-       "Quantity Mismatch"
-    )
-)
-
-	•	A2 and B2 might be the barcode and quantity columns in the manual dataset.
-	•	Columns F:G might contain the barcode and quantity from the automated dataset.
-
-	2.	Check Absolute Differences
-
-=ABS(B2 - <AUTOMATED_QUANTITY>)
-
-	•	Helps identify numeric mismatches between your manual and automated results for quick scanning.
-
-Use these formulas as needed in your spreadsheet to verify that the barcodes match, and that quantities are consistent between the two datasets.
+The workflow handles testing and production modes with appropriate error handling and debugging information.
