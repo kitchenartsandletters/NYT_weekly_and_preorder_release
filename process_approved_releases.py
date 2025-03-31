@@ -309,22 +309,22 @@ def initialize_preorder_history(preorders, report_date):
     logging.info(f"Initialized preorder history with {len(preorders)} previously reported books")
     
 # Example usage for initializing history with previously reported books
-if __name__ == "__main__":
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[logging.StreamHandler()]
-    )
-    
-    # Example of books that have already been reported
-    previously_reported = [
-        {"isbn": "9780593234778", "quantity": 8, "title": "Ghana to the World"},
-        {"isbn": "9781984826213", "quantity": 5, "title": "Example Book 2"},
-        {"isbn": "9780857521989", "quantity": 3, "title": "Example Book 3"}
-    ]
-    
-    # The date when they were reported (previous weekly report)
-    report_date = "2025-03-08"  # Format: YYYY-MM-DD
-    
-    # Initialize history with these books
-    initialize_preorder_history(previously_reported, report_date)
+# if __name__ == "__main__":
+#     logging.basicConfig(
+#         level=logging.INFO,
+#         format='%(asctime)s - %(levelname)s - %(message)s',
+#         handlers=[logging.StreamHandler()]
+#     )
+#     
+#     # Example of books that have already been reported
+#     previously_reported = [
+#         {"isbn": "9780593234778", "quantity": 8, "title": "Ghana to the World"},
+#         {"isbn": "9781984826213", "quantity": 5, "title": "Example Book 2"},
+#         {"isbn": "9780857521989", "quantity": 3, "title": "Example Book 3"}
+#     ]
+#     
+#     # The date when they were reported (previous weekly report)
+#     report_date = "2025-03-08"  # Format: YYYY-MM-DD
+#     
+#     # Initialize history with these books
+#     initialize_preorder_history(previously_reported, report_date)
