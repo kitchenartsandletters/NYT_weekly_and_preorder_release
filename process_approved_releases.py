@@ -39,7 +39,7 @@ def get_latest_approvals_file(base_dir):
     
     return latest_file
 
-def process_approved_releases(sales_data=None):
+def process_approved_releases(sales_data=None, base_dir=None):
     """
     Process approved releases and add to sales data
     
