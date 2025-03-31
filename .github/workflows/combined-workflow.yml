@@ -162,9 +162,10 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            // This is the script part that needs to be updated in the create-issue step
             const fs = require('fs');
             let releasesFile = '${{ steps.run-audit.outputs.releases_file || steps.create-fallback.outputs.releases_file }}';
-            
+
             try {
               // Read the pending releases file
               const fileContent = fs.readFileSync(releasesFile, 'utf8');
@@ -174,11 +175,23 @@ jobs:
               const isTestData = pendingData.test_data === true;
               const testPrefix = isTestData ? '[TEST] ' : '';
               
-              // Format books as a markdown table
-              let booksTable = '| Approve | ISBN | Title | QTY Presold | Pub Date |\n|---------|------|-------|------------|----------|\n';
+              // Log some debug info about the data
+              console.log(`Processing ${pendingData.total_pending_books} pending releases`);
+              console.log(`Total quantity: ${pendingData.total_quantity}`);
+              console.log(`Is test data: ${isTestData}`);
+              
+              // Format books as a markdown table with inventory and pub date
+              let booksTable = '| Approve | ISBN | Title | QTY Presold | Pub Date | Inventory |\n|---------|------|-------|------------|----------|----------|\n';
               
               pendingData.pending_releases.forEach(book => {
-                booksTable += `| [ ] | ${book.isbn} | ${book.title} | ${book.quantity} | ${book.pub_date || 'Unknown'} |\n`;
+                // Add more detailed logging for each book
+                console.log(`Book: ${book.title}, ISBN: ${book.isbn}, Quantity: ${book.quantity}, Pub Date: ${book.pub_date || 'Unknown'}, Inventory: ${book.inventory || 0}`);
+                
+                // Handle null or undefined values safely
+                const pubDate = book.pub_date ? book.pub_date : 'Unknown';
+                const inventory = Number.isFinite(book.inventory) ? book.inventory : 0;
+                
+                booksTable += `| [ ] | ${book.isbn} | ${book.title} | ${book.quantity} | ${pubDate} | ${inventory} |\n`;
               });
               
               // Create issue title
@@ -186,28 +199,28 @@ jobs:
               
               // Create issue body
               const issueBody = `## Preorder Books Ready for Release Approval
-              
-              **Important: Please review these preorder books before they are included in the weekly sales report.**
-              
-              Check the boxes for books that should be included in this week's report. Books with unchecked boxes will remain in preorder status.
-              
-              ### Instructions
-              1. Review each book's details
-              2. Check the box in the "Approve" column for books that should be included
-                 - IMPORTANT: Use exactly \`[x]\` for approved books (lowercase x, no spaces)
-              3. Add the label \`approved\` to this issue when you've finished reviewing
-              4. Only checked books will have their sales included in the next report
-              
-              ### Books Pending Approval
-              
-              ${booksTable}
-              
-              ### Notes
-              - This approval is required by: Monday at 8:00 AM
-              - Books not approved will remain in preorder status
-              - Data file: \`${releasesFile}\`
-              ${isTestData ? '- ⚠️ THIS IS A TEST ISSUE WITH SIMULATED DATA ⚠️' : ''}`;
-              
+
+            **Important: Please review these preorder books before they are included in the weekly sales report.**
+
+            Check the boxes for books that should be included in this week's report. Books with unchecked boxes will remain in preorder status.
+
+            ### Instructions
+            1. Review each book's details
+            2. Check the box in the "Approve" column for books that should be included
+              - IMPORTANT: Use exactly \`[x]\` for approved books (lowercase x, no spaces)
+            3. Add the label \`approved\` to this issue when you've finished reviewing
+            4. Only checked books will have their sales included in the next report
+
+            ### Books Pending Approval
+
+            ${booksTable}
+
+            ### Notes
+            - This approval is required by: Monday at 8:00 AM
+            - Books not approved will remain in preorder status
+            - Data file: \`${releasesFile}\`
+            ${isTestData ? '- ⚠️ THIS IS A TEST ISSUE WITH SIMULATED DATA ⚠️' : ''}`;
+
               // Create the issue
               const issue = await github.rest.issues.create({
                 owner: context.repo.owner,
@@ -221,6 +234,7 @@ jobs:
               return issue.data.number;
             } catch (error) {
               console.error(`Error creating approval issue: ${error}`);
+              console.error(error.stack);
               core.setFailed(`Failed to create approval issue: ${error.message}`);
             }
       
@@ -345,11 +359,11 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            
+
             // Parse the JSON string into an object
             const resultsObj = JSON.parse('${{ steps.check-approvals.outputs.result }}');
             const issueNumber = resultsObj.issue_number;
-            
+
             try {
               // Get the issue
               const issue = await github.rest.issues.get({
@@ -398,26 +412,45 @@ jobs:
               
               console.log(`Total approved ISBNs found: ${approvedBooks.length}`);
               
-              // Extract title, quantity, and pub date for each approved book
+              // Extract title, quantity, pub date, and inventory for each approved book
               const approvedDetails = [];
               for (const line of lines) {
                 for (const isbn of approvedBooks) {
                   if (line.includes(isbn)) {
-                    // Parse the table row to extract title and quantity
+                    // Parse the table row to extract all columns
                     const columns = line.split('|').map(col => col.trim());
-                    if (columns.length >= 5) {
-                      // Table format: | Approve | ISBN | Title | Quantity | Pub Date |
+                    if (columns.length >= 6) {
+                      // Expected table format: | Approve | ISBN | Title | Quantity | Pub Date | Inventory |
                       const title = columns[3] || `Book with ISBN ${isbn}`;
-                      const quantity = parseInt(columns[4]) || 5;
-                      const pubDate = columns[5] || new Date().toISOString().split('T')[0];
+                      
+                      // Try to parse quantity as a number
+                      let quantity = 0;
+                      try {
+                        quantity = parseInt(columns[4]) || 0;
+                      } catch (e) {
+                        console.log(`Could not parse quantity for ISBN ${isbn}, using default 0`);
+                      }
+                      
+                      // Extract pub date
+                      const pubDate = columns[5] || '';
+                      
+                      // Try to parse inventory as a number
+                      let inventory = 0;
+                      try {
+                        inventory = parseInt(columns[6]) || 0;
+                      } catch (e) {
+                        console.log(`Could not parse inventory for ISBN ${isbn}, using default 0`);
+                      }
                       
                       approvedDetails.push({
                         isbn: isbn,
                         title: title,
                         quantity: quantity,
-                        pub_date: pubDate
+                        pub_date: pubDate,
+                        inventory: inventory
                       });
                       
+                      console.log(`Extracted details for ISBN ${isbn}: Title=${title}, Quantity=${quantity}, Pub Date=${pubDate}, Inventory=${inventory}`);
                       break;
                     }
                   }
@@ -594,6 +627,27 @@ jobs:
           echo "Checking for approved_releases files:"
           find ./output -name "approved_releases_*.json" || echo "No approved_releases files found"
       
+      - name: Commit preorder history updates
+        if: github.event.inputs.run_mode != 'test'
+        run: |
+          # Verify the file exists and has changes
+          if [ -f "./preorders/preorder_history.json" ]; then
+            echo "Preorder history file exists, checking for changes"
+            git diff --exit-code --quiet ./preorders/preorder_history.json || {
+              echo "Changes detected in preorder history file, committing"
+              git config --local user.email "github-actions@github.com"
+              git config --local user.name "GitHub Actions"
+              git add ./preorders/preorder_history.json
+              git commit -m "Update preorder history after processing releases [skip ci]"
+              git push
+              echo "Successfully committed preorder history changes"
+            } || {
+              echo "No changes detected in preorder history file"
+            }
+          else
+            echo "Preorder history file not found at ./preorders/preorder_history.json"
+          fi
+
       - name: Run weekly sales report
         id: run-report
         run: |

@@ -39,45 +39,33 @@ def get_latest_approvals_file(base_dir):
     
     return latest_file
 
-def process_approved_releases(sales_data, base_dir):
+def process_approved_releases(sales_data=None):
     """
     Process approved releases and add to sales data
     
     Args:
-        sales_data: Dictionary mapping ISBNs to quantities
-        base_dir: Base directory of the project
+        sales_data: Dictionary mapping ISBNs to quantities (optional)
         
     Returns:
         Updated sales data with approved releases included
     """
+    if sales_data is None:
+        sales_data = {}
+    
     # Log initial sales data
     logging.info(f"Initial sales data before processing approved releases: {sales_data}")
-    logging.info("=" * 50)
-    logging.info("PROCESS APPROVED RELEASES FUNCTION CALLED")
-    logging.info(f"Base directory: {base_dir}")
     
-    # Check for history file
-    history_file = os.path.join(base_dir, 'preorders', 'preorder_history.json')
-    logging.info(f"Looking for history file at: {history_file}")
-    logging.info(f"File exists: {os.path.exists(history_file)}")
-    
-    # Print history file contents if it exists
-    if os.path.exists(history_file):
-        with open(history_file, 'r') as f:
-            history_content = f.read()
-            logging.info(f"History file contents: {history_content}")
-
     # Find the latest approvals file
-    approvals_file = get_latest_approvals_file(base_dir)
+    latest_file, already_processed = find_latest_approved_releases()
     
-    if not approvals_file:
-        logging.info("No unprocessed approval files found")
+    if not latest_file:
+        logging.info("No approved releases files found")
         return sales_data
     
     try:
-        logging.info(f"Processing approved releases from: {approvals_file}")
+        logging.info(f"Processing approved releases from: {latest_file}")
         
-        with open(approvals_file, 'r', encoding='utf-8') as f:
+        with open(latest_file, 'r', encoding='utf-8') as f:
             approved_data = json.load(f)
         
         approved_books = approved_data.get('approved_releases', [])
@@ -91,6 +79,7 @@ def process_approved_releases(sales_data, base_dir):
         logging.info(f"Is test data: {is_test_data}")
         
         # Load preorder history to check for duplicates
+        from preorder_history_tracker import load_preorder_history, is_preorder_reported, batch_add_to_history
         history_data = load_preorder_history()
         
         # Track new books added to the report
@@ -130,17 +119,27 @@ def process_approved_releases(sales_data, base_dir):
         # Add newly reported books to history (skip for test data)
         if newly_reported_books and not is_test_data:
             report_date = datetime.now().strftime('%Y-%m-%d')
-            batch_add_to_history(newly_reported_books, report_date)
+            updated_history = batch_add_to_history(newly_reported_books, report_date)
             logging.info(f"Added {len(newly_reported_books)} books to preorder history")
+            
+            # Log the updated preorder history for verification
+            if updated_history:
+                logging.info(f"Updated preorder history now has {len(updated_history.get('reported_preorders', []))} entries")
+                logging.info(f"Last updated timestamp: {updated_history.get('last_updated')}")
+            else:
+                logging.warning("Failed to update preorder history")
+                
         elif newly_reported_books and is_test_data:
             logging.info(f"SKIPPING addition of {len(newly_reported_books)} books to preorder history because this is test data")
         
-        # Mark file as processed only if not test data
-        if not is_test_data:
-            processed_marker = approvals_file + '.processed'
+        # Mark file as processed only if not test data and not already processed
+        if not is_test_data and not already_processed:
+            processed_marker = latest_file + '.processed'
             with open(processed_marker, 'w') as f:
                 f.write(datetime.now().isoformat())
             logging.info(f"Marked approval file as processed: {processed_marker}")
+        elif already_processed:
+            logging.info(f"File was already marked as processed")
         else:
             logging.info(f"Skipping processed marker creation because this is test data")
         
@@ -158,6 +157,8 @@ def process_approved_releases(sales_data, base_dir):
         
     except Exception as e:
         logging.error(f"Error processing approved releases: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
     
     return sales_data
 

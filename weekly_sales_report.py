@@ -225,6 +225,7 @@ def fetch_product_details(product_ids):
     Fetches both collections and pub dates for products
     """
     if not product_ids:
+        logging.warning("fetch_product_details called with empty product_ids")
         return {}
 
     query = """
@@ -270,40 +271,90 @@ def fetch_product_details(product_ids):
             chunk = product_ids[i:i + chunk_size]
             variables = {"ids": chunk}
             
+            logging.debug(f"Fetching details for product chunk {i//chunk_size + 1}: {chunk}")
             data = run_query_with_retries(query, variables)
             
+            if not data or 'nodes' not in data:
+                logging.warning(f"Invalid response data structure: {data}")
+                continue
+                
             for node in data.get('nodes', []):
-                if node:
+                if not node:
+                    logging.warning("Received null node in response")
+                    continue
+                    
+                try:
                     product_id = node['id']
+                    title = node.get('title', 'Unknown Title')
+                    logging.debug(f"Processing product: {product_id} - {title}")
                     
-                    # Extract inventory quantity if available
-                    inventory = 0
-                    if node.get('variants', {}).get('edges') and len(node['variants']['edges']) > 0:
-                        inventory = node['variants']['edges'][0]['node'].get('inventoryQuantity', 0)
-                    
-                    all_product_details[product_id] = {
-                        'title': node['title'],
+                    # Initialize the product details dictionary with defaults
+                    product_info = {
+                        'title': title,
                         'vendor': node.get('vendor', 'Unknown'),
-                        'collections': [edge['node']['title'] for edge in node.get('collections', {}).get('edges', [])],
+                        'collections': [],
                         'pub_date': None,
-                        'inventory': inventory
+                        'inventory': 0
                     }
                     
-                    # Extract pub_date if it exists
-                    metafields = node.get('metafields', {}).get('edges', [])
-                    for metafield in metafields:
-                        if metafield['node']['key'] == 'pub_date':
-                            all_product_details[product_id]['pub_date'] = metafield['node']['value']
-                            break
+                    # Extract collections
+                    try:
+                        if 'collections' in node and 'edges' in node['collections']:
+                            product_info['collections'] = [
+                                edge['node']['title'] 
+                                for edge in node['collections']['edges'] 
+                                if 'node' in edge and 'title' in edge['node']
+                            ]
+                            logging.debug(f"Extracted collections: {product_info['collections']}")
+                    except Exception as coll_error:
+                        logging.error(f"Error extracting collections for {product_id}: {coll_error}")
+                    
+                    # Extract inventory quantity
+                    try:
+                        if ('variants' in node and 'edges' in node['variants'] and 
+                            len(node['variants']['edges']) > 0 and 
+                            'node' in node['variants']['edges'][0]):
+                            
+                            variant_node = node['variants']['edges'][0]['node']
+                            product_info['inventory'] = variant_node.get('inventoryQuantity', 0)
+                            logging.debug(f"Extracted inventory: {product_info['inventory']}")
+                    except Exception as inv_error:
+                        logging.error(f"Error extracting inventory for {product_id}: {inv_error}")
+                    
+                    # Extract pub_date from metafields
+                    try:
+                        if 'metafields' in node and 'edges' in node['metafields']:
+                            for edge in node['metafields']['edges']:
+                                if ('node' in edge and 
+                                    'key' in edge['node'] and 
+                                    edge['node']['key'] == 'pub_date' and
+                                    'value' in edge['node']):
+                                    
+                                    product_info['pub_date'] = edge['node']['value']
+                                    logging.debug(f"Extracted pub_date: {product_info['pub_date']}")
+                                    break
+                    except Exception as meta_error:
+                        logging.error(f"Error extracting metafields for {product_id}: {meta_error}")
+                    
+                    # Add to results
+                    all_product_details[product_id] = product_info
+                    logging.debug(f"Added product details for {product_id}: {product_info}")
+                    
+                except Exception as node_error:
+                    logging.error(f"Error processing node: {node_error}")
+                    # Continue to the next node
             
-            # Add a small delay between chunks
+            # Add a small delay between chunks to avoid rate limiting
             if i + chunk_size < len(product_ids):
                 time.sleep(1)
         
+        logging.info(f"Successfully fetched details for {len(all_product_details)} products")
         return all_product_details
         
     except Exception as e:
-        logging.error(f"Error fetching product details: {e}")
+        logging.error(f"Error in fetch_product_details: {e}")
+        import traceback
+        logging.error(traceback.format_exc())
         return {}
     
 def get_product_ids_by_isbn(isbn):
