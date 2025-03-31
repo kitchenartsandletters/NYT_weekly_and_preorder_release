@@ -45,6 +45,7 @@ def process_approved_releases(sales_data=None, base_dir=None):
     
     Args:
         sales_data: Dictionary mapping ISBNs to quantities (optional)
+        base_dir: Base directory for the project (optional, unused)
         
     Returns:
         Updated sales data with approved releases included
@@ -52,171 +53,126 @@ def process_approved_releases(sales_data=None, base_dir=None):
     if sales_data is None:
         sales_data = {}
     
+    # Log initial sales data
+    logging.info(f"Initial sales data before processing approved releases: {sales_data}")
+    
+    # Find the latest approvals file
+    latest_file, already_processed = find_latest_approved_releases()
+    
+    if not latest_file:
+        logging.info("No approved releases files found")
+        return sales_data
+    
     try:
-        # Log initial sales data
-        logging.info("=" * 50)
-        logging.info("PROCESS APPROVED RELEASES FUNCTION STARTED")
-        logging.info(f"Initial sales data: {sales_data}")
+        logging.info(f"Processing approved releases from: {latest_file}")
         
-        # Find the latest approvals file
-        try:
-            latest_file, already_processed = find_latest_approved_releases()
-            logging.info(f"Latest approval file: {latest_file}")
-            logging.info(f"Already processed: {already_processed}")
-        except Exception as e:
-            logging.error(f"Error finding latest approvals file: {e}")
-            import traceback
-            logging.error(traceback.format_exc())
-            return sales_data
+        with open(latest_file, 'r', encoding='utf-8') as f:
+            approved_data = json.load(f)
         
-        if not latest_file:
-            logging.info("No approved releases files found")
-            return sales_data
-        
-        # Read the approvals file
-        try:
-            with open(latest_file, 'r', encoding='utf-8') as f:
-                file_content = f.read()
-                logging.debug(f"File content (first 200 chars): {file_content[:200]}...")
-                
-                # Parse the JSON content
-                approved_data = json.loads(file_content)
-                logging.info(f"Successfully parsed JSON from {latest_file}")
-                
-                # Check if the parsed data has the expected structure
-                if not isinstance(approved_data, dict):
-                    logging.error(f"Parsed data is not a dictionary: {type(approved_data)}")
-                    return sales_data
-                
-                if 'approved_releases' not in approved_data:
-                    logging.error("'approved_releases' key missing from parsed data")
-                    logging.debug(f"Available keys: {approved_data.keys()}")
-                    return sales_data
-        except FileNotFoundError:
-            logging.error(f"Approvals file not found: {latest_file}")
-            return sales_data
-        except json.JSONDecodeError as e:
-            logging.error(f"Error parsing JSON from {latest_file}: {e}")
-            logging.error(f"First 200 chars of file: {file_content[:200]}")
-            return sales_data
-        except Exception as e:
-            logging.error(f"Unexpected error reading approvals file: {e}")
-            import traceback
-            logging.error(traceback.format_exc())
-            return sales_data
-        
-        # Process the approved books
         approved_books = approved_data.get('approved_releases', [])
         is_test_data = approved_data.get('test_data', False)
-        
-        logging.info(f"Found {len(approved_books)} approved books to include in report")
-        logging.info(f"Is test data: {is_test_data}")
         
         if not approved_books:
             logging.info("No approved books found in file")
             return sales_data
         
-        # Load preorder history
+        logging.info(f"Found {len(approved_books)} approved books to include in report")
+        logging.info(f"Is test data: {is_test_data}")
+        
+        # Load preorder history to check for duplicates
+        history_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'preorders', 'preorder_history.json')
         try:
-            from preorder_history_tracker import load_preorder_history, is_preorder_reported, batch_add_to_history
-            history_data = load_preorder_history()
-            logging.info(f"Loaded preorder history with {len(history_data.get('reported_preorders', []))} entries")
+            with open(history_file, 'r', encoding='utf-8') as f:
+                history_data = json.load(f)
         except Exception as e:
             logging.error(f"Error loading preorder history: {e}")
-            import traceback
-            logging.error(traceback.format_exc())
-            # Continue with empty history data
+            # Default to empty history if file not found or invalid
             history_data = {"reported_preorders": []}
         
         # Track new books added to the report
         newly_reported_books = []
         skipped_books = []
         
-        # Process each approved book
-        for i, book in enumerate(approved_books):
-            try:
-                isbn = book.get('isbn')
-                quantity = book.get('quantity', 0)
-                title = book.get('title', f"Book {i+1}")
+        # Add approved books to sales data
+        for book in approved_books:
+            isbn = book.get('isbn')
+            quantity = book.get('quantity', 0)
+            
+            if isbn and quantity > 0:
+                # Add to sales data regardless of previous reporting
+                # This ensures all approved books are included in the final report
+                sales_data[isbn] = sales_data.get(isbn, 0) + quantity
+                logging.info(f"Added {quantity} copies of ISBN {isbn} from approved releases")
                 
-                logging.info(f"Processing book {i+1}/{len(approved_books)}: ISBN={isbn}, Title={title}, Quantity={quantity}")
+                # Check if this ISBN has already been reported for tracking purposes
+                already_reported = False
+                for reported in history_data.get('reported_preorders', []):
+                    if reported.get('isbn') == isbn:
+                        already_reported = True
+                        skipped_books.append({
+                            'isbn': isbn,
+                            'title': book.get('title', 'Unknown'),
+                            'quantity': quantity,
+                            'prev_report_date': reported.get('report_date'),
+                            'prev_quantity': reported.get('quantity')
+                        })
+                        break
                 
-                if not isbn:
-                    logging.warning(f"Missing ISBN for book {i+1}: {book}")
-                    continue
-                    
-                if not quantity or quantity <= 0:
-                    logging.warning(f"Invalid quantity for ISBN {isbn}: {quantity}")
-                    continue
-                
-                # Check if already reported
-                already_reported, record = is_preorder_reported(isbn, history_data)
-                
-                if already_reported:
-                    logging.info(f"Skipping ISBN {isbn} - already reported on {record.get('report_date')} with quantity {record.get('quantity')}")
-                    skipped_books.append({
-                        'isbn': isbn,
-                        'title': title,
-                        'quantity': quantity,
-                        'prev_report_date': record.get('report_date'),
-                        'prev_quantity': record.get('quantity')
-                    })
-                else:
-                    # Add to sales data
-                    sales_data[isbn] = sales_data.get(isbn, 0) + quantity
-                    logging.info(f"Added {quantity} copies of ISBN {isbn} to sales data")
-                    
+                # Track for history update if not already reported
+                if not already_reported:
                     newly_reported_books.append({
                         'isbn': isbn,
                         'quantity': quantity,
-                        'title': title
+                        'title': book.get('title', 'Unknown')
                     })
-            except Exception as book_error:
-                logging.error(f"Error processing book {i+1}: {book_error}")
-                continue
         
-        # Update preorder history
+        # Add newly reported books to history (skip for test data)
         if newly_reported_books and not is_test_data:
+            report_date = datetime.now().strftime('%Y-%m-%d')
+            
+            # Update history data directly
+            for book in newly_reported_books:
+                history_data['reported_preorders'].append({
+                    'isbn': book['isbn'],
+                    'quantity': book['quantity'],
+                    'title': book.get('title', 'Unknown Title'),
+                    'report_date': report_date,
+                    'added': datetime.now().isoformat()
+                })
+            
+            # Update last_updated timestamp
+            history_data['last_updated'] = datetime.now().isoformat()
+            
+            # Save updated history
             try:
-                logging.info(f"Updating preorder history with {len(newly_reported_books)} books")
-                report_date = datetime.now().strftime('%Y-%m-%d')
-                updated_history = batch_add_to_history(newly_reported_books, report_date)
+                with open(history_file, 'w', encoding='utf-8') as f:
+                    json.dump(history_data, f, indent=2)
+                logging.info(f"Updated preorder history with {len(newly_reported_books)} new entries")
+            except Exception as e:
+                logging.error(f"Error saving preorder history: {e}")
                 
-                if updated_history:
-                    logging.info(f"Successfully updated preorder history")
-                    logging.info(f"History now has {len(updated_history.get('reported_preorders', []))} entries")
-                else:
-                    logging.warning("Failed to update preorder history")
-            except Exception as history_error:
-                logging.error(f"Error updating preorder history: {history_error}")
-                import traceback
-                logging.error(traceback.format_exc())
         elif newly_reported_books and is_test_data:
             logging.info(f"SKIPPING addition of {len(newly_reported_books)} books to preorder history because this is test data")
         
-        # Mark file as processed
+        # Mark file as processed only if not test data and not already processed
         if not is_test_data and not already_processed:
-            try:
-                processed_marker = latest_file + '.processed'
-                with open(processed_marker, 'w') as f:
-                    f.write(datetime.now().isoformat())
-                logging.info(f"Marked approval file as processed: {processed_marker}")
-            except Exception as marker_error:
-                logging.error(f"Error marking file as processed: {marker_error}")
+            processed_marker = latest_file + '.processed'
+            with open(processed_marker, 'w') as f:
+                f.write(datetime.now().isoformat())
+            logging.info(f"Marked approval file as processed: {processed_marker}")
         
-        # Log summary
+        # Log summary of processing
         logging.info(f"Processing summary:")
         logging.info(f"  - Total approved books: {len(approved_books)}")
-        logging.info(f"  - Added to report: {len(newly_reported_books)}")
-        logging.info(f"  - Skipped (already reported): {len(skipped_books)}")
-        
-        # Log final sales data
+        logging.info(f"  - Added to report: {len(approved_books)}")  # All approved books are added to sales data
+        logging.info(f"  - New to history: {len(newly_reported_books)}")
+        logging.info(f"  - Already in history: {len(skipped_books)}")
+    
+        # Log updated sales data at the end
         logging.info(f"Final sales data after processing approved releases: {sales_data}")
-        logging.info("PROCESS APPROVED RELEASES FUNCTION COMPLETED")
-        logging.info("=" * 50)
         
     except Exception as e:
-        logging.error(f"Unexpected error in process_approved_releases: {e}")
+        logging.error(f"Error processing approved releases: {e}")
         import traceback
         logging.error(traceback.format_exc())
     

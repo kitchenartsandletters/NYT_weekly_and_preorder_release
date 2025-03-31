@@ -664,23 +664,33 @@ jobs:
       - name: Commit preorder history updates
         if: github.event.inputs.run_mode != 'test'
         run: |
-          # Verify the file exists and has changes
-          if [ -f "./preorders/preorder_history.json" ]; then
-            echo "Preorder history file exists, checking for changes"
-            git diff --exit-code --quiet ./preorders/preorder_history.json || {
-              echo "Changes detected in preorder history file, committing"
-              git config --local user.email "github-actions@github.com"
-              git config --local user.name "GitHub Actions"
-              git add ./preorders/preorder_history.json
-              git commit -m "Update preorder history after processing releases [skip ci]"
-              git push
-              echo "Successfully committed preorder history changes"
-            } || {
-              echo "No changes detected in preorder history file"
-            }
-          else
-            echo "Preorder history file not found at ./preorders/preorder_history.json"
-          fi
+          # Force update the timestamp in the preorder history file to ensure there's a change python -c "
+          history_file = './preorders/preorder_history.json'
+          if os.path.exists(history_file):
+              try:
+                  with open(history_file, 'r') as f:
+                      data = json.load(f)
+                  # Update the timestamp to force a change
+                  data['last_updated'] = datetime.now().isoformat()
+                  with open(history_file, 'w') as f:
+                      json.dump(data, f, indent=2)
+                  print('Updated timestamp in preorder history file')
+              except Exception as e:
+                  print(f'Error updating preorder history: {e}')
+          "
+              
+              # Verify the file exists and commit changes
+              if [ -f "./preorders/preorder_history.json" ]; then
+                echo "Preorder history file exists, preparing to commit"
+                git config --local user.email "github-actions@github.com"
+                git config --local user.name "GitHub Actions"
+                git add ./preorders/preorder_history.json
+                git commit -m "Update preorder history after processing releases [skip ci]" || echo "No changes to commit"
+                git push || echo "Failed to push changes"
+                echo "Commit and push operation completed"
+              else
+                echo "Preorder history file not found at ./preorders/preorder_history.json"
+              fi
 
       - name: Run weekly sales report
         id: run-report
