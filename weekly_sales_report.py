@@ -605,7 +605,7 @@ def process_released_preorders(sales_data, pub_date_overrides=None):
 def is_preorder_or_future_pub(product_details, pub_date_overrides=None):
     """
     Checks if a product is preorder or has future pub date
-    Uses dual criteria to catch books with passed pub dates still in Preorder collection
+    Now considers both collection status, publication date, and inventory level
     """
     if not product_details:
         logging.debug("No product details provided")
@@ -614,24 +614,23 @@ def is_preorder_or_future_pub(product_details, pub_date_overrides=None):
     # Check if in Preorder collection
     collections = product_details.get('collections', [])
     is_in_preorder_collection = 'Preorder' in collections
-    logging.info(f"Product collections: {collections}")
-    logging.info(f"Is in Preorder collection: {is_in_preorder_collection}")
     
     # Get barcode/ISBN from product details if available
     barcode = None
     if 'barcode' in product_details:
         barcode = product_details['barcode']
     
+    # Check inventory level
+    inventory = product_details.get('inventory', 0)
+    has_positive_inventory = inventory > 0
+    
     # Check for override first
     pub_date_str = None
     if pub_date_overrides and barcode and barcode in pub_date_overrides:
         pub_date_str = pub_date_overrides[barcode]
-        logging.info(f"Using overridden pub date for ISBN {barcode}: {pub_date_str} (instead of {product_details.get('pub_date', 'unknown')})")
     else:
         # Use the original pub date from metadata
         pub_date_str = product_details.get('pub_date')
-        
-    logging.info(f"Product pub date: {pub_date_str}")
     
     # Check if publication date is in the future
     is_future_pub = False
@@ -639,17 +638,20 @@ def is_preorder_or_future_pub(product_details, pub_date_overrides=None):
         try:
             pub_date = datetime.strptime(pub_date_str, '%Y-%m-%d').date()
             is_future_pub = pub_date > datetime.now().date()
-            logging.info(f"Pub date {pub_date} is future: {is_future_pub}")
         except ValueError:
             logging.error(f"Invalid pub date format: {pub_date_str}")
     
-    # If book is in preorder collection but pub date has passed, flag as anomaly
+    # If book is in preorder collection but pub date has passed, check inventory
     if is_in_preorder_collection and not is_future_pub and pub_date_str:
         logging.warning(f"Book {product_details.get('title')} (ISBN: {barcode}) has passed "
                        f"publication date {pub_date_str} but is still in Preorder collection.")
         
-        # Return False to indicate it's ready for release, despite being in Preorder collection
-        return False, "Publication date passed but still in Preorder collection"
+        # Only consider it ready for release if it has positive inventory
+        if has_positive_inventory:
+            return False, "Publication date passed but still in Preorder collection (has positive inventory)"
+        else:
+            logging.warning(f"Book has non-positive inventory ({inventory}), keeping as preorder")
+            return True, "Publication date passed but still in Preorder collection (no inventory)"
     
     # Normal logic
     if is_in_preorder_collection:
