@@ -452,11 +452,8 @@ def identify_pending_releases(pub_date_overrides=None, audit_results=None):
     """
     Identify books that are about to be released based on their pub dates
     and determine which preorders should be moved to the regular sales report.
-    Now checks both preorder tracking AND the Preorder collection directly.
+    Also includes problematic books from audit results if provided.
     """
-    # MANUALLY SET YOUR DEBUG ISBN HERE - use your specific ISBN
-    debug_isbn = "9781954210561"
-    
     # Default empty audit results if not provided
     if audit_results is None:
         audit_results = {
@@ -479,91 +476,26 @@ def identify_pending_releases(pub_date_overrides=None, audit_results=None):
     history_count = len(history_data.get('reported_preorders', []))
     logging.info(f"Loaded preorder history with {history_count} entries")
     
-    # STEP 1: Get preorders from tracking file
+    # Log a sample of history entries if available
+    if history_count > 0:
+        sample_size = min(3, history_count)
+        logging.info(f"Sample of history entries (first {sample_size}):")
+        for i in range(sample_size):
+            entry = history_data['reported_preorders'][i]
+            logging.info(f"  - ISBN: {entry.get('isbn')}, Quantity: {entry.get('quantity')}, Reported: {entry.get('report_date')}")
+    
+    # KEEP THE EXISTING CODE FROM HERE
     preorder_totals = calculate_total_preorder_quantities(current_date)
     
-    # STEP 2: Get all books from Preorder collection
-    preorder_products = fetch_preorder_products()
-    
-    # Create a set of ISBNs already in preorder_totals for quick lookup
-    tracked_isbns = set(preorder_totals.keys())
-    
-    # Create a dictionary to track products found only in the collection (not in tracking)
-    collection_only_books = {}
-    
-    for product in preorder_products:
-        barcode = product.get('barcode')
-        
-        # Skip if no barcode or already in tracking
-        if not barcode or barcode in tracked_isbns:
-            continue
-            
-        # Get inventory for logging/debugging purposes only
-        inventory = product.get('inventory', 0)
-        
-        # We're storing product info but NOT using inventory as quantity
-        collection_only_books[barcode] = {
-            'id': product.get('id'),
-            'title': product.get('title', 'Unknown'),
-            'pub_date': product.get('pub_date'),
-            'inventory': inventory,
-            'vendor': product.get('vendor', 'Unknown')
-        }
-            
-        if barcode == debug_isbn:
-            logging.info(f"Found debug ISBN {barcode} in Preorder collection with inventory {inventory}")
-    
-    # Add debug for specific ISBN
-    if debug_isbn:
-        logging.info(f"====== DEBUG INFO FOR ISBN {debug_isbn} ======")
-        if debug_isbn in preorder_totals:
-            logging.info(f"Found in preorder_totals: {preorder_totals[debug_isbn]} copies")
-        else:
-            logging.info(f"Not found in preorder_totals!")
-            
-            if debug_isbn in collection_only_books:
-                prod_info = collection_only_books[debug_isbn]
-                logging.info(f"Found directly in Preorder collection:")
-                logging.info(f"  Title: {prod_info.get('title')}")
-                logging.info(f"  Pub date: {prod_info.get('pub_date')}")
-                logging.info(f"  Inventory: {prod_info.get('inventory')}")
-            else:
-                logging.info(f"Not found in Preorder collection either!")
-            
-            # Check if ISBN exists in the tracking file at all
-            tracking_path = os.path.join(BASE_DIR, 'preorders', 'NYT_preorder_tracking.csv')
-            try:
-                with open(tracking_path, 'r', newline='', encoding='utf-8') as f:
-                    reader = csv.DictReader(f)
-                    found = False
-                    for row in reader:
-                        if row.get('ISBN') == debug_isbn:
-                            found = True
-                            logging.info(f"Found in tracking file: {row}")
-                    if not found:
-                        logging.info(f"ISBN {debug_isbn} not found in tracking file!")
-            except Exception as e:
-                logging.error(f"Error checking tracking file: {e}")
-    
-    # Process both sources
     pending_releases = []
     error_cases = []
     total_quantity = 0
     
-    # STEP 3: Process books from tracking file
     for isbn, quantity in preorder_totals.items():
-        is_debug_isbn = (isbn == debug_isbn)
-        if is_debug_isbn:
-            logging.info(f"Processing tracked ISBN {isbn} with quantity {quantity}")
-        
         try:
             product_ids = get_product_ids_by_isbn(isbn)
-            if is_debug_isbn:
-                logging.info(f"Product IDs: {product_ids}")
-                
             if not product_ids:
-                if is_debug_isbn:
-                    logging.info(f"No product IDs found for ISBN {isbn}")
+                logging.warning(f"No product IDs found for ISBN {isbn}")
                 error_cases.append({
                     'isbn': isbn,
                     'quantity': quantity,
@@ -571,27 +503,15 @@ def identify_pending_releases(pub_date_overrides=None, audit_results=None):
                 })
                 continue
             
-            # Check if already reported in history
+            # IMPORTANT NEW CODE: Check if already reported in history
             already_reported, record = is_preorder_reported(isbn, history_data)
-            if is_debug_isbn:
-                if already_reported:
-                    logging.info(f"Already reported on {record.get('report_date')} with quantity {record.get('quantity')}")
-                else:
-                    logging.info(f"Not previously reported")
-                    
             if already_reported:
-                if is_debug_isbn:
-                    logging.info(f"Skipping due to previous reporting")
+                logging.info(f"Skipping ISBN {isbn} - already reported on {record.get('report_date')} with quantity {record.get('quantity')}")
                 continue
                 
             product_details = fetch_product_details(product_ids)
-            if is_debug_isbn:
-                if product_details:
-                    logging.info(f"Product details fetched successfully")
-                else:
-                    logging.info(f"Could not fetch product details")
-                
             if not product_details:
+                logging.warning(f"Could not fetch product details for ISBN {isbn}")
                 error_cases.append({
                     'isbn': isbn,
                     'quantity': quantity,
@@ -607,120 +527,30 @@ def identify_pending_releases(pub_date_overrides=None, audit_results=None):
             vendor = details.get('vendor', 'Unknown')
             inventory = details.get('inventory', 0)
             
-            if is_debug_isbn:
-                logging.info(f"Details: title={details.get('title', 'Unknown')}, vendor={vendor}, inventory={inventory}")
-                logging.info(f"Collections: {details.get('collections', [])}")
-                logging.info(f"Pub date: {details.get('pub_date', 'Unknown')}")
-            
             # Check if the book is no longer in preorder status (with overrides)
             is_preorder, reason = is_preorder_or_future_pub(details, pub_date_overrides)
             
-            if is_debug_isbn:
-                logging.info(f"Is preorder: {is_preorder}, Reason: {reason}")
-                
-                # Additional checks for debugging
-                if is_preorder:
-                    logging.info(f"Still considered preorder, won't be added to pending releases")
-                else:
-                    logging.info(f"No longer in preorder status, eligible for release")
-            
             if not is_preorder:
                 # This book is ready to be released
+                # IMPORTANT: Make sure pub_date is included directly
                 pending_releases.append({
                     'isbn': isbn,
                     'title': details.get('title', 'Unknown'),
-                    'quantity': quantity,  # Using actual preorder quantity
+                    'quantity': quantity,
+                    'pub_date': details.get('pub_date', 'Unknown'),  # THIS IS THE KEY FIELD NEEDED FOR GITHUB ISSUE
                     'original_pub_date': details.get('pub_date', 'Unknown'),
                     'overridden_pub_date': pub_date_overrides.get(isbn) if pub_date_overrides else None,
-                    'reason': reason or 'No longer in preorder status',
+                    'reason': 'No longer in preorder status',
                     'inventory': inventory,
-                    'vendor': vendor,
-                    'source': 'tracking'  # Mark as coming from tracking
+                    'vendor': vendor
                 })
-                if is_debug_isbn:
-                    logging.info(f"Added to pending releases!")
                 total_quantity += quantity
         except Exception as e:
-            if is_debug_isbn:
-                logging.error(f"Error processing ISBN {isbn}: {e}")
-                import traceback
-                logging.error(traceback.format_exc())
             error_cases.append({
                 'isbn': isbn,
                 'quantity': quantity,
                 'error': str(e)
             })
-    
-    # STEP 4: Process books that are only in the collection but not in tracking
-    for isbn, product_info in collection_only_books.items():
-        is_debug_isbn = (isbn == debug_isbn)
-        if is_debug_isbn:
-            logging.info(f"Processing collection-only ISBN {isbn}")
-        
-        try:
-            # Check if already reported in history
-            already_reported, record = is_preorder_reported(isbn, history_data)
-            if already_reported:
-                if is_debug_isbn:
-                    logging.info(f"Skipping due to previous reporting")
-                continue
-            
-            # Get product IDs
-            product_ids = get_product_ids_by_isbn(isbn)
-            if not product_ids:
-                if is_debug_isbn:
-                    logging.info(f"Strange - no product IDs found for ISBN {isbn}")
-                continue
-            
-            # Fetch product details
-            product_details = fetch_product_details(product_ids)
-            if not product_details:
-                if is_debug_isbn:
-                    logging.info(f"Strange - could not fetch product details for ISBN {isbn}")
-                continue
-            
-            product_id = product_ids[0]
-            details = product_details.get(product_id, {})
-            details['barcode'] = isbn
-            
-            # Get vendor and pub_date
-            vendor = details.get('vendor', 'Unknown')
-            pub_date = details.get('pub_date', 'Unknown')
-            inventory = details.get('inventory', 0)
-            
-            if is_debug_isbn:
-                logging.info(f"Title: {details.get('title', 'Unknown')}")
-                logging.info(f"Pub date: {pub_date}")
-                logging.info(f"Inventory: {inventory}")
-            
-            # Check if the book is no longer in preorder status (with overrides)
-            is_preorder, reason = is_preorder_or_future_pub(details, pub_date_overrides)
-            
-            if is_debug_isbn:
-                logging.info(f"Is preorder: {is_preorder}, Reason: {reason}")
-            
-            if not is_preorder:
-                # For books only in collection, we add to pending with 0 quantity
-                # This ensures they show up in the approval list but don't inflate sales numbers
-                pending_releases.append({
-                    'isbn': isbn,
-                    'title': details.get('title', 'Unknown'),
-                    'quantity': 0,  # Set to 0 to avoid inflating sales numbers
-                    'original_pub_date': pub_date,
-                    'overridden_pub_date': pub_date_overrides.get(isbn) if pub_date_overrides else None,
-                    'reason': reason or 'Found in collection but not in preorder tracking',
-                    'inventory': inventory,
-                    'vendor': vendor,
-                    'source': 'collection'  # Mark as coming from collection only
-                })
-                if is_debug_isbn:
-                    logging.info(f"Added to pending releases with 0 quantity!")
-                # Don't add to total_quantity since we're using 0
-        except Exception as e:
-            if is_debug_isbn:
-                logging.error(f"Error processing ISBN {isbn}: {e}")
-                import traceback
-                logging.error(traceback.format_exc())
     
     # Format problematic books data for the issue
     problematic_books = {
