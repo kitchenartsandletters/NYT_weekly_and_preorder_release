@@ -193,6 +193,10 @@ def process_approved_releases(sales_data=None, base_dir=None):
             with open(processed_marker, 'w') as f:
                 f.write(datetime.now().isoformat())
             logging.info(f"Marked approval file as processed: {processed_marker}")
+        elif is_test_data:
+            logging.info(f"Skipping processed marker creation because this is test data")
+        else:
+            logging.info(f"File was already marked as processed")
         
         # Log summary of processing
         logging.info(f"Processing summary:")

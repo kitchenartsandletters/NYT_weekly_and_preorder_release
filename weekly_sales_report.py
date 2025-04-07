@@ -843,10 +843,19 @@ def export_to_csv(sales_data, filename):
         for barcode, qty in sales_data.items():
             writer.writerow([barcode, qty])
 
-def send_email(report_filename, skipped_filename, preorder_filename, start_date, end_date, skipped_items):
+def send_email(report_filename, skipped_filename, preorder_filename, start_date, end_date, skipped_items, approved_releases=None):
     """
     Sends the report as an email attachment using SendGrid.
-    Now includes preorder tracking report
+    Now includes information about approved preorders that were released
+    
+    Args:
+        report_filename: Path to the main report CSV
+        skipped_filename: Path to the excluded items CSV
+        preorder_filename: Path to the preorder tracking CSV
+        start_date: Start date of the report period (YYYY-MM-DD)
+        end_date: End date of the report period (YYYY-MM-DD)
+        skipped_items: List of items skipped from the report
+        approved_releases: List of approved preorder releases (optional)
     """
     api_key = os.getenv('SENDGRID_API_KEY')
     sender_email = os.getenv('EMAIL_SENDER')
@@ -877,7 +886,7 @@ def send_email(report_filename, skipped_filename, preorder_filename, start_date,
     output_dir = os.path.join(BASE_DIR, 'output')
     abs_report_path = os.path.join(output_dir, report_filename)
     abs_skipped_path = os.path.join(output_dir, skipped_filename)
-    abs_preorder_path = os.path.join(output_dir, preorder_filename)
+    abs_preorder_path = os.path.join(BASE_DIR, 'preorders', preorder_filename)
 
     # Create summary of skipped items
     skipped_summary = {}
@@ -895,8 +904,24 @@ REPORT DEFINITIONS:
 - Quantities reflect final sales after any refunds or cancellations
 - Each line includes the ISBN and the total quantity sold
 
-ITEMS NOT INCLUDED IN REPORT:
 """
+
+    # Add section for preorders released to report - NEW
+    if approved_releases and len(approved_releases) > 0:
+        email_content += "PREORDERS RELEASED TO REPORT:\n"
+        for release in approved_releases:
+            isbn = release.get('isbn', 'Unknown')
+            title = release.get('title', 'Unknown')
+            quantity = release.get('quantity', 0)
+            pub_date = release.get('pub_date', 'Unknown')
+            inventory = release.get('inventory', 0)
+            
+            email_content += f"- {title} (ISBN: {isbn})\n"
+            email_content += f"  Preorder Quantity: {quantity}, Current Inventory: {inventory}, Release Date: {pub_date}\n"
+        
+        email_content += "\n"
+    
+    email_content += "ITEMS NOT INCLUDED IN REPORT:\n"
     for reason, quantity in skipped_summary.items():
         email_content += f"- {quantity} items: {reason}\n"
 
@@ -1029,6 +1054,35 @@ def validate_sales_data(sales_data, skipped_items):
     
     return warnings
 
+def find_latest_approved_releases():
+    """
+    Find the most recent approved releases file
+    Returns a tuple of (file_path, is_processed)
+    """
+    output_dir = os.path.join(BASE_DIR, 'output')
+    if not os.path.exists(output_dir):
+        logging.warning(f"Output directory does not exist: {output_dir}")
+        return None, False
+    
+    # Find approved_releases files
+    approval_files = [f for f in os.listdir(output_dir) if f.startswith('approved_releases_') and f.endswith('.json')]
+    
+    if not approval_files:
+        logging.info("No approved releases files found")
+        return None, False
+    
+    # Sort by filename (which contains date) to get the most recent
+    approval_files.sort(reverse=True)
+    latest_file = os.path.join(output_dir, approval_files[0])
+    
+    # Check if file has already been processed
+    processed_marker = latest_file + '.processed'
+    if os.path.exists(processed_marker):
+        logging.info(f"Latest approval file has already been processed: {latest_file}")
+        return latest_file, True
+    
+    return latest_file, False
+
 def main():
     print(f"Script running from directory: {os.getcwd()}")
     print(f"BASE_DIR set to: {BASE_DIR}")
@@ -1067,6 +1121,20 @@ def main():
 
      # Add approved releases to sales data
     sales_data = process_approved_releases(sales_data, BASE_DIR)
+
+    # Get the approved releases information for the email
+    approved_releases = []
+    latest_file, already_processed = find_latest_approved_releases()
+    
+    if latest_file:
+        try:
+            with open(latest_file, 'r', encoding='utf-8') as f:
+                approved_data = json.load(f)
+            
+            approved_releases = approved_data.get('approved_releases', [])
+            logging.info(f"Found {len(approved_releases)} approved releases for email notification")
+        except Exception as e:
+            logging.error(f"Error loading approved releases data: {e}")
 
     # Track preorder sales
     track_preorder_sales(preorder_items)
@@ -1168,7 +1236,8 @@ REPORT DEFINITIONS:
         preorder_filename,
         start_date,
         end_date,
-        skipped_items
+        skipped_items,
+        approved_releases
     )
 
 if __name__ == "__main__":
