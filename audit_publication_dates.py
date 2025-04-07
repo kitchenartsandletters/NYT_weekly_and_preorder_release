@@ -191,23 +191,49 @@ def fetch_preorder_products():
     """
     
     try:
-        # Add detailed error checking
+        # Enhanced error checking with comprehensive logging
         logging.info("About to run GraphQL query for preorder products")
-        data = run_query_with_retries(query, {})
+        
+        try:
+            data = run_query_with_retries(query, {})
+            logging.info("Query executed successfully")
+        except Exception as e:
+            logging.error(f"Error in run_query_with_retries: {e}")
+            import traceback
+            logging.error(f"Traceback: {traceback.format_exc()}")
+            logging.error("Returning empty product list due to query failure")
+            return []
 
-        # Check if data is None
+        # Check if data is None (shouldn't happen if exception is raised, but checking anyway)
         if data is None:
-            logging.error("run_query_with_retries returned None - check API connection and query structure")
+            logging.error("API query returned None despite not raising exception")
             return []
             
         # Check if collectionByHandle exists
         if 'collectionByHandle' not in data:
-            logging.error(f"Missing 'collectionByHandle' in API response. Response data: {data}")
+            logging.error(f"Missing 'collectionByHandle' in API response. Available keys: {list(data.keys())}")
+            logging.error(f"Response data preview: {str(data)[:200]}...")
+            return []
+            
+        # Check if collection exists but is null
+        if data['collectionByHandle'] is None:
+            logging.error("Collection 'preorder' not found in shop")
             return []
 
-        product_edges = data.get('collectionByHandle', {}).get('products', {}).get('edges', [])
-        logging.info(f"Found {len(product_edges)} product edges in the response")
+        # Check if products exist in collection
+        if 'products' not in data['collectionByHandle']:
+            logging.error("Collection found but missing 'products' field")
+            logging.error(f"Collection data: {data['collectionByHandle']}")
+            return []
+            
+        # Check if edges exist in products
+        if 'edges' not in data['collectionByHandle']['products']:
+            logging.error("Products found but missing 'edges' field")
+            logging.error(f"Products data: {data['collectionByHandle']['products']}")
+            return []
 
+        product_edges = data['collectionByHandle']['products']['edges']
+        logging.info(f"Found {len(product_edges)} product edges in the response")
 
         products = []
         for edge in product_edges:
@@ -241,7 +267,9 @@ def fetch_preorder_products():
         return products
         
     except Exception as e:
-        logging.error(f"Error fetching preorder products: {e}")
+        logging.error(f"Unexpected error in fetch_preorder_products: {e}")
+        import traceback
+        logging.error(f"Traceback: {traceback.format_exc()}")
         return []
 
 def check_suspicious_pub_dates(products):
