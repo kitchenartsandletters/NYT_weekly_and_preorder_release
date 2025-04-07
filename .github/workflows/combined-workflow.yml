@@ -235,6 +235,49 @@ jobs:
             - Data file: \`${releasesFile}\`
             ${isTestData ? '- ⚠️ THIS IS A TEST ISSUE WITH SIMULATED DATA ⚠️' : ''}`;
 
+            // Inside the create-issue step's script
+
+            // Add section for problematic books
+            if (pendingData.problematic_books && pendingData.total_problematic_books > 0) {
+              issueBody += `\n### Issues Requiring Attention\n\n`;
+              
+              // Past pub dates
+              if (pendingData.problematic_books.past_pub_dates && pendingData.problematic_books.past_pub_dates.length > 0) {
+                issueBody += `#### Books with Past Publication Dates (${pendingData.problematic_books.past_pub_dates.length})\n`;
+                issueBody += `| ISBN | Title | Pub Date | Issue |\n|------|-------|---------|-------|\n`;
+                
+                pendingData.problematic_books.past_pub_dates.forEach(book => {
+                  issueBody += `| ${book.isbn || 'N/A'} | ${book.title || 'Unknown'} | ${book.pub_date || 'N/A'} | ${book.issue} |\n`;
+                });
+                
+                issueBody += '\n';
+              }
+              
+              // Missing pub dates
+              if (pendingData.problematic_books.missing_pub_dates && pendingData.problematic_books.missing_pub_dates.length > 0) {
+                issueBody += `#### Books with Missing Publication Dates (${pendingData.problematic_books.missing_pub_dates.length})\n`;
+                issueBody += `| ISBN | Title | Issue |\n|------|-------|-------|\n`;
+                
+                pendingData.problematic_books.missing_pub_dates.forEach(book => {
+                  issueBody += `| ${book.isbn || 'N/A'} | ${book.title || 'Unknown'} | ${book.issue} |\n`;
+                });
+                
+                issueBody += '\n';
+              }
+              
+              // Malformed dates
+              if (pendingData.problematic_books.malformed_dates && pendingData.problematic_books.malformed_dates.length > 0) {
+                issueBody += `#### Books with Malformed Date Format (${pendingData.problematic_books.malformed_dates.length})\n`;
+                issueBody += `| ISBN | Title | Date Value | Issue |\n|------|-------|-----------|-------|\n`;
+                
+                pendingData.problematic_books.malformed_dates.forEach(book => {
+                  issueBody += `| ${book.isbn || 'N/A'} | ${book.title || 'Unknown'} | ${book.pub_date || 'N/A'} | ${book.issue} |\n`;
+                });
+                
+                issueBody += '\n';
+              }
+            }
+
               // Create the issue
               const issue = await github.rest.issues.create({
                 owner: context.repo.owner,
