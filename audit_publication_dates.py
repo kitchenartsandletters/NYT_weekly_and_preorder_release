@@ -160,7 +160,7 @@ def fetch_preorder_products():
     
     query = """
     query {
-        collectionByHandle(handle: "preorder") {
+        collectionByHandle(handle: "pre-order") {
             products(first: 250) {
                 edges {
                     node {
