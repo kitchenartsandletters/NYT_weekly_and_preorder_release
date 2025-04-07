@@ -212,7 +212,7 @@ jobs:
               const issueTitle = `${testPrefix}📚 Preorder Approval: ${pendingData.total_pending_books} Books Ready for Release (${timestamp})`;
               
               // Create issue body
-              const issueBody = `## Preorder Books Ready for Release Approval
+              let issueBody = `## Preorder Books Ready for Release Approval
 
             **Important: Please review these preorder books before they are included in the weekly sales report.**
 
@@ -234,8 +234,6 @@ jobs:
             - Books not approved will remain in preorder status
             - Data file: \`${releasesFile}\`
             ${isTestData ? '- ⚠️ THIS IS A TEST ISSUE WITH SIMULATED DATA ⚠️' : ''}`;
-
-            // Inside the create-issue step's script
 
             // Add section for problematic books
             if (pendingData.problematic_books && pendingData.total_problematic_books > 0) {
