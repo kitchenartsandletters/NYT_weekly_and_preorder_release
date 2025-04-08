@@ -88,6 +88,7 @@ The repository includes a GitHub Actions workflow that automates both the identi
 ## Resolved Issues
 - ✅ **Preorder Display Improvements**: Inventory quantities and human-readable publication dates now shown in approval issues
 - ✅ **Sales Integration**: Preorder sales successfully pass to weekly report
+- ✅ **Corrected Collection Handle**: changed "preorder" to the correct "pre-order" handle
 
 ## Current Issues
 - ❌ **Preorder History Updates**: History not being properly updated
