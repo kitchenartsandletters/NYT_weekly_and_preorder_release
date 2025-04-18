@@ -7,8 +7,8 @@ permissions:
 on:
   # Run every Friday for preorder identification and approval creation
   schedule:
-    - cron: '0 0 * * 5'  # Midnight on Friday
-    - cron: '0 8 * * 1'  # 8am on Monday
+    - cron: '0 5 * * 0'  # Midnight on Sunday
+    - cron: '0 16 * * 1'  # Noon on Monday
   
   # Allow manual trigger with options
   workflow_dispatch:
