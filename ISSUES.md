@@ -2,44 +2,86 @@
 
 ## Critical Issues
 
-- [ ] **Fix Preorder History Updates**: Ensure preorder history is consistently updated and changes are committed to the repository
+- [ ] **KIT-56: Implement Reliable Repository Commits for History Changes**
+  **Description:** Changes to the preorder history file are not being committed to the repository, causing inconsistencies between local and remote versions.
 
-- [x] **Missing Order Records**: Identify the 29 orders missing from reports and determine causes
+  Tasks:
+  - [ ] Debug repository commit process in GitHub workflow
+  - [ ] Ensure proper Git credentials are available to workflow
+  - [ ] Add verification step to confirm commits were successful
+  - [ ] Implement notification for failed commits
+  - [ ] Add documentation for manual recovery process
+  - [ ] Add logging for all history update operations
 
 ## High Priority Issues
 
-- [ ] **Data Validation**
-  - Implement validation for preorder quantities to prevent negative values
-  - Add validation alerts for unusual order volumes
-  - Implement comparison with previous week's data
+- [ ] **KIT-84: Add Logic to Detect Early Releases**
+  **Description:** Book titles may be released ahead of their release date because:
+  1) stock is delivered unexpectedly ahead of schedule
+  2) publishers provide no restrictions on early sales
 
-- [ ] **Error Handling**
-  - Improve error reporting for API failures
-  - Standardize logging format across all scripts
-  - Enhance handling of edge cases in preorder processing
+  Tasks:
+  - [ ] Let our system acknowledge books with positive inventory quantities (despite being in the Preorder collection, tagged 'preorder', etc) be nominated for the current weekly preorder release
+
+- [ ] **KIT-55: Automate Post-Report Process for Released Preorders**
+  **Description:** After preorders are reported, several manual steps are still required. This should be automated.
+
+  Tasks:
+  - [ ] Implement automatic removal of reported books from preorder collection
+  - [ ] Create process to update shipping profiles after reporting
+  - [ ] Develop daily email for shipping adjustments that cannot be automated
+  - [ ] Add verification to confirm all post-reporting steps completed successfully
+  - [ ] Create audit trail of automated actions
+
+- [ ] **KIT-86: Adding verification feature to parse pending release data and revisit preorder overrides**
+  **Description:** As preorder sales are accumulated, add the ability to parse presales quantities and titles. Allow overrides via Github Issue
+
+  Tasks:
+  - [ ] Add ability to search accumulated preorder presales
+  - [ ] Add ability to override and force preorder release ahead of publisher ss date or adding missing presales quantities via GH issue with entry fields for ISBN and sales quantities
 
 ## Medium Priority Issues
 
-- [ ] **Report Improvements**
-  - Create summary section with totals and metrics
-  - Implement detection of anomalous sales patterns
-  - Add preorder release list to email notification
+- [ ] **KIT-54: Enhance Email Notifications with Preorder Release List**
+  **Description:** Weekly report emails should include a clear list of preorders that were approved and included in the report.
 
-- [ ] **Workflow Automation**
-  - Automate the process of removing released books from preorder collection
-  - Implement automatic shipping profile updates after reporting
-  - Consider daily shipper email for manual shipping adjustments since shipping profiles don't have a Shopify endpoint
+  Tasks:
+  - [ ] Modify `send_email()` function in `weekly_sales_report.py`
+  - [ ] Format preorder release information in a readable table
+  - [ ] Include publication dates and quantities for each released preorder
+  - [ ] Add summary totals for preorder releases
+  - [ ] Test email formatting across different email clients
 
-- [ ] **Testing Framework**
-  - Create integration test suite for workflows
-  - Add unit tests for core functions
-  - Develop test fixtures with sample data
+- [ ] **KIT-36: Preorder Dashboard Integration**
+  Tasks:
+  - [ ] Create dashboard for monitoring preorder conversion
+  - [ ] Migrate GitHub Issues to dashboard
 
-- [ ] **Preorder Process**
-  - Add reporting of skipped preorders for debugging
-  - Implement cleanup function for test data in history file
+- [ ] **KIT-30: Backup Plan**
+  Tasks:
+  - [ ] Ensure team members know how to manually trigger the workflows if needed
+  - [ ] Document any manual override processes for emergencies
+
+- [ ] **KIT-29: Set Up Monitoring**
+  Tasks:
+  - [x] Configure GitHub notifications for when approval issues are created
+  - [ ] Establish a check to verify that the workflow ran successfully each week
+
+- [ ] **KIT-28: Document the Process**
+  Tasks:
+  - [ ] Share the approval process with your team
+  - [ ] Specify who is responsible for reviewing and approving preorder books
+  - [ ] Set clear deadlines for approvals (before Monday morning)
+
+## Future Enhancements
+
+- [ ] **KIT-85: Manual Workflow**
+  Tasks:
+  - [ ] Migrate GitHub Issues approval feature to dashboard integrated feature
 
 ## Completed Items
+
+- [x] **Missing Order Records**: Identify the 29 orders missing from reports and determine causes
 
 - [x] **Preorder Display Improvements**
   - Inventory quantities now display in approval issues
@@ -55,15 +97,6 @@
   - Eliminated duplicate order processing
   - Resolved specific discrepancies between automated and manual reports
 
-## Future Enhancements
-
-- [ ] **Workflow Automation**
-  - Automate email distribution of reports
-  - Schedule weekly runs using GitHub Actions
-
-- [ ] **Analytics Platform**
-  - Implement alerting system for sales anomalies
-  - Create dashboard for monitoring preorder conversion
-
-  - [ ] **Manual Workflow**
-  - Migrate GitHub Issues approval feature to dashboard integrated feature
+- [x] **Workflow Automation**
+  - Automated email distribution of reports
+  - Scheduled weekly runs using GitHub Actions
