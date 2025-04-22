@@ -12,6 +12,8 @@ import argparse
 from datetime import datetime, timedelta
 import requests
 import time
+import pytz
+from datetime import timezone
 
 # Import the new environment loading module
 from env_loader import load_environment_variables, initialize_api_credentials
@@ -581,7 +583,8 @@ def identify_pending_releases(pub_date_overrides=None, audit_results=None, group
             'malformed_dates': []
         }
     
-    current_date = datetime.now().date()
+    # Use override_today if present in globals for test consistency
+    current_date = globals().get("override_today", datetime.now().date())
     
     # Debug log for test mode
     is_test_mode = os.environ.get('USE_TEST_DATA', '').lower() in ('true', '1', 't', 'yes')
@@ -917,12 +920,17 @@ def main():
     logging.info("Fetching preorder products")
     products = fetch_preorder_products()
     logging.info(f"Found {len(products)} preorder products")
+    # Use Eastern Time Zone for current date
+    eastern = pytz.timezone('US/Eastern')
+    now_et = datetime.now(eastern)
+    today_et = now_et.date()
+
     # Get preorder tracking quantities
-    preorder_totals = calculate_total_preorder_quantities(datetime.now().date())
+    preorder_totals = calculate_total_preorder_quantities(today_et)
     logging.info(f"Loaded preorder totals for grouping: {len(preorder_totals)} ISBNs")
 
     # Group preorder titles into structured categories for GitHub issue rendering
-    grouped_output = group_preorder_titles(products, preorder_totals, datetime.now().date())
+    grouped_output = group_preorder_titles(products, preorder_totals, today_et)
     globals()['grouped_output'] = grouped_output
     
     # Check for suspicious pub dates
