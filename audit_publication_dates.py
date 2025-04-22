@@ -364,7 +364,8 @@ def group_preorder_titles(products, preorder_tracking, current_date):
         record = {
             'isbn': isbn,
             'title': title,
-            'quantity': presold_qty,
+            'quantity': presold_qty,       # Keep for backward compatibility or possible uses
+            'presold_qty': presold_qty,    # Revert to original field name
             'inventory': inventory,
             'pub_date': pub_date_str,
             'tagged': tagged,
@@ -616,6 +617,10 @@ def identify_pending_releases(pub_date_overrides=None, audit_results=None, group
     # STEP 2: Get tracked preorders from the tracking file
     preorder_totals = calculate_total_preorder_quantities(current_date)
     logging.info(f"Found {len(preorder_totals)} ISBNs in preorder tracking file")
+    logging.debug(f"Tracked ISBNs from preorder history: {list(preorder_totals.keys())[:10]}")
+
+    if debug_isbn not in preorder_totals:
+        logging.debug(f"DEBUG ISBN {debug_isbn} not found in preorder tracking.")
     
     # STEP 3: Check for the debug ISBN in both sources
     if debug_isbn:
