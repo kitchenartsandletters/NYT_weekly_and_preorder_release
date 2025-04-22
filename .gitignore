@@ -25,3 +25,4 @@ shopify-reports/
 preorders/NYT_preorder_tracking.csv
 inventory_check.py
 clean_history.py
+scripts/
