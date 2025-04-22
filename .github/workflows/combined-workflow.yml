@@ -321,6 +321,16 @@ jobs:
               core.setFailed(`Failed to create approval issue: ${error.message}`);
             }
       
+      - name: Upload tracking artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: tracking-and-approvals-${{ github.run_id }}
+          path: |
+            preorders/NYT_preorder_tracking.csv
+            output/approved_releases_*.json
+            preorders/preorder_history.json
+          retention-days: 30
+
       - name: Save pending releases file
         uses: actions/upload-artifact@v4
         with:
@@ -442,11 +452,9 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-
-            // Parse the JSON string into an object
+            const path = require('path');
             const resultsObj = JSON.parse('${{ steps.check-approvals.outputs.result }}');
             const issueNumber = resultsObj.issue_number;
-
             try {
               // Get the issue
               const issue = await github.rest.issues.get({
@@ -454,32 +462,24 @@ jobs:
                 repo: context.repo.repo,
                 issue_number: issueNumber
               });
-              
               console.log(`Processing issue #${issueNumber}: ${issue.data.title}`);
-              
               // Save issue body to file
               fs.writeFileSync('./issue_body.txt', issue.data.body);
-              
-              // Create the output directory if it doesn't exist
               if (!fs.existsSync('./output')) {
                 fs.mkdirSync('./output', { recursive: true });
               }
-              
               // Extract the pending releases file path from the issue body
               const releasesMatch = issue.data.body.match(/Data file: `(.+?)`/);
               let releasesFile = null;
-              
               if (releasesMatch && releasesMatch[1]) {
                 releasesFile = releasesMatch[1];
                 console.log(`Found releases file reference in issue: ${releasesFile}`);
               } else {
                 console.log("Could not find releases file reference in issue body");
               }
-              
               // Parse the issue body to extract approved books (lines with [x])
               const lines = issue.data.body.split('\n');
               const approvedBooks = [];
-              
               for (const line of lines) {
                 // Match lines that have a checked box in a table row format
                 if (line.match(/\|\s*\[x\]/i)) {
@@ -492,77 +492,59 @@ jobs:
                   }
                 }
               }
-              
               console.log(`Total approved ISBNs found: ${approvedBooks.length}`);
-              
               // Helper function to convert formatted date back to ISO format
               function parseDateToISO(formattedDate) {
                 if (!formattedDate || formattedDate === 'Unknown') return '';
-                
                 try {
-                  // Try to parse common date formats
                   const date = new Date(formattedDate);
                   if (!isNaN(date.getTime())) {
-                    return date.toISOString().split('T')[0]; // Return in YYYY-MM-DD format
+                    return date.toISOString().split('T')[0];
                   }
-                  return formattedDate; // Return original if can't parse
+                  return formattedDate;
                 } catch (e) {
                   console.log(`Error parsing date ${formattedDate}: ${e}`);
-                  return formattedDate; // Return original if error
+                  return formattedDate;
                 }
               }
-              
               // Extract details for each approved book
-              // Expected table columns: | Approve | ISBN | Title | QTY Presold | Inventory | Pub Date |
               const approvedDetails = [];
               for (const line of lines) {
                 for (const isbn of approvedBooks) {
                   if (line.includes(isbn)) {
-                    // Parse the table row to extract all columns
                     const columns = line.split('|').map(col => col.trim());
                     if (columns.length >= 7) {
-                      // Extract data from columns based on new order
                       const title = columns[3] || `Book with ISBN ${isbn}`;
-                      
-                      // Parse quantity (4th column)
                       let quantity = 0;
                       try {
                         quantity = parseInt(columns[4]) || 0;
                       } catch (e) {
                         console.log(`Could not parse quantity for ISBN ${isbn}, using default 0`);
                       }
-                      
-                      // Parse inventory (5th column)
                       let inventory = 0;
                       try {
                         inventory = parseInt(columns[5]) || 0;
                       } catch (e) {
                         console.log(`Could not parse inventory for ISBN ${isbn}, using default 0`);
                       }
-                      
-                      // Parse pub date (6th column) and convert back to ISO format
                       const formattedPubDate = columns[6] || '';
                       const pubDate = parseDateToISO(formattedPubDate);
-                      
                       approvedDetails.push({
                         isbn: isbn,
                         title: title,
                         quantity: quantity,
                         inventory: inventory,
                         pub_date: pubDate,
-                        formatted_pub_date: formattedPubDate // Keep the original formatted date
+                        formatted_pub_date: formattedPubDate
                       });
-                      
                       console.log(`Extracted details for ISBN ${isbn}: Title=${title}, Quantity=${quantity}, Inventory=${inventory}, Pub Date=${pubDate}`);
                       break;
                     }
                   }
                 }
               }
-              
               // Check if this is a test issue
               const isTestData = issue.data.labels.some(label => label.name === 'test-data');
-              
               // Create approved releases file
               const timestamp = new Date().toISOString().split('T')[0];
               const approvedReleases = {
@@ -576,16 +558,38 @@ jobs:
                 approval_date: timestamp,
                 test_data: isTestData
               };
-              
               // Save the approved releases file
               const outputFile = `./output/approved_releases_${timestamp}.json`;
               fs.writeFileSync(outputFile, JSON.stringify(approvedReleases, null, 2));
-              
               console.log(`Created approved releases file: ${outputFile}`);
               console.log(`Approved books: ${approvedReleases.approved_releases.length}`);
               console.log(`Total quantity: ${approvedReleases.total_approved_quantity}`);
               console.log(`Is test data: ${isTestData}`);
-              
+
+              // --- BEGIN: Update preorder_history.json with approved books ---
+              const historyPath = path.resolve('./preorders/preorder_history.json');
+              let history = { reported_preorders: [], last_updated: "" };
+              if (fs.existsSync(historyPath)) {
+                try {
+                  history = JSON.parse(fs.readFileSync(historyPath, 'utf8'));
+                  if (!Array.isArray(history.reported_preorders)) history.reported_preorders = [];
+                } catch (err) {
+                  console.log("Could not parse preorder_history.json, resetting file.");
+                  history = { reported_preorders: [], last_updated: "" };
+                }
+              }
+              // Append new approved releases if not already present
+              for (const approved of approvedReleases.approved_releases) {
+                if (!history.reported_preorders.some(r => r.isbn === approved.isbn)) {
+                  history.reported_preorders.push(approved);
+                }
+              }
+              // Update timestamp
+              history.last_updated = new Date().toISOString();
+              fs.writeFileSync(historyPath, JSON.stringify(history, null, 2));
+              console.log(`Updated preorder_history.json with approved releases.`);
+              // --- END: Update preorder_history.json ---
+
               // Close the issue and add processed label
               await github.rest.issues.update({
                 owner: context.repo.owner,
@@ -594,14 +598,12 @@ jobs:
                 state: 'closed',
                 labels: [...issue.data.labels.map(label => label.name), 'processed']
               });
-              
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issueNumber,
                 body: `✅ Approved books have been processed and will be included in the weekly report.`
               });
-              
               return {
                 approved_file: outputFile,
                 approved_books: approvedReleases.approved_releases.length,
