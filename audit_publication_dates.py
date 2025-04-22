@@ -341,6 +341,9 @@ def group_preorder_titles(products, preorder_tracking, current_date):
     two_weeks = timedelta(days=14)
     pub_date_overrides = load_pub_date_overrides()
 
+    # Debug: show available tracked ISBNs
+    logging.debug(f"Available tracked ISBNs: {list(preorder_tracking.keys())[:10]}")
+
     for product in products:
         isbn = product.get('barcode')
         title = product.get('title', 'Unknown')
@@ -353,6 +356,8 @@ def group_preorder_titles(products, preorder_tracking, current_date):
             pub_date = None
 
         presold_qty = preorder_tracking.get(isbn, 0)
+        if presold_qty == 0:
+            logging.debug(f"No presold quantity found for ISBN {isbn} — defaulting to 0")
         tagged = True  # Placeholder — update if logic to fetch tags is built
         in_collection = True  # All come from preorder collection
 
@@ -362,8 +367,8 @@ def group_preorder_titles(products, preorder_tracking, current_date):
             'quantity': presold_qty,
             'inventory': inventory,
             'pub_date': pub_date_str,
-            'tagged_preorder': tagged,
-            'in_preorder_collection': in_collection,
+            'tagged': tagged,
+            'in_collection': in_collection,
         }
 
         all_preorders.append(record.copy())
