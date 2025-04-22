@@ -530,16 +530,16 @@ def calculate_total_preorder_quantities(as_of_date=None):
             for row in reader:
                 # Add debug logging for specific ISBN
                 isbn = row.get('ISBN')
-                if isbn == '9780300281125':
-                    logging.info(f"Tracking row for 9780300281125: Pub Date={row.get('Pub Date')}, Quantity={row.get('Quantity')}")
+                if isbn == '9781324073796':
+                    logging.info(f"Tracking row for 9781324073796: Pub Date={row.get('Pub Date')}, Quantity={row.get('Quantity')}")
 
                 # Only try to parse date if both as_of_date and a valid Pub Date exist
                 if as_of_date and row.get('Pub Date'):
                     try:
                         pub_date = datetime.fromisoformat(row['Pub Date']).date()
                         if pub_date > as_of_date:
-                            if isbn == '9780300281125':
-                                logging.info(f"Skipping 9780300281125 due to future pub date {pub_date}")
+                            if isbn == '9781324073796':
+                                logging.info(f"Skipping 9781324073796 due to future pub date {pub_date}")
                             continue
                     except ValueError:
                         # Log warning but continue processing the row
