@@ -581,7 +581,15 @@ jobs:
               // Append new approved releases if not already present
               for (const approved of approvedReleases.approved_releases) {
                 if (!history.reported_preorders.some(r => r.isbn === approved.isbn)) {
-                  history.reported_preorders.push(approved);
+                  history.reported_preorders.push({
+                    isbn: approved.isbn,
+                    title: approved.title || '',
+                    quantity: approved.quantity || 0,
+                    inventory: approved.inventory || 0,
+                    pub_date: approved.pub_date || '',
+                    report_date: timestamp,
+                    added: new Date().toISOString()
+                  });
                 }
               }
               // Update timestamp
