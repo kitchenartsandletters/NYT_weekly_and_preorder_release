@@ -1,0 +1,118 @@
+"ID","Team","Title","Description","Status","Estimate","Priority","Project ID","Project","Creator","Assignee","Labels","Cycle Number","Cycle Name","Cycle Start","Cycle End","Created","Updated","Started","Triaged","Completed","Canceled","Archived","Due Date","Parent issue","Initiatives","Project Milestone ID","Project Milestone","SLA Status","Roadmaps"
+"KIT-56","Kitchenartsandletters","Implement Reliable Repository Commits for History Changes","* **Description:** Changes to the preorder history file are not being committed to the repository, causing inconsistencies between local and remote versions.
+
+  Tasks:
+  - [ ] Debug repository commit process in GitHub workflow
+  - [ ] Ensure proper Git credentials are available to workflow
+  - [ ] Add verification step to confirm commits were successful
+  - [ ] Implement notification for failed commits
+  - [ ] Add documentation for manual recovery process
+  - [ ] Add logging for all history update operations","Backlog",,"Urgent","20e56dc9-274b-455b-8858-ef57d5b67af9","NYT_weekly_and_preorder_release","gil@kitchenartsandletters.com",,"Bug",,,,,"2025-04-05T19:58:22.717Z","2025-04-21T18:02:34.202Z",,,,,,,,"",,,
+"KIT-55","Kitchenartsandletters","Automate Post-Report Process for Released Preorders","* **Description:** After preorders are reported, several manual steps are still required. This should be automated.
+
+  Tasks:
+  - [ ] Implement automatic removal of reported books from preorder collection
+  - [ ] Create process to update shipping profiles after reporting
+  - [ ] Develop daily email for shipping adjustments that cannot be automated
+  - [ ] Add verification to confirm all post-reporting steps completed successfully
+  - [ ] Create audit trail of automated actions","Backlog",,"Medium","20e56dc9-274b-455b-8858-ef57d5b67af9","NYT_weekly_and_preorder_release","gil@kitchenartsandletters.com",,"Feature",,,,,"2025-04-05T19:57:38.962Z","2025-04-21T18:37:00.351Z",,,,,,,,"",,,
+"KIT-54","Kitchenartsandletters","Add Preorder Release List to Email Notification","**Title:** Enhance Email Notifications with Preorder Release List
+
+**Description:** Weekly report emails should include a clear list of preorders that were approved and included in the report.
+
+Tasks:
+
+* Modify `send_email()` function in `weekly_sales_report.py`
+* Format preorder release information in a readable table
+* Include publication dates and quantities for each released preorder
+* Add summary totals for preorder releases
+* Test email formatting across different email clients","Backlog",,"Medium","20e56dc9-274b-455b-8858-ef57d5b67af9","NYT_weekly_and_preorder_release","gil@kitchenartsandletters.com",,"Feature",,,,,"2025-03-31T20:35:52.860Z","2025-04-07T20:40:59.102Z",,,,,,,,"",,,
+"KIT-86","Kitchenartsandletters","Adding verification feature to parse pending release data and revisit preorder overrides","'- [ ] add ability to search accumulated preorder presales
+- [ ] add ability to override and force preorder release ahead of publisher ss date","Backlog",,"No priority","20e56dc9-274b-455b-8858-ef57d5b67af9","NYT_weekly_and_preorder_release","gil@kitchenartsandletters.com",,"",,,,,"2025-04-21T21:35:57.828Z","2025-04-21T21:35:57.828Z",,,,,,,,"",,,
+"KIT-85","Kitchenartsandletters","Manual Workflow","* Migrate GitHub Issues approval feature to dashboard integrated feature","Backlog",,"No priority","20e56dc9-274b-455b-8858-ef57d5b67af9","NYT_weekly_and_preorder_release","gil@kitchenartsandletters.com",,"Improvement",,,,,"2025-04-21T18:38:27.325Z","2025-04-21T18:38:34.127Z",,,,,,,,"",,,
+"KIT-84","Kitchenartsandletters","Add Logic to Detect Early Releases","**✅ Business Logic Summary**
+
+* Some preorder books arrive early but should **not** be released prematurely in the report.
+* They should continue accumulating presale + post-inventory sales until their official release week.
+* These should **not** be approved for early release but should be **tracked and flagged** as special exceptions.
+
+**🧩 Expanded GitHub Issue Structure**
+
+**1. 📦 Approved Preorder Titles for This Week**
+
+* Approval checkboxes
+* Title, ISBN
+* Presold QTY
+* Current Inventory QTY
+* Pub Date
+* Whether it’s still:
+  * Tagged 'preorder'
+  * In the preorder collection
+
+**2. 🔜 Preorder Titles Releasing Next Week**
+
+* Same display format, no approval checkboxes
+* Highlight as *“Upcoming for Next Week”*
+
+**3. 🚨 Early Arrival Exceptions**
+
+###  **(🔖 suggested name: “Early Stock Arrivals”)**
+
+* These cannot be approved
+* Key data:
+  * Title, ISBN
+  * Presold QTY
+  * Current Inventory QTY
+  * Pub Date
+  * Status: still tagged 'preorder', in collection, both, or neither
+* Exception reason (e.g., positive inventory, missing preorder tag, etc.)
+
+### **4. ⚠️ Other Data Anomalies**
+
+* As you’ve already implemented:
+  * Past pub dates
+  * Missing pub dates
+  * Malformed dates
+
+**5. 📊 All Preorders (League Table)**
+
+* Sorted table of all known preorder titles
+* Columns: ISBN, Title, Presold QTY, Inventory, Pub Date, preorder tag status, collection status
+* Can be used to verify weekly positioning, cumulative tracking, or deeper insights
+
+**🛠️ Task Breakdown**
+
+**📍 Phase 1: Categorization Logic (in audit_publication_dates.py)**
+
+* Track **preorders due next week** based on pub_date
+* Track **early arrivals**:
+  * Positive inventory
+  * Future pub_date
+  * But not to be approved
+* Track **tag/collection status** and include in metadata
+* Return flags and group membership in the JSON (e.g., ""group"": ""early_arrival"")
+
+**📍 Phase 2: GitHub Issue Update (in combined-workflow.yml)**
+
+* Expand markdown structure with sections 1–4
+* Display new columns (presold, inventory, pub date, tag/collection status)
+* Add summary descriptions above each section
+
+**📍 Phase 3: Test Mode Simulation**
+
+* Inject test data for:
+  * A normal preorder
+  * A next-week preorder
+  * An early arrival
+  * One malformed pub date
+* Trigger the identify-preorders workflow
+* Validate GitHub issue display","Backlog",,"No priority","20e56dc9-274b-455b-8858-ef57d5b67af9","NYT_weekly_and_preorder_release","gil@kitchenartsandletters.com",,"",,,,,"2025-04-21T18:34:03.575Z","2025-04-22T02:40:12.487Z",,,,,,,,"",,,
+"KIT-36","Kitchenartsandletters","Preorder Dashboard Integration","'- [ ] Create dashboard for monitoring preorder conversion
+- [ ] Migrate GitHub Issues to dashboard","Backlog",,"No priority","20e56dc9-274b-455b-8858-ef57d5b67af9","NYT_weekly_and_preorder_release","gil@kitchenartsandletters.com",,"Feature",,,,,"2025-03-17T16:46:10.688Z","2025-04-07T20:47:06.848Z",,,,,,,,"",,,
+"KIT-30","Kitchenartsandletters","Backup Plan","'- [ ] Ensure team members know how to manually trigger the workflows if needed
+- [ ] Document any manual override processes for emergencies","Backlog",,"No priority","20e56dc9-274b-455b-8858-ef57d5b67af9","NYT_weekly_and_preorder_release","gil@kitchenartsandletters.com",,"",,,,,"2025-03-13T01:51:40.534Z","2025-04-07T20:43:25.186Z",,,,,,,,"",,,
+"KIT-29","Kitchenartsandletters","Set Up Monitoring","'- [X] Configure GitHub notifications for when approval issues are created
+- [ ] Establish a check to verify that the workflow ran successfully each week","Backlog",,"No priority","20e56dc9-274b-455b-8858-ef57d5b67af9","NYT_weekly_and_preorder_release","gil@kitchenartsandletters.com",,"",,,,,"2025-03-13T01:51:23.939Z","2025-04-07T20:43:04.999Z",,,,,,,,"",,,
+"KIT-28","Kitchenartsandletters","Document the Process","'- [ ] Share the approval process with your team
+- [ ] Specify who is responsible for reviewing and approving preorder books
+- [ ] Set clear deadlines for approvals (before Monday morning)","Backlog",,"No priority","20e56dc9-274b-455b-8858-ef57d5b67af9","NYT_weekly_and_preorder_release","gil@kitchenartsandletters.com",,"",,,,,"2025-03-13T01:51:05.841Z","2025-04-07T20:43:18.393Z",,,,,,,,"",,,

@@ -1,0 +1,3 @@
+Rule ID,Condition,Action,Applies To,Notes
+rule_001,"inventory > 0 AND pub_date > today","keep 'preorder' tag",early-arrival books,ensures continued presale tracking
+rule_002,"inventory > 0 AND pub_date <= today","remove 'preorder' tag and unpublish",released books,requires approval to trigger
