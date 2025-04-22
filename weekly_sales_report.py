@@ -538,7 +538,7 @@ def calculate_total_preorder_quantities(as_of_date=None):
                         # Log warning but continue processing the row
                         logging.warning(f"Skipping date comparison for ISBN {row.get('ISBN', 'Unknown')}: Invalid pub date format: {row['Pub Date']}")
                 
-                isbn = row.get('ISBN')
+                isbn = str(row.get('ISBN')).strip()
                 try:
                     quantity = int(row.get('Quantity', 0))
                 except ValueError:

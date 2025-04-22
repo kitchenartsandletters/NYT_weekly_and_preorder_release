@@ -345,7 +345,7 @@ def group_preorder_titles(products, preorder_tracking, current_date):
     logging.debug(f"Available tracked ISBNs: {list(preorder_tracking.keys())[:10]}")
 
     for product in products:
-        isbn = product.get('barcode')
+        isbn = str(product.get('barcode')).strip()
         title = product.get('title', 'Unknown')
         inventory = product.get('inventory', 0)
         pub_date_str = product.get('pub_date')
