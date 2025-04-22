@@ -111,9 +111,9 @@ jobs:
           
           # Ensure audit_publication_dates.py outputs all required fields in the JSON
           if [ "${{ github.event.inputs.run_mode }}" = "test" ]; then
-              python -u audit_publication_dates.py --output-releases "$RELEASES_FILE" --test-mode --ignore-warnings --include-release-fields "release_this_week,releases_next_week,early_stock_arrivals,all_preorders,anomalies" || true
+              python -u audit_publication_dates.py --output-releases "$RELEASES_FILE" --test-mode --ignore-warnings || true
           else
-            python -u audit_publication_dates.py --output-releases "$RELEASES_FILE" --include-release-fields "release_this_week,releases_next_week,early_stock_arrivals,all_preorders,anomalies"
+            python -u audit_publication_dates.py --output-releases "$RELEASES_FILE"
           fi
           
           if [ -f "$RELEASES_FILE" ]; then
