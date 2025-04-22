@@ -109,6 +109,7 @@ jobs:
           TIMESTAMP=$(date +'%Y-%m-%d')
           RELEASES_FILE="./output/pending_releases_${TIMESTAMP}.json"
           
+          # Ensure audit_publication_dates.py outputs all required fields in the JSON
           if [ "${{ github.event.inputs.run_mode }}" = "test" ]; then
               python -u audit_publication_dates.py --output-releases "$RELEASES_FILE" --test-mode --ignore-warnings || true
           else
@@ -162,119 +163,147 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            // This is the script part that needs to be updated in the create-issue step
             const fs = require('fs');
             let releasesFile = '${{ steps.run-audit.outputs.releases_file || steps.create-fallback.outputs.releases_file }}';
-
             try {
-              // Read the pending releases file
+              // Read the releases file
               const fileContent = fs.readFileSync(releasesFile, 'utf8');
               const pendingData = JSON.parse(fileContent);
-              
               const timestamp = new Date().toISOString().split('T')[0];
               const isTestData = pendingData.test_data === true;
               const testPrefix = isTestData ? '[TEST] ' : '';
-              
-              // Log some debug info about the data
-              console.log(`Processing ${pendingData.total_pending_books} pending releases`);
-              console.log(`Total quantity: ${pendingData.total_quantity}`);
-              console.log(`Is test data: ${isTestData}`);
-              
+
               // Helper function to format dates as "Month DD, YYYY"
               function formatDate(dateStr) {
                 if (!dateStr || dateStr === 'Unknown') return 'Unknown';
-                
                 try {
                   const options = { year: 'numeric', month: 'long', day: 'numeric' };
                   const date = new Date(dateStr);
-                  return date.toLocaleDateString('en-US', options);
+                  if (!isNaN(date.getTime())) {
+                    return date.toLocaleDateString('en-US', options);
+                  }
+                  return dateStr;
                 } catch (e) {
-                  console.log(`Error formatting date ${dateStr}: ${e}`);
-                  return dateStr; // Return original if can't parse
+                  return dateStr;
                 }
               }
-              
-              // Format books as a markdown table with reordered columns and formatted date
-              let booksTable = '| Approve | ISBN | Title | QTY Presold | Inventory | Pub Date |\n|---------|------|-------|------------|-----------|----------|\n';
-              
-              pendingData.pending_releases.forEach(book => {
-                // Add more detailed logging for each book
-                console.log(`Book: ${book.title}, ISBN: ${book.isbn}, Quantity: ${book.quantity}, Pub Date: ${book.pub_date || 'Unknown'}, Inventory: ${book.inventory || 0}`);
-                
-                // Handle null or undefined values safely
-                const formattedPubDate = formatDate(book.pub_date);
-                const inventory = Number.isFinite(book.inventory) ? book.inventory : 0;
-                
-                booksTable += `| [ ] | ${book.isbn} | ${book.title} | ${book.quantity} | ${inventory} | ${formattedPubDate} |\n`;
+
+              function bookRow(book, opts = {}) {
+                // opts: { includeCheckbox: bool, includeReason: bool }
+                const checkbox = opts.includeCheckbox ? '| [ ] ' : '';
+                const reason = opts.includeReason ? `| ${book.reason || ''} ` : '';
+                return `${checkbox}| ${book.isbn || ''} | ${book.title || ''} | ${book.quantity ?? book.presold_qty ?? ''} | ${book.inventory ?? ''} | ${formatDate(book.pub_date)} | ${book.tagged ?? ''} | ${book.in_collection ?? ''} ${reason}|\n`;
+              }
+
+              function booksTable(books, opts = {}) {
+                // Columns: | [Approve] | ISBN | Title | Presold QTY | Inventory | Pub Date | Tagged | In Collection | [Reason] |
+                let header = '';
+                if (opts.includeCheckbox) {
+                  header += '| Approve ';
+                }
+                header += '| ISBN | Title | Presold QTY | Inventory | Pub Date | Tagged | In Collection ';
+                if (opts.includeReason) header += '| Reason ';
+                header += '|\n';
+                // Table separator
+                if (opts.includeCheckbox) {
+                  header += '|---------';
+                }
+                header += '|------|-------|------------|-----------|----------|--------|--------------';
+                if (opts.includeReason) header += '|--------';
+                header += '|\n';
+                // Table rows
+                let rows = '';
+                for (const book of books) {
+                  rows += bookRow(book, opts);
+                }
+                return header + rows;
+              }
+
+              // Section 1: Approved Preorder Titles for This Week
+              let releaseThisWeek = Array.isArray(pendingData.release_this_week) ? pendingData.release_this_week : [];
+              // Section 2: Preorder Titles Releasing Next Week
+              let releasesNextWeek = Array.isArray(pendingData.releases_next_week) ? pendingData.releases_next_week : [];
+              // Section 3: 🚨 Early Stock Arrivals
+              let earlyStockArrivals = Array.isArray(pendingData.early_stock_arrivals) ? pendingData.early_stock_arrivals : [];
+              // Section 4: ⚠️ Issues Requiring Attention
+              let anomalies = Array.isArray(pendingData.anomalies) ? pendingData.anomalies : [];
+              // Section 5: 📊 All Preorders (League Table)
+              let allPreorders = Array.isArray(pendingData.all_preorders) ? pendingData.all_preorders : [];
+
+              // Sort allPreorders by pub date ascending
+              allPreorders = allPreorders.slice().sort((a, b) => {
+                if (!a.pub_date) return 1;
+                if (!b.pub_date) return -1;
+                return (a.pub_date > b.pub_date) ? 1 : (a.pub_date < b.pub_date ? -1 : 0);
               });
-              
-              // Create issue title
-              const issueTitle = `${testPrefix}📚 Preorder Approval: ${pendingData.total_pending_books} Books Ready for Release (${timestamp})`;
-              
-              // Create issue body
+
+              // Issue title
+              const issueTitle = `${testPrefix}📚 Preorder Approval: ${releaseThisWeek.length} Books Ready for Release (${timestamp})`;
+
+              // Issue body
               let issueBody = `## Preorder Books Ready for Release Approval
+
 
             **Important: Please review these preorder books before they are included in the weekly sales report.**
 
             Check the boxes for books that should be included in this week's report. Books with unchecked boxes will remain in preorder status.
 
-            ### Instructions
-            1. Review each book's details
-            2. Check the box in the "Approve" column for books that should be included
-              - IMPORTANT: Use exactly \`[x]\` for approved books (lowercase x, no spaces)
-            3. Add the label \`approved\` to this issue when you've finished reviewing
-            4. Only checked books will have their sales included in the next report
-
-            ### Books Pending Approval
-
-            ${booksTable}
-
-            ### Notes
-            - This approval is required by: Monday at 8:00 AM
-            - Books not approved will remain in preorder status
-            - Data file: \`${releasesFile}\`
-            ${isTestData ? '- ⚠️ THIS IS A TEST ISSUE WITH SIMULATED DATA ⚠️' : ''}`;
-
-            // Add section for problematic books
-            if (pendingData.problematic_books && pendingData.total_problematic_books > 0) {
-              issueBody += `\n### Issues Requiring Attention\n\n`;
-              
-              // Past pub dates
-              if (pendingData.problematic_books.past_pub_dates && pendingData.problematic_books.past_pub_dates.length > 0) {
-                issueBody += `#### Books with Past Publication Dates (${pendingData.problematic_books.past_pub_dates.length})\n`;
-                issueBody += `| ISBN | Title | Pub Date | Issue |\n|------|-------|---------|-------|\n`;
-                
-                pendingData.problematic_books.past_pub_dates.forEach(book => {
-                  issueBody += `| ${book.isbn || 'N/A'} | ${book.title || 'Unknown'} | ${book.pub_date || 'N/A'} | ${book.issue} |\n`;
-                });
-                
-                issueBody += '\n';
+              ### Instructions
+              1. Review each book's details
+              2. Check the box in the "Approve" column for books that should be included
+                - IMPORTANT: Use exactly \`[x]\` for approved books (lowercase x, no spaces)
+              3. Add the label \`approved\` to this issue when you've finished reviewing
+              4. Only checked books will have their sales included in the next report
+              `;
+              // Section 1: This week's releases (with checkbox)
+              issueBody += `\n### **Approved Preorder Titles for This Week**\n\n`;
+              if (releaseThisWeek.length > 0) {
+                issueBody += booksTable(releaseThisWeek, { includeCheckbox: true });
+              } else {
+                issueBody += '_No books releasing this week._\n';
               }
-              
-              // Missing pub dates
-              if (pendingData.problematic_books.missing_pub_dates && pendingData.problematic_books.missing_pub_dates.length > 0) {
-                issueBody += `#### Books with Missing Publication Dates (${pendingData.problematic_books.missing_pub_dates.length})\n`;
-                issueBody += `| ISBN | Title | Issue |\n|------|-------|-------|\n`;
-                
-                pendingData.problematic_books.missing_pub_dates.forEach(book => {
-                  issueBody += `| ${book.isbn || 'N/A'} | ${book.title || 'Unknown'} | ${book.issue} |\n`;
-                });
-                
-                issueBody += '\n';
+
+              // Section 2: Next week's releases (no checkbox)
+              issueBody += `\n### **Preorder Titles Releasing Next Week**\n\n`;
+              if (releasesNextWeek.length > 0) {
+                issueBody += booksTable(releasesNextWeek, { includeCheckbox: false });
+              } else {
+                issueBody += '_No books releasing next week._\n';
               }
-              
-              // Malformed dates
-              if (pendingData.problematic_books.malformed_dates && pendingData.problematic_books.malformed_dates.length > 0) {
-                issueBody += `#### Books with Malformed Date Format (${pendingData.problematic_books.malformed_dates.length})\n`;
-                issueBody += `| ISBN | Title | Date Value | Issue |\n|------|-------|-----------|-------|\n`;
-                
-                pendingData.problematic_books.malformed_dates.forEach(book => {
-                  issueBody += `| ${book.isbn || 'N/A'} | ${book.title || 'Unknown'} | ${book.pub_date || 'N/A'} | ${book.issue} |\n`;
-                });
-                
-                issueBody += '\n';
+
+              // Section 3: Early stock arrivals (reason column)
+              issueBody += `\n### 🚨 Early Stock Arrivals\n\n`;
+              if (earlyStockArrivals.length > 0) {
+                issueBody += booksTable(earlyStockArrivals, { includeCheckbox: false, includeReason: true });
+              } else {
+                issueBody += '_No early stock arrivals detected._\n';
               }
-            }
+
+              // Section 4: Issues Requiring Attention (reuse existing formatting)
+              issueBody += `\n### ⚠️ Issues Requiring Attention\n\n`;
+              if (anomalies.length > 0) {
+                // Print as a table with Reason column
+                issueBody += booksTable(anomalies, { includeCheckbox: false, includeReason: true });
+              } else {
+                issueBody += '_No anomalies detected._\n';
+              }
+
+              // Section 5: All Preorders (League Table)
+              issueBody += `\n### 📊 All Preorders (League Table)\n\n`;
+              if (allPreorders.length > 0) {
+                issueBody += booksTable(allPreorders, { includeCheckbox: false });
+              } else {
+                issueBody += '_No preorders found._\n';
+              }
+
+              // Notes section
+              issueBody += `
+
+              ### Notes
+              - This approval is required by: Monday at 8:00 AM
+              - Books not approved will remain in preorder status
+              - Data file: \`${releasesFile}\`
+              ${isTestData ? '- ⚠️ THIS IS A TEST ISSUE WITH SIMULATED DATA ⚠️' : ''}`;
 
               // Create the issue
               const issue = await github.rest.issues.create({
@@ -284,7 +313,6 @@ jobs:
                 body: issueBody,
                 labels: ['pending-approval', 'preorders', ...(isTestData ? ['test-data'] : [])]
               });
-              
               console.log(`Created approval issue #${issue.data.number}`);
               return issue.data.number;
             } catch (error) {
@@ -594,26 +622,26 @@ jobs:
           mkdir -p output
           TIMESTAMP=$(date +'%Y-%m-%d')
           APPROVED_FILE="./output/approved_releases_${TIMESTAMP}.json"
-          
+
           # Get the list of ISBNs from the input
           RESULT='${{ steps.check-approvals.outputs.result }}'
           ISBNS=$(echo $RESULT | jq -r '.isbns | join(",")')
           IFS=',' read -ra ISBN_ARRAY <<< "$ISBNS"
-          
+
           # Start creating the JSON file
           echo "{" > "$APPROVED_FILE"
           echo '  "approved_releases": [' >> "$APPROVED_FILE"
-          
+
           # Add each ISBN as an entry
           for i in "${!ISBN_ARRAY[@]}"; do
             ISBN="${ISBN_ARRAY[$i]}"
             echo "Processing ISBN: $ISBN"
-            
+
             # Add comma for all but the last entry
             if [ $i -gt 0 ]; then
               echo "," >> "$APPROVED_FILE"
             fi
-            
+
             # Add the book entry
             echo "    {" >> "$APPROVED_FILE"
             echo "      \"isbn\": \"$ISBN\"," >> "$APPROVED_FILE"
@@ -623,23 +651,23 @@ jobs:
             echo "      \"approval_date\": \"$TIMESTAMP\"" >> "$APPROVED_FILE"
             echo -n "    }" >> "$APPROVED_FILE"
           done
-          
+
           # Close the JSON structure
           echo "" >> "$APPROVED_FILE"
           echo "  ]," >> "$APPROVED_FILE"
           echo "  \"total_approved_books\": ${#ISBN_ARRAY[@]}," >> "$APPROVED_FILE"
           echo "  \"total_approved_quantity\": $((${#ISBN_ARRAY[@]} * 5))," >> "$APPROVED_FILE"
           echo "  \"approval_date\": \"$TIMESTAMP\"," >> "$APPROVED_FILE"
-          
+
           # Check if we're in test mode
           if [ "${{ github.event.inputs.run_mode }}" = "test" ]; then
             echo "  \"test_data\": true" >> "$APPROVED_FILE"
           else
             echo "  \"test_data\": false" >> "$APPROVED_FILE"
           fi
-          
+
           echo "}" >> "$APPROVED_FILE"
-          
+
           echo "Created manual override approved releases file: $APPROVED_FILE"
           echo "approved_file=$APPROVED_FILE" >> $GITHUB_OUTPUT
       

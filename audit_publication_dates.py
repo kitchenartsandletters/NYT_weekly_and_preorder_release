@@ -12,6 +12,8 @@ import argparse
 from datetime import datetime, timedelta
 import requests
 import time
+import pytz
+from datetime import timezone
 
 # Import the new environment loading module
 from env_loader import load_environment_variables, initialize_api_credentials
@@ -272,6 +274,7 @@ def fetch_preorder_products():
         logging.error(f"Traceback: {traceback.format_exc()}")
         return []
 
+
 def check_suspicious_pub_dates(products):
     """
     Check for suspicious publication dates:
@@ -319,6 +322,86 @@ def check_suspicious_pub_dates(products):
         'missing_pub_dates': missing_pub_dates,
         'malformed_dates': malformed_dates
     }
+
+# === Begin preorder grouping logic for KIT-84 ===
+def group_preorder_titles(products, preorder_tracking, current_date):
+    """
+    Groups preorder titles into multiple categories:
+    - Releasing this week
+    - Releasing next week
+    - Early Stock Arrivals (exceptions)
+    - All preorders (sorted by pub date)
+    """
+    this_week = []
+    next_week = []
+    early_arrivals = []
+    all_preorders = []
+
+    one_week = timedelta(days=7)
+    two_weeks = timedelta(days=14)
+    pub_date_overrides = load_pub_date_overrides()
+
+    # Debug: show available tracked ISBNs
+    logging.debug(f"Available tracked ISBNs: {list(preorder_tracking.keys())[:10]}")
+
+    for product in products:
+        isbn = str(product.get('barcode')).strip()
+        title = product.get('title', 'Unknown')
+        inventory = product.get('inventory', 0)
+        pub_date_str = product.get('pub_date')
+        pub_date = None
+        try:
+            pub_date = datetime.strptime(pub_date_str, '%Y-%m-%d').date()
+        except Exception:
+            pub_date = None
+
+        presold_qty = preorder_tracking.get(isbn, 0)
+        if isbn not in preorder_tracking:
+            logging.warning(f"ISBN not found in preorder_tracking: {isbn}")
+        else:
+            logging.debug(f"Matched presale qty for ISBN {isbn}: {presold_qty}")
+        if presold_qty == 0:
+            logging.debug(f"No presold quantity found for ISBN {isbn} — defaulting to 0")
+        tagged = True  # Placeholder — update if logic to fetch tags is built
+        in_collection = True  # All come from preorder collection
+
+        record = {
+            'isbn': isbn,
+            'title': title,
+            'quantity': presold_qty,       # Keep for backward compatibility or possible uses
+            'presold_qty': presold_qty,    # Revert to original field name
+            'inventory': inventory,
+            'pub_date': pub_date_str,
+            'tagged': tagged,
+            'in_collection': in_collection,
+        }
+
+        all_preorders.append(record.copy())
+
+        if pub_date:
+            if current_date <= pub_date < current_date + one_week:
+                this_week.append(record.copy())
+            elif current_date + one_week <= pub_date < current_date + two_weeks:
+                next_week.append(record.copy())
+            elif pub_date > current_date and inventory > 0:
+                reasons = []
+                if not tagged:
+                    reasons.append("No preorder tag")
+                if not in_collection:
+                    reasons.append("Removed from preorder collection")
+                reasons.append("Inventory received early")
+                record["reason"] = "; ".join(reasons)
+                early_arrivals.append(record.copy())
+
+    all_preorders.sort(key=lambda b: b.get("pub_date", "9999-12-31"))
+
+    return {
+        "release_this_week": this_week,
+        "releases_next_week": next_week,
+        "early_stock_arrivals": early_arrivals,
+        "all_preorders": all_preorders
+    }
+# === End preorder grouping logic for KIT-84 ===
 
 def generate_audit_report(audit_results, output_file=None):
     """Generate CSV reports for audit results"""
@@ -491,7 +574,7 @@ def get_inventory_level(product_id):
         logging.error(f"Error fetching inventory: {e}")
         return 0
 
-def identify_pending_releases(pub_date_overrides=None, audit_results=None):
+def identify_pending_releases(pub_date_overrides=None, audit_results=None, grouped_output=None):
     """
     Identify books that are about to be released based on their pub dates
     and determine which preorders should be moved to the regular sales report.
@@ -510,7 +593,8 @@ def identify_pending_releases(pub_date_overrides=None, audit_results=None):
             'malformed_dates': []
         }
     
-    current_date = datetime.now().date()
+    # Use override_today if present in globals for test consistency
+    current_date = globals().get("override_today", datetime.now().date())
     
     # Debug log for test mode
     is_test_mode = os.environ.get('USE_TEST_DATA', '').lower() in ('true', '1', 't', 'yes')
@@ -537,6 +621,10 @@ def identify_pending_releases(pub_date_overrides=None, audit_results=None):
     # STEP 2: Get tracked preorders from the tracking file
     preorder_totals = calculate_total_preorder_quantities(current_date)
     logging.info(f"Found {len(preorder_totals)} ISBNs in preorder tracking file")
+    logging.debug(f"Tracked ISBNs from preorder history: {list(preorder_totals.keys())[:10]}")
+
+    if debug_isbn not in preorder_totals:
+        logging.debug(f"DEBUG ISBN {debug_isbn} not found in preorder tracking.")
     
     # STEP 3: Check for the debug ISBN in both sources
     if debug_isbn:
@@ -786,6 +874,10 @@ def identify_pending_releases(pub_date_overrides=None, audit_results=None):
         'test_data': is_test_mode  # Include test data flag
     }
     
+    # Add KIT-84 groups to final result
+    if grouped_output:
+        result.update(grouped_output)
+
     return result
 
 def save_pending_releases(pending_data, output_file=None):
@@ -842,6 +934,18 @@ def main():
     logging.info("Fetching preorder products")
     products = fetch_preorder_products()
     logging.info(f"Found {len(products)} preorder products")
+    # Use Eastern Time Zone for current date
+    eastern = pytz.timezone('US/Eastern')
+    now_et = datetime.now(eastern)
+    today_et = now_et.date()
+
+    # Get preorder tracking quantities
+    preorder_totals = calculate_total_preorder_quantities(today_et)
+    logging.info(f"Loaded preorder totals for grouping: {len(preorder_totals)} ISBNs")
+
+    # Group preorder titles into structured categories for GitHub issue rendering
+    grouped_output = group_preorder_titles(products, preorder_totals, today_et)
+    globals()['grouped_output'] = grouped_output
     
     # Check for suspicious pub dates
     logging.info("Analyzing publication dates")
@@ -862,7 +966,7 @@ def main():
     
     # Identify and save pending releases - PASS AUDIT RESULTS
     logging.info("Identifying pending releases from preorders")
-    pending_data = identify_pending_releases(pub_date_overrides, audit_results)
+    pending_data = identify_pending_releases(pub_date_overrides, audit_results, grouped_output)
     pending_file = save_pending_releases(pending_data, args.output_releases)
     
     # Print pending release summary
