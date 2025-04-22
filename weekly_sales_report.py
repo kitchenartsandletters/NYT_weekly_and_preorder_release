@@ -518,7 +518,7 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
 
     return None
 
-def calculate_total_preorder_quantities(as_of_date=None):
+def calculate_total_preorder_quantities(as_of_date=None, pub_date_overrides=None):
     """Calculate total preorder quantities for each ISBN"""
     tracking_path = os.path.join(BASE_DIR, 'preorders', 'NYT_preorder_tracking.csv')
     
@@ -532,6 +532,12 @@ def calculate_total_preorder_quantities(as_of_date=None):
                 isbn = row.get('ISBN')
                 if isbn == '9781324073796':
                     logging.info(f"Tracking row for 9781324073796: Pub Date={row.get('Pub Date')}, Quantity={row.get('Quantity')}")
+
+                # Apply pub date override if available
+                if pub_date_overrides and isbn in pub_date_overrides:
+                    original_pub = row.get('Pub Date', '')
+                    row['Pub Date'] = pub_date_overrides[isbn]
+                    logging.info(f"Overrode pub date for ISBN {isbn}: {original_pub} → {row['Pub Date']}")
 
                 # Only try to parse date if both as_of_date and a valid Pub Date exist
                 if as_of_date and row.get('Pub Date'):
@@ -568,7 +574,7 @@ def calculate_total_preorder_quantities(as_of_date=None):
 def process_released_preorders(sales_data, pub_date_overrides=None):
     """Process released preorders and add to sales data"""
     current_date = datetime.now().date()
-    preorder_totals = calculate_total_preorder_quantities(current_date)
+    preorder_totals = calculate_total_preorder_quantities(current_date, pub_date_overrides)    
     
     # Create dictionary to track books that were just released this week
     newly_released = {}
@@ -1092,6 +1098,30 @@ def find_latest_approved_releases():
     
     return latest_file, False
 
+def generate_weekly_delta_log(tracking_file='NYT_preorder_tracking.csv'):
+    import difflib
+    preorders_dir = os.path.join(BASE_DIR, 'preorders')
+    tracking_path = os.path.join(preorders_dir, tracking_file)
+    output_dir = os.path.join(BASE_DIR, 'output')
+    delta_path = os.path.join(output_dir, f"delta_log_{datetime.now().strftime('%Y-%m-%d')}.txt")
+    # Find most recent previous file in artifacts or saved directory (if available)
+    # For now, this checks for a .bak version from last run
+    previous_path = tracking_path + '.bak'
+    if not os.path.exists(previous_path):
+        logging.info("No previous preorder tracking file found, skipping delta log generation.")
+        return
+    with open(previous_path, 'r', encoding='utf-8') as prev_file:
+        prev_lines = prev_file.readlines()
+    with open(tracking_path, 'r', encoding='utf-8') as curr_file:
+        curr_lines = curr_file.readlines()
+    diff = list(difflib.unified_diff(prev_lines, curr_lines, fromfile='previous', tofile='current', lineterm=''))
+    if diff:
+        with open(delta_path, 'w', encoding='utf-8') as f:
+            f.write('\n'.join(diff))
+        logging.info(f"Weekly delta log written to {delta_path}")
+    else:
+        logging.info("No changes detected between current and previous preorder tracking file.")
+
 def main():
     print(f"Script running from directory: {os.getcwd()}")
     print(f"BASE_DIR set to: {BASE_DIR}")
@@ -1128,7 +1158,7 @@ def main():
         logging.error("No sales data.")
         return
 
-     # Add approved releases to sales data
+    # Add approved releases to sales data
     sales_data = process_approved_releases(sales_data, BASE_DIR)
 
     # Get the approved releases information for the email
@@ -1145,14 +1175,25 @@ def main():
         except Exception as e:
             logging.error(f"Error loading approved releases data: {e}")
 
+    # --- Backup current tracking file before overwriting (at top of main) ---
+    preorder_csv_path = os.path.join(BASE_DIR, 'preorders', 'NYT_preorder_tracking.csv')
+    preorder_backup_path = preorder_csv_path + '.bak'
+    if os.path.exists(preorder_csv_path):
+        import shutil
+        shutil.copy(preorder_csv_path, preorder_backup_path)
+        logging.info(f"Backed up existing preorder tracking file to {preorder_backup_path}")
+
     # Track preorder sales
     track_preorder_sales(preorder_items)
+
+    # --- Generate delta log (after track_preorder_sales) ---
+    generate_weekly_delta_log()
     
     # Process and add released preorders to sales data - pass overrides
     # sales_data = process_released_preorders(sales_data, pub_date_overrides)
 
     logging.info(f"Tracking {len(preorder_items)} new preorder items")
-    logging.info("No items released this week")  # Changed this line since we're not tracking releases here
+    logging.info("No items released this week")
 
     # Initialize released_items as empty dict before using it
     released_items = {}
