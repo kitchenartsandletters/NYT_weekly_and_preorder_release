@@ -272,6 +272,7 @@ def fetch_preorder_products():
         logging.error(f"Traceback: {traceback.format_exc()}")
         return []
 
+
 def check_suspicious_pub_dates(products):
     """
     Check for suspicious publication dates:
@@ -319,6 +320,76 @@ def check_suspicious_pub_dates(products):
         'missing_pub_dates': missing_pub_dates,
         'malformed_dates': malformed_dates
     }
+
+# === Begin preorder grouping logic for KIT-84 ===
+def group_preorder_titles(products, preorder_tracking, current_date):
+    """
+    Groups preorder titles into multiple categories:
+    - Releasing this week
+    - Releasing next week
+    - Early Stock Arrivals (exceptions)
+    - All preorders (sorted by pub date)
+    """
+    this_week = []
+    next_week = []
+    early_arrivals = []
+    all_preorders = []
+
+    one_week = timedelta(days=7)
+    two_weeks = timedelta(days=14)
+    pub_date_overrides = load_pub_date_overrides()
+
+    for product in products:
+        isbn = product.get('barcode')
+        title = product.get('title', 'Unknown')
+        inventory = product.get('inventory', 0)
+        pub_date_str = product.get('pub_date')
+        pub_date = None
+        try:
+            pub_date = datetime.strptime(pub_date_str, '%Y-%m-%d').date()
+        except Exception:
+            pub_date = None
+
+        presold_qty = preorder_tracking.get(isbn, 0)
+        tagged = True  # Placeholder — update if logic to fetch tags is built
+        in_collection = True  # All come from preorder collection
+
+        record = {
+            'isbn': isbn,
+            'title': title,
+            'quantity': presold_qty,
+            'inventory': inventory,
+            'pub_date': pub_date_str,
+            'tagged_preorder': tagged,
+            'in_preorder_collection': in_collection,
+        }
+
+        all_preorders.append(record.copy())
+
+        if pub_date:
+            if current_date <= pub_date < current_date + one_week:
+                this_week.append(record.copy())
+            elif current_date + one_week <= pub_date < current_date + two_weeks:
+                next_week.append(record.copy())
+            elif pub_date > current_date and inventory > 0:
+                reasons = []
+                if not tagged:
+                    reasons.append("No preorder tag")
+                if not in_collection:
+                    reasons.append("Removed from preorder collection")
+                reasons.append("Inventory received early")
+                record["reason"] = "; ".join(reasons)
+                early_arrivals.append(record.copy())
+
+    all_preorders.sort(key=lambda b: b.get("pub_date", "9999-12-31"))
+
+    return {
+        "release_this_week": this_week,
+        "releases_next_week": next_week,
+        "early_stock_arrivals": early_arrivals,
+        "all_preorders": all_preorders
+    }
+# === End preorder grouping logic for KIT-84 ===
 
 def generate_audit_report(audit_results, output_file=None):
     """Generate CSV reports for audit results"""
