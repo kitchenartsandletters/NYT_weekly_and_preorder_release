@@ -562,7 +562,7 @@ def get_inventory_level(product_id):
         logging.error(f"Error fetching inventory: {e}")
         return 0
 
-def identify_pending_releases(pub_date_overrides=None, audit_results=None):
+def identify_pending_releases(pub_date_overrides=None, audit_results=None, grouped_output=None):
     """
     Identify books that are about to be released based on their pub dates
     and determine which preorders should be moved to the regular sales report.
@@ -857,6 +857,10 @@ def identify_pending_releases(pub_date_overrides=None, audit_results=None):
         'test_data': is_test_mode  # Include test data flag
     }
     
+    # Add KIT-84 groups to final result
+    if grouped_output:
+        result.update(grouped_output)
+
     return result
 
 def save_pending_releases(pending_data, output_file=None):
@@ -913,6 +917,13 @@ def main():
     logging.info("Fetching preorder products")
     products = fetch_preorder_products()
     logging.info(f"Found {len(products)} preorder products")
+    # Get preorder tracking quantities
+    preorder_totals = calculate_total_preorder_quantities(datetime.now().date())
+    logging.info(f"Loaded preorder totals for grouping: {len(preorder_totals)} ISBNs")
+
+    # Group preorder titles into structured categories for GitHub issue rendering
+    grouped_output = group_preorder_titles(products, preorder_totals, datetime.now().date())
+    globals()['grouped_output'] = grouped_output
     
     # Check for suspicious pub dates
     logging.info("Analyzing publication dates")
@@ -933,7 +944,7 @@ def main():
     
     # Identify and save pending releases - PASS AUDIT RESULTS
     logging.info("Identifying pending releases from preorders")
-    pending_data = identify_pending_releases(pub_date_overrides, audit_results)
+    pending_data = identify_pending_releases(pub_date_overrides, audit_results, grouped_output)
     pending_file = save_pending_releases(pending_data, args.output_releases)
     
     # Print pending release summary
