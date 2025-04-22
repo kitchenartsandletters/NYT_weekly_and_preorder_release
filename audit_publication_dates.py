@@ -356,6 +356,10 @@ def group_preorder_titles(products, preorder_tracking, current_date):
             pub_date = None
 
         presold_qty = preorder_tracking.get(isbn, 0)
+        if isbn not in preorder_tracking:
+            logging.warning(f"ISBN not found in preorder_tracking: {isbn}")
+        else:
+            logging.debug(f"Matched presale qty for ISBN {isbn}: {presold_qty}")
         if presold_qty == 0:
             logging.debug(f"No presold quantity found for ISBN {isbn} — defaulting to 0")
         tagged = True  # Placeholder — update if logic to fetch tags is built

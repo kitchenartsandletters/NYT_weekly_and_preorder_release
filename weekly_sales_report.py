@@ -553,6 +553,9 @@ def calculate_total_preorder_quantities(as_of_date=None):
     except Exception as e:
         logging.error(f"Error calculating preorder totals: {e}")
         raise
+
+    logging.debug(f"Preorder totals loaded for {len(preorder_totals)} ISBNs")
+    logging.debug(f"Example keys: {list(preorder_totals.keys())[:10]}")
     
     return preorder_totals
 
