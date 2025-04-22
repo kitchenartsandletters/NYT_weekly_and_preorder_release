@@ -188,34 +188,34 @@ jobs:
                 }
               }
 
-              function bookRow(book, opts = {}) {
+              function bookRow(book, index = 0, opts = {}) {
                 // opts: { includeCheckbox: bool, includeReason: bool }
                 const checkbox = opts.includeCheckbox ? '| [ ] ' : '';
                 const reason = opts.includeReason ? `| ${book.reason || ''} ` : '';
-                return `${checkbox}| ${book.isbn || ''} | ${book.title || ''} | ${book.quantity ?? book.presold_qty ?? ''} | ${book.inventory ?? ''} | ${formatDate(book.pub_date)} | ${book.tagged ?? ''} | ${book.in_collection ?? ''} ${reason}|\n`;
+                return `${checkbox}| ${index + 1} | ${book.isbn || ''} | ${book.title || ''} | ${book.quantity ?? book.presold_qty ?? ''} | ${book.inventory ?? ''} | ${formatDate(book.pub_date)} | ${book.tagged ?? ''} | ${book.in_collection ?? ''} ${reason}|\n`;
               }
 
               function booksTable(books, opts = {}) {
-                // Columns: | [Approve] | ISBN | Title | Presold QTY | Inventory | Pub Date | Tagged | In Collection | [Reason] |
+                // Columns: | [Approve] | # | ISBN | Title | Presold QTY | Inventory | Pub Date | Tagged | In Collection | [Reason] |
                 let header = '';
                 if (opts.includeCheckbox) {
                   header += '| Approve ';
                 }
-                header += '| ISBN | Title | Presold QTY | Inventory | Pub Date | Tagged | In Collection ';
+                header += '| # | ISBN | Title | Presold QTY | Inventory | Pub Date | Tagged | In Collection ';
                 if (opts.includeReason) header += '| Reason ';
                 header += '|\n';
                 // Table separator
                 if (opts.includeCheckbox) {
                   header += '|---------';
                 }
-                header += '|------|-------|------------|-----------|----------|--------|--------------';
+                header += '|----|------|-------|------------|-----------|----------|--------|--------------';
                 if (opts.includeReason) header += '|--------';
                 header += '|\n';
                 // Table rows
                 let rows = '';
-                for (const book of books) {
-                  rows += bookRow(book, opts);
-                }
+                books.forEach((book, i) => {
+                  rows += bookRow(book, i, opts);
+                });
                 return header + rows;
               }
 
