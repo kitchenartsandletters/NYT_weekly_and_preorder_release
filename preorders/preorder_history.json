@@ -170,7 +170,16 @@
       "title": "Food Chemistry in Small Bites: An Alchemist in the Kitchen",
       "inventory": 0,
       "pub_date": ""
+    },
+    {
+      "isbn": "1",
+      "title": "9781487500702",
+      "quantity": 0,
+      "inventory": 2,
+      "pub_date": "2001-02-01",
+      "report_date": "2025-04-28",
+      "added": "2025-04-28T21:33:53.004Z"
     }
   ],
-  "last_updated": "2025-04-28T16:18:37.471422"
+  "last_updated": "2025-04-28T21:33:54.325675"
 }
