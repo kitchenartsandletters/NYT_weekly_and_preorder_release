@@ -1,3 +1,25 @@
+def clean_preorder_description(description):
+    if not description:
+        return description  # Empty fallback
+
+    cleaned = description
+
+    # Remove preorder preamble
+    preamble_marker = "this is a featured preorder"
+    preamble_idx = cleaned.lower().find(preamble_marker)
+    if preamble_idx != -1:
+        # Find end of preamble paragraph and cut up to there
+        end_of_preamble = cleaned.find("</p>", preamble_idx)
+        if end_of_preamble != -1:
+            cleaned = cleaned[end_of_preamble + len("</p>"):].lstrip()
+
+    # Remove rewards footer
+    rewards_marker = "* featured preorder books earn you an extra"
+    rewards_idx = cleaned.lower().find(rewards_marker)
+    if rewards_idx != -1:
+        cleaned = cleaned[:rewards_idx].rstrip()
+
+    return cleaned
 import os
 import sys
 import requests
@@ -17,7 +39,7 @@ HEADERS = {
     "X-Shopify-Access-Token": os.getenv("SHOPIFY_ACCESS_TOKEN")
 }
 
-DRY_RUN = False  # Set to False when ready to perform live updates
+DRY_RUN = True  # Set to False when ready to perform live updates
 
 def load_early_stock_exceptions():
     exceptions_path = os.path.join(BASE_DIR, 'controls', 'early_stock_exceptions.csv')
@@ -72,6 +94,7 @@ def fetch_preorder_products():
             title
             tags
             publishedAt
+            descriptionHtml
             collections(first: 5) {
               edges {
                 node {
@@ -166,6 +189,21 @@ def should_remove_from_preorder_collection(product, early_stock_exceptions=None)
         return True
     return False
 
+def backup_preorder_tracking_csv():
+    preorders_dir = os.path.join(BASE_DIR, 'preorders')
+    source_path = os.path.join(preorders_dir, 'NYT_preorder_tracking.csv')
+    backup_path = os.path.join(preorders_dir, 'NYT_preorder_tracking.csv.bak')
+
+    if os.path.exists(source_path):
+        try:
+            import shutil
+            shutil.copy2(source_path, backup_path)
+            logging.info(f"✅ Backup created: {backup_path}")
+        except Exception as e:
+            logging.error(f"Failed to back up NYT preorder tracking file: {str(e)}")
+    else:
+        logging.warning(f"No NYT_preorder_tracking.csv found at {source_path} to back up.")
+
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logging.info(f"Running preorder manager with DRY_RUN={DRY_RUN}")
@@ -191,25 +229,71 @@ def main():
 
         logging.info(f"Evaluating '{title}' — Inventory: {inventory} — Pub Date: {pub_date_str}")
 
-        if should_remove_from_preorder_collection(product, early_stock_exceptions):
-            if 'Preorder' in collections:
-                preorder_collection_edge = next((edge for edge in product['collections']['edges'] if edge['node']['title'] == 'Preorder'), None)
-                if preorder_collection_edge:
-                    preorder_collection_id = preorder_collection_edge['node']['id']
-                    if DRY_RUN:
-                        logging.info(f"[Dry Run] Would remove '{title}' (Product ID: {id}) from Preorder collection (Collection ID: {preorder_collection_id})")
-                    else:
-                        errors = remove_product_from_collection(preorder_collection_id, id)
-                        if errors:
-                            logging.error(f"Failed to remove '{title}' from Preorder collection: {errors}")
-                        else:
-                            logging.info(f"✅ Removed '{title}' (Product ID: {id}) from Preorder collection (Collection ID: {preorder_collection_id})")
+        today = datetime.now().date()
+        try:
+            parsed_pub_date = datetime.strptime(pub_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            parsed_pub_date = None
+
+        # Clean description if pub date has passed
+        if parsed_pub_date and parsed_pub_date <= today and 'preorder' in product.get('tags', []):
+            original_description = product.get('descriptionHtml', '') or ''
+            cleaned_description = clean_preorder_description(original_description)
+
+            if DRY_RUN:
+                if original_description != cleaned_description:
+                    logging.info(f"[Dry Run] Would clean description for '{title}':\nBEFORE:\n{original_description[:500]}\nAFTER:\n{cleaned_description[:500]}")
                 else:
-                    logging.warning(f"No Preorder collection ID found for '{title}'")
+                    logging.info(f"[Dry Run] No cleaning needed for '{title}'")
             else:
-                logging.info(f"No action needed for '{title}' (already not in Preorder collection)")
+                logging.info(f"[Live] Would update description for '{title}' (live update code not yet scaffolded)")
+
+        # Determine preorder collection removal based on inventory and pub_date
+        if parsed_pub_date and parsed_pub_date <= today:
+            if inventory > 0:
+                # Standard case: release book fully
+                if 'Preorder' in collections:
+                    preorder_collection_edge = next((edge for edge in product['collections']['edges'] if edge['node']['title'] == 'Preorder'), None)
+                    if preorder_collection_edge:
+                        preorder_collection_id = preorder_collection_edge['node']['id']
+                        if DRY_RUN:
+                            logging.info(f"[Dry Run] Would remove '{title}' (Product ID: {id}) from Preorder collection (Collection ID: {preorder_collection_id})")
+                        else:
+                            errors = remove_product_from_collection(preorder_collection_id, id)
+                            if errors:
+                                logging.error(f"Failed to remove '{title}' from Preorder collection: {errors}")
+                            else:
+                                logging.info(f"✅ Removed '{title}' (Product ID: {id}) from Preorder collection (Collection ID: {preorder_collection_id})")
+                    else:
+                        logging.warning(f"No Preorder collection ID found for '{title}'")
+                else:
+                    logging.info(f"No action needed for '{title}' (already not in Preorder collection)")
+            else:
+                # Special delayed case
+                logging.info(f"[Pending Approval] '{title}' (ISBN/ID: {id}) has passed pub date but inventory <= 0 — awaiting manual review for Preorder collection removal.")
         else:
-            logging.info(f"No action needed for '{title}' (conditions not met)")
+            if should_remove_from_preorder_collection(product, early_stock_exceptions):
+                if 'Preorder' in collections:
+                    preorder_collection_edge = next((edge for edge in product['collections']['edges'] if edge['node']['title'] == 'Preorder'), None)
+                    if preorder_collection_edge:
+                        preorder_collection_id = preorder_collection_edge['node']['id']
+                        if DRY_RUN:
+                            logging.info(f"[Dry Run] Would remove '{title}' (Product ID: {id}) from Preorder collection (Collection ID: {preorder_collection_id})")
+                        else:
+                            errors = remove_product_from_collection(preorder_collection_id, id)
+                            if errors:
+                                logging.error(f"Failed to remove '{title}' from Preorder collection: {errors}")
+                            else:
+                                logging.info(f"✅ Removed '{title}' (Product ID: {id}) from Preorder collection (Collection ID: {preorder_collection_id})")
+                    else:
+                        logging.warning(f"No Preorder collection ID found for '{title}'")
+                else:
+                    logging.info(f"No action needed for '{title}' (already not in Preorder collection)")
+            else:
+                logging.info(f"No action needed for '{title}' (conditions not met)")
+
+    # Perform backup after evaluation
+    backup_preorder_tracking_csv()
 
 if __name__ == "__main__":
     main()

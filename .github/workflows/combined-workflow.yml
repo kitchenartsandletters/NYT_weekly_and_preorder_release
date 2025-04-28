@@ -122,6 +122,18 @@ jobs:
           else
             echo "has_pending_releases=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Run preorder manager
+        run: |
+          python -u preorderManager.py
+
+      - name: Run weekly delta log
+        run: |
+          python -u generate_weekly_delta_log.py
+
+      - name: Notify admin on releases
+        run: |
+          python -u notify_admin_on_release.py
       
       - name: Create fallback pending releases if needed
         id: create-fallback
