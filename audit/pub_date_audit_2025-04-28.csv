@@ -1,0 +1,8 @@
+Category,ISBN,Title,Pub Date,Status,Action Needed,Severity
+Past Pub Date,9789401487832,The Chocolatier's Shop,2024-06-05,Suspicious,Verify if already released or incorrect date,High
+Past Pub Date,9781487500702,Marvelous Vegetables in the English Renaissance,2025-04-22,Suspicious,Verify if already released or incorrect date,High
+Past Pub Date,9781984861443,The Scarr's Pizza Cookbook: New York-Style Pizza for Everybody,2025-03-25,Suspicious,Verify if already released or incorrect date,High
+Past Pub Date,9780063436152,Change the Recipe: Because You Can't Build a Better World Without Breaking Some Eggs,2025-04-22,Suspicious,Verify if already released or incorrect date,High
+Recent Release,9781487500702,Marvelous Vegetables in the English Renaissance,2025-04-22,Info,Check if preorders should be included in weekly report,Medium
+Recent Release,9780063436152,Change the Recipe: Because You Can't Build a Better World Without Breaking Some Eggs,2025-04-22,Info,Check if preorders should be included in weekly report,Medium
+Upcoming Release,9780593798935,Salsa Daddy: Dip Your Way into Mexican Cooking,2025-04-29,Info,Will be included in weekly report after this date,Low

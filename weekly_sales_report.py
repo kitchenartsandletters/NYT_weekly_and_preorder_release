@@ -549,7 +549,7 @@ def track_preorder_sales(preorder_items, tracking_file='NYT_preorder_tracking.cs
 
     return None
 
-def calculate_total_preorder_quantities(as_of_date=None, pub_date_overrides=None):
+def calculate_total_preorder_quantities(as_of_date=None, pub_date_overrides=None, skip_date_check=False):
     """Calculate total preorder quantities for each ISBN"""
     tracking_path = os.path.join(BASE_DIR, 'preorders', 'NYT_preorder_tracking.csv')
     
@@ -570,8 +570,9 @@ def calculate_total_preorder_quantities(as_of_date=None, pub_date_overrides=None
                     row['Pub Date'] = pub_date_overrides[isbn]
                     logging.info(f"Overrode pub date for ISBN {isbn}: {original_pub} → {row['Pub Date']}")
 
-                # Only try to parse date if both as_of_date and a valid Pub Date exist
-                if as_of_date and row.get('Pub Date'):
+                # Only try to parse date if both as_of_date and a valid Pub Date exist,
+                # and skip_date_check is not True
+                if not skip_date_check and as_of_date and row.get('Pub Date'):
                     try:
                         pub_date = datetime.fromisoformat(row['Pub Date']).date()
                         if pub_date > as_of_date:
@@ -579,7 +580,6 @@ def calculate_total_preorder_quantities(as_of_date=None, pub_date_overrides=None
                                 logging.info(f"Skipping 9781324073796 due to future pub date {pub_date}")
                             continue
                     except ValueError:
-                        # Log warning but continue processing the row
                         logging.warning(f"Skipping date comparison for ISBN {row.get('ISBN', 'Unknown')}: Invalid pub date format: {row['Pub Date']}")
                 
                 try:

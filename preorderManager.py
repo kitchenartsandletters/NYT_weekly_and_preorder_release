@@ -1,25 +1,3 @@
-def clean_preorder_description(description):
-    if not description:
-        return description  # Empty fallback
-
-    cleaned = description
-
-    # Remove preorder preamble
-    preamble_marker = "this is a featured preorder"
-    preamble_idx = cleaned.lower().find(preamble_marker)
-    if preamble_idx != -1:
-        # Find end of preamble paragraph and cut up to there
-        end_of_preamble = cleaned.find("</p>", preamble_idx)
-        if end_of_preamble != -1:
-            cleaned = cleaned[end_of_preamble + len("</p>"):].lstrip()
-
-    # Remove rewards footer
-    rewards_marker = "* featured preorder books earn you an extra"
-    rewards_idx = cleaned.lower().find(rewards_marker)
-    if rewards_idx != -1:
-        cleaned = cleaned[:rewards_idx].rstrip()
-
-    return cleaned
 import os
 import sys
 import requests
@@ -39,7 +17,7 @@ HEADERS = {
     "X-Shopify-Access-Token": os.getenv("SHOPIFY_ACCESS_TOKEN")
 }
 
-DRY_RUN = True  # Set to False when ready to perform live updates
+DRY_RUN = False  # Set to False when ready to perform live updates
 
 def load_early_stock_exceptions():
     exceptions_path = os.path.join(BASE_DIR, 'controls', 'early_stock_exceptions.csv')
@@ -188,6 +166,29 @@ def should_remove_from_preorder_collection(product, early_stock_exceptions=None)
     if inventory > 0 and (pub_date is None or pub_date > today):
         return True
     return False
+
+def clean_preorder_description(description):
+    if not description:
+        return description  # Empty fallback
+
+    cleaned = description
+
+    # Remove preorder preamble
+    preamble_marker = "this is a featured preorder"
+    preamble_idx = cleaned.lower().find(preamble_marker)
+    if preamble_idx != -1:
+        # Find end of preamble paragraph and cut up to there
+        end_of_preamble = cleaned.find("</p>", preamble_idx)
+        if end_of_preamble != -1:
+            cleaned = cleaned[end_of_preamble + len("</p>"):].lstrip()
+
+    # Remove rewards footer
+    rewards_marker = "* featured preorder books earn you an extra"
+    rewards_idx = cleaned.lower().find(rewards_marker)
+    if rewards_idx != -1:
+        cleaned = cleaned[:rewards_idx].rstrip()
+
+    return cleaned
 
 def backup_preorder_tracking_csv():
     preorders_dir = os.path.join(BASE_DIR, 'preorders')

@@ -114,11 +114,9 @@ def fetch_preorder_products():
         logging.info("🧪 Test mode active - using simulated preorder data")
         test_data = generate_test_preorder_data()
         product_edges = test_data.get('collectionByHandle', {}).get('products', {}).get('edges', [])
-        
         products = []
         for edge in product_edges:
             product = edge['node']
-            
             # Get barcode (ISBN)
             barcode = None
             inventory = 0
@@ -126,7 +124,6 @@ def fetch_preorder_products():
                 variant = product['variants']['edges'][0]['node']
                 barcode = variant.get('barcode')
                 inventory = variant.get('inventoryQuantity', 0)
-            
             # Get pub_date
             pub_date = None
             metafields = product.get('metafields', {}).get('edges', [])
@@ -134,7 +131,6 @@ def fetch_preorder_products():
                 if metafield['node']['key'] == 'pub_date':
                     pub_date = metafield['node']['value']
                     break
-            
             products.append({
                 'id': product['id'],
                 'title': product['title'],
@@ -143,24 +139,22 @@ def fetch_preorder_products():
                 'vendor': product.get('vendor', 'Unknown'),
                 'inventory': inventory
             })
-        
         return products
-    
+
     # Ensure API settings are initialized
     if not GRAPHQL_URL or not HEADERS:
         shop_url = os.getenv('SHOP_URL')
         access_token = os.getenv('SHOPIFY_ACCESS_TOKEN')
-        
         if not shop_url or not access_token:
             logging.error("Missing SHOP_URL or SHOPIFY_ACCESS_TOKEN environment variables")
             return []
-            
         GRAPHQL_URL = f"https://{shop_url}/admin/api/2025-01/graphql.json"
         HEADERS = {"Content-Type": "application/json", "X-Shopify-Access-Token": access_token}
-        
+
     logging.info(f"Using GraphQL URL: {GRAPHQL_URL}")
-    
-    query = """
+
+    # Fetch products from collectionByHandle (existing)
+    collection_query = """
     query {
         collectionByHandle(handle: "pre-order") {
             products(first: 250) {
@@ -191,83 +185,80 @@ def fetch_preorder_products():
         }
     }
     """
-    
+
+    # Fetch products tagged with 'preorder'
+    tag_query = """
+    query {
+        products(first: 250, query: "tag:preorder") {
+            edges {
+                node {
+                    id
+                    title
+                    vendor
+                    variants(first: 1) {
+                        edges {
+                            node {
+                                barcode
+                                inventoryQuantity
+                            }
+                        }
+                    }
+                    metafields(first: 10, namespace: "custom") {
+                        edges {
+                            node {
+                                key
+                                value
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    """
+
     try:
-        # Enhanced error checking with comprehensive logging
-        logging.info("About to run GraphQL query for preorder products")
-        
-        try:
-            data = run_query_with_retries(query, {})
-            logging.info("Query executed successfully")
-        except Exception as e:
-            logging.error(f"Error in run_query_with_retries: {e}")
-            import traceback
-            logging.error(f"Traceback: {traceback.format_exc()}")
-            logging.error("Returning empty product list due to query failure")
-            return []
+        logging.info("Fetching products from Preorder collection...")
+        collection_data = run_query_with_retries(collection_query, {})
+        collection_products = collection_data.get('collectionByHandle', {}).get('products', {}).get('edges', []) if collection_data else []
 
-        # Check if data is None (shouldn't happen if exception is raised, but checking anyway)
-        if data is None:
-            logging.error("API query returned None despite not raising exception")
-            return []
-            
-        # Check if collectionByHandle exists
-        if 'collectionByHandle' not in data:
-            logging.error(f"Missing 'collectionByHandle' in API response. Available keys: {list(data.keys())}")
-            logging.error(f"Response data preview: {str(data)[:200]}...")
-            return []
-            
-        # Check if collection exists but is null
-        if data['collectionByHandle'] is None:
-            logging.error("Collection 'preorder' not found in shop")
-            return []
+        logging.info("Fetching products tagged with 'preorder'...")
+        tag_data = run_query_with_retries(tag_query, {})
+        tag_products = tag_data.get('products', {}).get('edges', []) if tag_data else []
 
-        # Check if products exist in collection
-        if 'products' not in data['collectionByHandle']:
-            logging.error("Collection found but missing 'products' field")
-            logging.error(f"Collection data: {data['collectionByHandle']}")
-            return []
-            
-        # Check if edges exist in products
-        if 'edges' not in data['collectionByHandle']['products']:
-            logging.error("Products found but missing 'edges' field")
-            logging.error(f"Products data: {data['collectionByHandle']['products']}")
-            return []
+        # Parse products into unified structure
+        parsed_products = {}
 
-        product_edges = data['collectionByHandle']['products']['edges']
-        logging.info(f"Found {len(product_edges)} product edges in the response")
-
-        products = []
-        for edge in product_edges:
-            product = edge['node']
-            
-            # Get barcode (ISBN)
-            barcode = None
+        for edge in collection_products + tag_products:
+            node = edge['node']
+            isbn = None
             inventory = 0
-            if product.get('variants', {}).get('edges'):
-                variant = product['variants']['edges'][0]['node']
-                barcode = variant.get('barcode')
+            if node.get('variants', {}).get('edges'):
+                variant = node['variants']['edges'][0]['node']
+                isbn = variant.get('barcode')
                 inventory = variant.get('inventoryQuantity', 0)
-            
-            # Get pub_date
+
             pub_date = None
-            metafields = product.get('metafields', {}).get('edges', [])
+            metafields = node.get('metafields', {}).get('edges', [])
             for metafield in metafields:
                 if metafield['node']['key'] == 'pub_date':
                     pub_date = metafield['node']['value']
                     break
-            
-            products.append({
-                'id': product['id'],
-                'title': product['title'],
-                'barcode': barcode,
-                'pub_date': pub_date,
-                'vendor': product.get('vendor', 'Unknown'),
-                'inventory': inventory
-            })
-        
+
+            if isbn:
+                parsed_products[isbn] = {
+                    'id': node['id'],
+                    'title': node['title'],
+                    'barcode': isbn,
+                    'pub_date': pub_date,
+                    'vendor': node.get('vendor', 'Unknown'),
+                    'inventory': inventory
+                }
+
+        products = list(parsed_products.values())
+        logging.info(f"Total unique preorder products fetched (collection + tag): {len(products)}")
         return products
-        
+
     except Exception as e:
         logging.error(f"Unexpected error in fetch_preorder_products: {e}")
         import traceback
@@ -351,16 +342,35 @@ def group_preorder_titles(products, preorder_tracking, current_date):
 
     pub_date_overrides = load_pub_date_overrides()
 
+    # Build ledger_isbns at the top for consistent use
+    ledger_isbns = []
+    if isinstance(preorder_tracking, list):
+        ledger_isbns = [str(row.get('ISBN', '')).strip() for row in preorder_tracking]
+    elif isinstance(preorder_tracking, dict):
+        ledger_isbns = list(preorder_tracking.keys())
+
     # Debug: show available tracked ISBNs
-    logging.debug(f"Sample tracked ISBNs: {[row['ISBN'] for row in preorder_tracking[:10]]}")
+    logging.debug(f"Sample tracked ISBNs: {ledger_isbns[:10]}")
 
     for product in products:
         isbn = str(product.get('barcode')).strip()
         if isbn:
-            exists_in_tracking = isbn in preorder_tracking
+            # Use consistent ledger_isbns logic
+            exists_in_tracking = isbn in ledger_isbns
             logging.info(f"Product ISBN '{isbn}' — Exists in tracking: {exists_in_tracking}")
         else:
             logging.warning(f"Product missing ISBN: {product.get('title', 'Unknown Title')}")
+
+        # Enhanced matching diagnostics
+        normalized_barcode = str(product.get('barcode', '')).strip()
+        title = product.get('title', 'Unknown Title')
+
+        logging.info(f"Evaluating product: {title} — ISBN: {normalized_barcode}")
+
+        if normalized_barcode in ledger_isbns:
+            logging.info(f"✅ Matched: {normalized_barcode} found in ledger.")
+        else:
+            logging.warning(f"⚠️ No match for {normalized_barcode}. Ledger ISBNs sample: {ledger_isbns[:5]}")
         title = product.get('title', 'Unknown')
         inventory = product.get('inventory', 0)
         pub_date_str = product.get('pub_date')
@@ -370,17 +380,17 @@ def group_preorder_titles(products, preorder_tracking, current_date):
         except Exception:
             pub_date = None
 
-        presold_qty = 0
-        if isinstance(preorder_tracking, list):
-            presold_qty = sum(
-                int(row.get('Quantity', 0)) for row in preorder_tracking if str(row.get('ISBN')).strip() == isbn
-            )
-        elif isinstance(preorder_tracking, dict):
-            presold_qty = preorder_tracking.get(isbn, 0)
-        if isbn not in preorder_tracking:
-            logging.warning(f"ISBN not found in preorder_tracking: {isbn}")
-        else:
+        presold_qty = sum(
+            int(row.get('Quantity', 0))
+            for row in preorder_tracking
+            if str(row.get('ISBN', '')).strip() == isbn
+        )
+
+        # Cleaned up: use exists_in_tracking and avoid redefining ledger_isbns
+        if exists_in_tracking:
             logging.debug(f"Matched presale qty for ISBN {isbn}: {presold_qty}")
+        else:
+            logging.warning(f"ISBN not found in preorder_tracking: {isbn}")
         if presold_qty == 0:
             logging.debug(f"No presold quantity found for ISBN {isbn} — defaulting to 0")
         tagged = True  # Placeholder — update if logic to fetch tags is built
@@ -647,7 +657,7 @@ def identify_pending_releases(pub_date_overrides=None, audit_results=None, group
     logging.info(f"Fetched {len(all_preorder_products)} products from Preorder collection")
     
     # STEP 2: Get tracked preorders from the tracking file
-    preorder_totals = calculate_total_preorder_quantities(current_date)
+    preorder_totals = calculate_total_preorder_quantities(current_date, skip_date_check=True)
     logging.info(f"Found {len(preorder_totals)} ISBNs in preorder tracking file")
     logging.debug(f"Tracked ISBNs from preorder history: {list(preorder_totals.keys())[:10]}")
 

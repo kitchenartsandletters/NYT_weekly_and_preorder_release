@@ -1,0 +1,345 @@
+{
+  "pending_releases": [
+    {
+      "isbn": "9798886741438",
+      "title": "Seasons of Greens: A Collection of New Recipes from the Iconic San Francisco Restaurant",
+      "quantity": 8,
+      "pub_date": "2025-04-22",
+      "original_pub_date": "2025-04-22",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 16,
+      "vendor": "SSN",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9780063436152",
+      "title": "Change the Recipe: Because You Can't Build a Better World Without Breaking Some Eggs",
+      "quantity": 8,
+      "pub_date": "2025-04-22",
+      "original_pub_date": "2025-04-22",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 11,
+      "vendor": "HAR",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9780316580915",
+      "title": "Accidentally on Purpose",
+      "quantity": 4,
+      "pub_date": "2025-04-22",
+      "original_pub_date": "2025-04-22",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 82,
+      "vendor": "LTB",
+      "source": "tracking"
+    }
+  ],
+  "error_cases": [],
+  "total_quantity": 20,
+  "run_date": "2025-04-28",
+  "total_pending_books": 3,
+  "problematic_books": {
+    "past_pub_dates": [
+      {
+        "isbn": "9789401487832",
+        "title": "The Chocolatier's Shop",
+        "pub_date": "2024-06-05",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781487500702",
+        "title": "Marvelous Vegetables in the English Renaissance",
+        "pub_date": "2025-04-22",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781984861443",
+        "title": "The Scarr's Pizza Cookbook: New York-Style Pizza for Everybody",
+        "pub_date": "2025-03-25",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780063436152",
+        "title": "Change the Recipe: Because You Can't Build a Better World Without Breaking Some Eggs",
+        "pub_date": "2025-04-22",
+        "issue": "Past publication date"
+      }
+    ],
+    "missing_pub_dates": [],
+    "malformed_dates": []
+  },
+  "total_problematic_books": 4,
+  "test_data": false,
+  "release_this_week": [
+    {
+      "isbn": "9780593798935",
+      "title": "Salsa Daddy: Dip Your Way into Mexican Cooking",
+      "quantity": 10,
+      "presold_qty": 10,
+      "inventory": -10,
+      "pub_date": "2025-04-29",
+      "tagged": true,
+      "in_collection": true
+    }
+  ],
+  "releases_next_week": [
+    {
+      "isbn": "9780525612285",
+      "title": "Arthurs: Home of the Nosh, A Big Personality Cookbook of Delicious Jewish Favorites",
+      "quantity": 10,
+      "presold_qty": 10,
+      "inventory": -10,
+      "pub_date": "2025-05-06",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780500481158",
+      "title": "Repast: The Story of Food",
+      "quantity": 3,
+      "presold_qty": 3,
+      "inventory": -3,
+      "pub_date": "2025-05-06",
+      "tagged": true,
+      "in_collection": true
+    }
+  ],
+  "early_stock_arrivals": [
+    {
+      "isbn": "9781838669881",
+      "title": "Sunny Days, Taco Nights",
+      "quantity": 16,
+      "presold_qty": 16,
+      "inventory": 17,
+      "pub_date": "2025-06-03",
+      "tagged": true,
+      "in_collection": true,
+      "reason": "Inventory received early"
+    }
+  ],
+  "all_preorders": [
+    {
+      "isbn": "9789401487832",
+      "title": "The Chocolatier's Shop",
+      "quantity": 6,
+      "presold_qty": 6,
+      "inventory": -6,
+      "pub_date": "2024-06-05",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781984861443",
+      "title": "The Scarr's Pizza Cookbook: New York-Style Pizza for Everybody",
+      "quantity": 28,
+      "presold_qty": 28,
+      "inventory": 47,
+      "pub_date": "2025-03-25",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781487500702",
+      "title": "Marvelous Vegetables in the English Renaissance",
+      "quantity": 2,
+      "presold_qty": 2,
+      "inventory": -2,
+      "pub_date": "2025-04-22",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780063436152",
+      "title": "Change the Recipe: Because You Can't Build a Better World Without Breaking Some Eggs",
+      "quantity": 8,
+      "presold_qty": 8,
+      "inventory": 11,
+      "pub_date": "2025-04-22",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780593798935",
+      "title": "Salsa Daddy: Dip Your Way into Mexican Cooking",
+      "quantity": 10,
+      "presold_qty": 10,
+      "inventory": -10,
+      "pub_date": "2025-04-29",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780525612285",
+      "title": "Arthurs: Home of the Nosh, A Big Personality Cookbook of Delicious Jewish Favorites",
+      "quantity": 10,
+      "presold_qty": 10,
+      "inventory": -10,
+      "pub_date": "2025-05-06",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780500481158",
+      "title": "Repast: The Story of Food",
+      "quantity": 3,
+      "presold_qty": 3,
+      "inventory": -3,
+      "pub_date": "2025-05-06",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781984860972",
+      "title": "Setting a Place for Us: Recipes and Stories of Displacement, Resilience, and Community from Eight Countries Impacted by War",
+      "quantity": 3,
+      "presold_qty": 3,
+      "inventory": -3,
+      "pub_date": "2025-05-13",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781250336026",
+      "title": "The Condiment Book: Unlocking Maximum Flavor with Minimal Effort",
+      "quantity": 6,
+      "presold_qty": 6,
+      "inventory": -6,
+      "pub_date": "2025-05-20",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780306832161",
+      "title": "Dining Out: First Dates, Defiant Nights, and Last Call Disco Fries at America's Gay Restaurants",
+      "quantity": 2,
+      "presold_qty": 2,
+      "inventory": -2,
+      "pub_date": "2025-06-03",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781324073796",
+      "title": "What Is Queer Food? How We Served a Revolution",
+      "quantity": 5,
+      "presold_qty": 5,
+      "inventory": -5,
+      "pub_date": "2025-06-03",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781838669881",
+      "title": "Sunny Days, Taco Nights",
+      "quantity": 16,
+      "presold_qty": 16,
+      "inventory": 17,
+      "pub_date": "2025-06-03",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780593139776",
+      "title": "Braided Heritage: Recipes and Stories on the Origin of American Cuisine",
+      "quantity": 5,
+      "presold_qty": 5,
+      "inventory": -5,
+      "pub_date": "2025-06-10",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780593534847",
+      "title": "Morgenstern's Finest Ice Cream",
+      "quantity": 23,
+      "presold_qty": 23,
+      "inventory": -27,
+      "pub_date": "2025-06-17",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780316496551",
+      "title": "Dinner with King Tut: How Rogue Archaeologists are Recreating the Sights, Sounds, Smells, and Tastes of Lost Civilizations",
+      "quantity": 2,
+      "presold_qty": 2,
+      "inventory": -2,
+      "pub_date": "2025-07-08",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781984863188",
+      "title": "Boustany: A Celebration of Vegetables from My Palestine",
+      "quantity": 14,
+      "presold_qty": 14,
+      "inventory": -14,
+      "pub_date": "2025-07-15",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780300281125",
+      "title": "Spice: The 16th-Century Contest that Shaped the Modern World",
+      "quantity": 5,
+      "presold_qty": 5,
+      "inventory": -5,
+      "pub_date": "2025-08-12",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781840919400",
+      "title": "Portugal: Recipes and Ingredients",
+      "quantity": 5,
+      "presold_qty": 5,
+      "inventory": -4,
+      "pub_date": "2025-08-19",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780300264531",
+      "title": "Vanilla: The History of an Extraordinary Bean",
+      "quantity": 3,
+      "presold_qty": 3,
+      "inventory": -3,
+      "pub_date": "2025-08-26",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781998365425",
+      "title": "The Gastronomic History of Paris: From the Middle Ages to Our Times",
+      "quantity": 12,
+      "presold_qty": 12,
+      "inventory": -12,
+      "pub_date": "2025-09-02",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781648291920",
+      "title": "Six Seasons of Pasta: A New Way with Everyone's Favorite Food",
+      "quantity": 0,
+      "presold_qty": 0,
+      "inventory": 0,
+      "pub_date": "2025-09-23",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780451494962",
+      "title": "The Last Supper: How to Overcome the Future Food Crisis",
+      "quantity": 1,
+      "presold_qty": 1,
+      "inventory": -2,
+      "pub_date": "2025-10-07",
+      "tagged": true,
+      "in_collection": true
+    }
+  ]
+}
