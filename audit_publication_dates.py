@@ -965,6 +965,9 @@ def main():
 
     # Get preorder tracking quantities
     preorder_totals = calculate_total_preorder_quantities(today_et)
+    logging.info(f"Loaded {len(preorder_totals)} preorder ISBNs.")
+    for isbn_key in list(preorder_totals.keys())[:20]:
+        logging.info(f"Preorder Tracking Key: '{isbn_key}'")
     logging.info(f"Loaded preorder totals for grouping: {len(preorder_totals)} ISBNs")
 
     # Group preorder titles into structured categories for GitHub issue rendering
