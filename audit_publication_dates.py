@@ -356,6 +356,11 @@ def group_preorder_titles(products, preorder_tracking, current_date):
 
     for product in products:
         isbn = str(product.get('barcode')).strip()
+        if isbn:
+            exists_in_tracking = isbn in preorder_tracking
+            logging.info(f"Product ISBN '{isbn}' — Exists in tracking: {exists_in_tracking}")
+        else:
+            logging.warning(f"Product missing ISBN: {product.get('title', 'Unknown Title')}")
         title = product.get('title', 'Unknown')
         inventory = product.get('inventory', 0)
         pub_date_str = product.get('pub_date')
