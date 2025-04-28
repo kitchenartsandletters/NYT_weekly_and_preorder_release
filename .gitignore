@@ -27,3 +27,4 @@ inventory_check.py
 clean_history.py
 scripts/
 fix_csv_dates.py
+fix_csv_isbns.py
