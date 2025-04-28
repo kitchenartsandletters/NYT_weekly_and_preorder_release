@@ -352,7 +352,7 @@ def group_preorder_titles(products, preorder_tracking, current_date):
     pub_date_overrides = load_pub_date_overrides()
 
     # Debug: show available tracked ISBNs
-    logging.debug(f"Available tracked ISBNs: {list(preorder_tracking.keys())[:10]}")
+    logging.debug(f"Sample tracked ISBNs: {[row['ISBN'] for row in preorder_tracking[:10]]}")
 
     for product in products:
         isbn = str(product.get('barcode')).strip()
