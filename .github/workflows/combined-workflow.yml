@@ -101,6 +101,12 @@ jobs:
             echo "USE_TEST_DATA=false" >> .env.production
             echo "🚀 Running in PRODUCTION mode"
           fi
+
+      - name: Dump NYT preorder tracking file for debugging
+        run: |
+          echo "===== START NYT preorder tracking CSV ====="
+          cat preorders/NYT_preorder_tracking.csv
+          echo "===== END NYT preorder tracking CSV ====="
       
       - name: Run publication date audit
         id: run-audit
