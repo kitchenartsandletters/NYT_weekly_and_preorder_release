@@ -457,6 +457,7 @@ def group_preorder_titles(products, preorder_tracking, current_date):
             pub_date = datetime.strptime(pub_date_str, '%Y-%m-%d').date() if pub_date_str else None
         except Exception:
             pub_date = None
+        # First, original force-inject for overdue & no inventory
         if (
             pub_date
             and pub_date < today_et
@@ -467,6 +468,16 @@ def group_preorder_titles(products, preorder_tracking, current_date):
             this_week.append(rec.copy())
             release_this_week_isbns.add(isbn)
             logging.info(f"Force adding '{title}' (ISBN: {isbn}) to releases this week due to overdue pub date and negative inventory.")
+        # Second, also inject any title with pub_date this week (even if inventory > 0)
+        elif (
+            pub_date
+            and start_of_week <= pub_date <= end_of_week
+            and isbn
+            and isbn not in release_this_week_isbns
+        ):
+            this_week.append(rec.copy())
+            release_this_week_isbns.add(isbn)
+            logging.info(f"Force adding '{title}' (ISBN: {isbn}) to releases this week due to scheduled pub date during this week.")
 
     return {
         "release_this_week": this_week,
