@@ -370,9 +370,13 @@ def group_preorder_titles(products, preorder_tracking, current_date):
         except Exception:
             pub_date = None
 
-        presold_qty = sum(
-            int(row.get('Quantity', 0)) for row in preorder_tracking if str(row.get('ISBN')).strip() == isbn
-        )
+        presold_qty = 0
+        if isinstance(preorder_tracking, list):
+            presold_qty = sum(
+                int(row.get('Quantity', 0)) for row in preorder_tracking if str(row.get('ISBN')).strip() == isbn
+            )
+        elif isinstance(preorder_tracking, dict):
+            presold_qty = preorder_tracking.get(isbn, 0)
         if isbn not in preorder_tracking:
             logging.warning(f"ISBN not found in preorder_tracking: {isbn}")
         else:
