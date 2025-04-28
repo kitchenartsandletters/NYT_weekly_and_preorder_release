@@ -433,6 +433,41 @@ def group_preorder_titles(products, preorder_tracking, current_date):
 
     all_preorders.sort(key=lambda b: b.get("pub_date", "9999-12-31"))
 
+    # === Force inject special exceptions: overdue pub_date and inventory <= 0 ===
+    # Get today in Eastern time, strictly (not local machine time)
+    import pytz
+    eastern = pytz.timezone('US/Eastern')
+    if isinstance(current_date, datetime):
+        today_et = current_date.astimezone(eastern).date()
+    else:
+        now_et = datetime.now(eastern)
+        today_et = now_et.date()
+    # Build a set of ISBNs already in release_this_week to avoid duplicates
+    release_this_week_isbns = set()
+    for rec in this_week:
+        if rec.get('isbn'):
+            release_this_week_isbns.add(str(rec['isbn']).strip())
+    # Now check all_preorders for overdue+no stock products not already in release_this_week
+    for rec in all_preorders:
+        isbn = str(rec.get('isbn', '')).strip()
+        title = rec.get('title', 'Unknown')
+        pub_date_str = rec.get('pub_date')
+        inventory = rec.get('inventory', 0)
+        try:
+            pub_date = datetime.strptime(pub_date_str, '%Y-%m-%d').date() if pub_date_str else None
+        except Exception:
+            pub_date = None
+        if (
+            pub_date
+            and pub_date < today_et
+            and inventory <= 0
+            and isbn
+            and isbn not in release_this_week_isbns
+        ):
+            this_week.append(rec.copy())
+            release_this_week_isbns.add(isbn)
+            logging.info(f"Force adding '{title}' (ISBN: {isbn}) to releases this week due to overdue pub date and negative inventory.")
+
     return {
         "release_this_week": this_week,
         "releases_next_week": next_week,
