@@ -963,15 +963,16 @@ def main():
     now_et = datetime.now(eastern)
     today_et = now_et.date()
 
-    # Get preorder tracking quantities
-    preorder_totals = calculate_total_preorder_quantities(today_et)
-    logging.info(f"Loaded {len(preorder_totals)} preorder ISBNs.")
-    for isbn_key in list(preorder_totals.keys())[:20]:
-        logging.info(f"Preorder Tracking Key: '{isbn_key}'")
-    logging.info(f"Loaded preorder totals for grouping: {len(preorder_totals)} ISBNs")
+    # Load preorder tracking as a list of rows (ledger style)
+    preorder_rows = []
+    with open(os.path.join(BASE_DIR, 'preorders/NYT_preorder_tracking.csv'), newline='', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            preorder_rows.append(row)
+    logging.info(f"Loaded {len(preorder_rows)} preorder tracking rows.")
 
     # Group preorder titles into structured categories for GitHub issue rendering
-    grouped_output = group_preorder_titles(products, preorder_totals, today_et)
+    grouped_output = group_preorder_titles(products, preorder_rows, today_et)
     globals()['grouped_output'] = grouped_output
     
     # Check for suspicious pub dates
