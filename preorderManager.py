@@ -61,6 +61,32 @@ def remove_product_from_collection(collection_id, product_id):
     errors = response.get('data', {}).get('collectionRemoveProducts', {}).get('userErrors', [])
     return errors
 
+# --- NEW FUNCTION: update_product_description ---
+def update_product_description(product_id, new_description_html):
+    mutation = """
+    mutation productUpdate($input: ProductInput!) {
+      productUpdate(input: $input) {
+        product {
+          id
+          descriptionHtml
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+    """
+    variables = {
+        "input": {
+            "id": product_id,
+            "descriptionHtml": new_description_html
+        }
+    }
+    response = run_query(mutation, variables)
+    errors = response.get('data', {}).get('productUpdate', {}).get('userErrors', [])
+    return errors
+
 def fetch_preorder_products():
     query = """
     query($cursor: String) {
@@ -247,7 +273,14 @@ def main():
                 else:
                     logging.info(f"[Dry Run] No cleaning needed for '{title}'")
             else:
-                logging.info(f"[Live] Would update description for '{title}' (live update code not yet scaffolded)")
+                if original_description != cleaned_description:
+                    errors = update_product_description(id, cleaned_description)
+                    if errors:
+                        logging.error(f"Failed to update description for '{title}': {errors}")
+                    else:
+                        logging.info(f"✅ Updated description for '{title}' successfully.")
+                else:
+                    logging.info(f"No cleaning needed for '{title}' — description already clean.")
 
         # Determine preorder collection removal based on inventory and pub_date
         if parsed_pub_date and parsed_pub_date <= today:
