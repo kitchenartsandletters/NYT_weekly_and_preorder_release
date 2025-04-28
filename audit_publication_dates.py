@@ -283,7 +283,9 @@ def check_suspicious_pub_dates(products):
     3. Books with pub dates within the next week (about to release)
     4. Books with no pub date
     """
-    today = datetime.now().date()
+    import pytz
+    eastern = pytz.timezone('US/Eastern')
+    today = datetime.now(eastern).date()
     one_week_ago = today - timedelta(days=7)
     one_week_ahead = today + timedelta(days=7)
     
@@ -332,13 +334,21 @@ def group_preorder_titles(products, preorder_tracking, current_date):
     - Early Stock Arrivals (exceptions)
     - All preorders (sorted by pub date)
     """
+    import pytz
+    eastern = pytz.timezone('US/Eastern')
+    # Ensure current_date is in US/Eastern timezone
+    if isinstance(current_date, datetime):
+        today = current_date.astimezone(eastern).date()
+    else:
+        # Assume it's a date, not datetime
+        now_et = datetime.now(eastern)
+        today = now_et.date()
+
     this_week = []
     next_week = []
     early_arrivals = []
     all_preorders = []
 
-    one_week = timedelta(days=7)
-    two_weeks = timedelta(days=14)
     pub_date_overrides = load_pub_date_overrides()
 
     # Debug: show available tracked ISBNs
@@ -379,11 +389,18 @@ def group_preorder_titles(products, preorder_tracking, current_date):
         all_preorders.append(record.copy())
 
         if pub_date:
-            if current_date <= pub_date < current_date + one_week:
+            # Determine the true start and end of this NYT reporting week (Sunday to Saturday)
+            # today.weekday(): Monday=0, Sunday=6
+            # So for Sunday (6), start_of_week = today
+            # Otherwise, go back (weekday + 1) days to get to Sunday
+            start_of_week = today - timedelta(days=today.weekday() + 1) if today.weekday() != 6 else today
+            end_of_week = start_of_week + timedelta(days=6)
+
+            if start_of_week <= pub_date <= end_of_week:
                 this_week.append(record.copy())
-            elif current_date + one_week <= pub_date < current_date + two_weeks:
+            elif start_of_week + timedelta(days=7) <= pub_date <= end_of_week + timedelta(days=7):
                 next_week.append(record.copy())
-            elif pub_date > current_date and inventory > 0:
+            elif pub_date > today and inventory > 0:
                 reasons = []
                 if not tagged:
                     reasons.append("No preorder tag")
@@ -934,7 +951,9 @@ def main():
     logging.info("Fetching preorder products")
     products = fetch_preorder_products()
     logging.info(f"Found {len(products)} preorder products")
+
     # Use Eastern Time Zone for current date
+    import pytz
     eastern = pytz.timezone('US/Eastern')
     now_et = datetime.now(eastern)
     today_et = now_et.date()
@@ -996,8 +1015,9 @@ def main():
 
 def generate_test_preorder_data():
     """Generate test data for preorder products"""
-    # Create a realistic simulated response with different kinds of publication date issues
-    today = datetime.now().date()
+    import pytz
+    eastern = pytz.timezone('US/Eastern')
+    today = datetime.now(eastern).date()
     future_date = (today + timedelta(days=30)).strftime('%Y-%m-%d')
     recent_date = (today - timedelta(days=3)).strftime('%Y-%m-%d')
     past_date = (today - timedelta(days=60)).strftime('%Y-%m-%d')
