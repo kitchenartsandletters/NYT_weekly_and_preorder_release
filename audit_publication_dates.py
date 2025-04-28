@@ -410,12 +410,21 @@ def group_preorder_titles(products, preorder_tracking, current_date):
         all_preorders.append(record.copy())
 
         if pub_date:
-            # Determine the true start and end of this NYT reporting week (Sunday to Saturday)
+            # Determine the PRIOR full NYT reporting week (Sunday to Saturday)
             # today.weekday(): Monday=0, Sunday=6
-            # So for Sunday (6), start_of_week = today
-            # Otherwise, go back (weekday + 1) days to get to Sunday
-            start_of_week = today - timedelta(days=today.weekday() + 1) if today.weekday() != 6 else today
-            end_of_week = start_of_week + timedelta(days=6)
+            # We want the prior full week (not current): last Sunday to last Saturday
+            # If today is Sunday (6), last Sunday is 7 days ago
+            # If today is Monday (0) through Saturday (5), last Sunday is (weekday + 1 + 7) days ago
+            # Replace previous logic with correct "prior week" calculation
+            # Determine the PRIOR week's Sunday and Saturday
+            if today.weekday() == 6:
+                # Today is Sunday
+                last_sunday = today - timedelta(days=7)
+            else:
+                last_sunday = today - timedelta(days=today.weekday() + 1 + 7)
+            last_saturday = last_sunday + timedelta(days=6)
+            start_of_week = last_sunday
+            end_of_week = last_saturday
 
             if start_of_week <= pub_date <= end_of_week:
                 this_week.append(record.copy())
