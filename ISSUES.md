@@ -65,7 +65,11 @@
   - [ ] Specify who is responsible for reviewing and approving preorder books
   - [ ] Set clear deadlines for approvals (before Monday morning)
 
+- [ ] **KIT-88: Expand early stock email reporting with better inventory snapshots (future feature)**
+
 - [ ] **KIT-89: Improve pub date and collection validation redundancy checks**
+
+- [ ] **KIT-90: Rebuild audit_publication_dates.py for deeper override logic and faster preload of anomalies**
 
 - [ ] **KIT-91: Automate refunds/reversals for preorders that are canceled (CSV reconciliation + lightweight webhook listening)**
 
