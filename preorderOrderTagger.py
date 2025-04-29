@@ -4,6 +4,7 @@ import requests
 import logging
 from datetime import datetime, timedelta, timezone
 from dotenv import load_dotenv
+import certifi
 import time
 
 # Load environment variables
@@ -22,11 +23,17 @@ PARSED_ORDERS_FILE = os.path.join(BASE_DIR, 'controls', 'parsed_orders.json')
 DRY_RUN = False  # Set True to simulate, False to live tag
 
 def run_query(query, variables=None):
-    response = requests.post(
-        GRAPHQL_URL,
-        json={"query": query, "variables": variables},
-        headers=HEADERS
-    )
+    try:
+        response = requests.post(
+            GRAPHQL_URL,
+            json={"query": query, "variables": variables},
+            headers=HEADERS,
+            verify=certifi.where()  # Force using trusted Python certs
+        )
+    except requests.exceptions.RequestException as e:
+        logging.error(f"GraphQL request failed: {e}")
+        return None
+
     if response.status_code != 200:
         logging.error(f"GraphQL request failed with status {response.status_code}: {response.text}")
         return None
@@ -101,6 +108,8 @@ def fetch_recent_orders():
             "query": query_string
         }
         data = run_query(query, variables)
+        if data is None:
+            break
         edges = data['data']['orders']['edges']
         for edge in edges:
             orders.append(edge['node'])
@@ -136,6 +145,9 @@ def tag_order_with_preorder(order_id, existing_tags):
         }
     }
     response = run_query(mutation, variables)
+    if response is None:
+        return [{"field": ["unknown"], "message": "No response from server"}]
+
     errors = response.get('data', {}).get('orderUpdate', {}).get('userErrors', [])
     return errors
 
