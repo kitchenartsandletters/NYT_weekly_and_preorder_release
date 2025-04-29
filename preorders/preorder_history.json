@@ -172,13 +172,49 @@
       "pub_date": ""
     },
     {
-      "isbn": "1",
-      "title": "9781487500702",
-      "quantity": 0,
-      "inventory": 2,
-      "pub_date": "2001-02-01",
+      "isbn": "9781487500702",
+      "quantity": 2,
       "report_date": "2025-04-28",
-      "added": "2025-04-28T21:33:53.004Z"
+      "added": "2025-04-28T21:33:53.004Z",
+      "title": "Marvelous Vegetables in the English Renaissance",
+      "inventory": -2,
+      "pub_date": "2025-04-22"
+    },
+    {
+      "isbn": "9798886741438",
+      "quantity": 8,
+      "report_date": "2025-04-28",
+      "added": "2025-04-28T21:33:53.004Z",
+      "title": "Seasons of Greens: A Collection of New Recipes from the Iconic San Francisco Restaurant",
+      "inventory": 16,
+      "pub_date": "2025-04-22"
+    },
+    {
+      "isbn": "9780063436152",
+      "quantity": 8,
+      "report_date": "2025-04-28",
+      "added": "2025-04-28T21:33:53.004Z",
+      "title": "Change the Recipe: Because You Can't Build a Better World Without Breaking Some Eggs",
+      "inventory": 11,
+      "pub_date": "2025-04-22"
+    },
+    {
+      "isbn": "9780316580915",
+      "quantity": 4,
+      "report_date": "2025-04-28",
+      "added": "2025-04-28T21:33:53.004Z",
+      "title": "Accidentally on Purpose",
+      "inventory": 82,
+      "pub_date": "2025-04-22"
+    },
+    {
+      "isbn": "9789401487832",
+      "quantity": 6,
+      "report_date": "2025-04-28",
+      "added": "2025-04-28T21:33:53.004Z",
+      "title": "The Chocolatier's Shop",
+      "inventory": -6,
+      "pub_date": "2025-06-05"
     }
   ],
   "last_updated": "2025-04-28T21:33:54.325675"

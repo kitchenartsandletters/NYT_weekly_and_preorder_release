@@ -6,6 +6,7 @@ import json
 import logging
 from datetime import datetime
 from dotenv import load_dotenv
+import time
 
 # Load environment variables
 load_dotenv('.env.production')
@@ -86,6 +87,24 @@ def update_product_description(product_id, new_description_html):
     response = run_query(mutation, variables)
     errors = response.get('data', {}).get('productUpdate', {}).get('userErrors', [])
     return errors
+
+def safe_update_product_description(product_id, new_description_html):
+    """
+    Attempts to update a product description with retry on failure.
+    Retries once after 2 seconds if the first attempt fails.
+    """
+    errors = update_product_description(product_id, new_description_html)
+
+    if errors:
+        logging.warning(f"First attempt failed for '{product_id}'. Retrying in 2 seconds...")
+        time.sleep(2)
+        errors = update_product_description(product_id, new_description_html)
+        if errors:
+            logging.error(f"⚠️ Final attempt failed for '{product_id}': {errors}")
+        else:
+            logging.info(f"✅ Successfully updated '{product_id}' on retry.")
+    else:
+        logging.info(f"✅ Successfully updated '{product_id}' on first try.")
 
 def fetch_preorder_products():
     query = """
@@ -238,6 +257,9 @@ def main():
     products = fetch_preorder_products()
     logging.info(f"Fetched {len(products)} preorder products")
 
+    cleaned_books = []
+    pending_review_books = []
+
     early_stock_exceptions = load_early_stock_exceptions()
 
     for product in products:
@@ -274,11 +296,13 @@ def main():
                     logging.info(f"[Dry Run] No cleaning needed for '{title}'")
             else:
                 if original_description != cleaned_description:
-                    errors = update_product_description(id, cleaned_description)
-                    if errors:
-                        logging.error(f"Failed to update description for '{title}': {errors}")
-                    else:
-                        logging.info(f"✅ Updated description for '{title}' successfully.")
+                    safe_update_product_description(id, cleaned_description)
+                    cleaned_books.append({
+                        "title": title,
+                        "id": id,
+                        "pub_date": pub_date_str,
+                        "inventory": inventory
+                    })
                 else:
                     logging.info(f"No cleaning needed for '{title}' — description already clean.")
 
@@ -304,7 +328,16 @@ def main():
                     logging.info(f"No action needed for '{title}' (already not in Preorder collection)")
             else:
                 # Special delayed case
-                logging.info(f"[Pending Approval] '{title}' (ISBN/ID: {id}) has passed pub date but inventory <= 0 — awaiting manual review for Preorder collection removal.")
+                if 'Preorder' in collections:
+                    logging.info(f"[Pending Approval] '{title}' (ISBN/ID: {id}) has passed pub date but inventory <= 0 — awaiting manual review for Preorder collection removal.")
+                    pending_review_books.append({
+                        "title": title,
+                        "id": id,
+                        "pub_date": pub_date_str,
+                        "inventory": inventory
+                    })
+                else:
+                    logging.info(f"'{title}' has passed pub date and has inventory <= 0, but is no longer in Preorder collection — no manual review needed.")
         else:
             if should_remove_from_preorder_collection(product, early_stock_exceptions):
                 if 'Preorder' in collections:
@@ -326,8 +359,77 @@ def main():
             else:
                 logging.info(f"No action needed for '{title}' (conditions not met)")
 
+    if not DRY_RUN:
+        if cleaned_books or pending_review_books:
+            logging.info("Sending admin summary email...")
+            send_admin_summary_email(cleaned_books, pending_review_books)
+        else:
+            logging.info("No admin summary to send (no actions performed).")
+
     # Perform backup after evaluation
     backup_preorder_tracking_csv()
+
+def send_admin_summary_email(cleaned_books, pending_review_books):
+    """
+    Sends an admin summary email reporting on cleaned book descriptions and pending review books via SendGrid.
+    """
+    import sendgrid
+    from sendgrid.helpers.mail import Mail, Email, To, Content
+
+    SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
+    EMAIL_SENDER = os.getenv('EMAIL_SENDER')
+    EMAIL_RECIPIENTS = os.getenv('EMAIL_RECIPIENTS')
+
+    if not SENDGRID_API_KEY or not EMAIL_SENDER or not EMAIL_RECIPIENTS:
+        logging.error("Email environment variables not properly set. Cannot send admin summary email.")
+        return
+
+    subject = "Preorder Manager Admin Summary"
+
+    body_parts = []
+
+    if cleaned_books:
+        body_parts.append("<h2>✅ Cleaned Book Descriptions</h2><ul>")
+        for book in cleaned_books:
+            body_parts.append(f"<li>{book['title']} (ID: {book['id']}) - Pub Date: {book['pub_date']} - Inventory: {book['inventory']}</li>")
+        body_parts.append("</ul>")
+
+    if pending_review_books:
+        body_parts.append("<h2>🛑 Books Pending Manual Review</h2><ul>")
+        for book in pending_review_books:
+            body_parts.append(f"<li>{book['title']} (ID: {book['id']}) - Pub Date: {book['pub_date']} - Inventory: {book['inventory']}</li>")
+        body_parts.append("</ul>")
+
+    if not body_parts:
+        logging.info("No content to send in admin summary email.")
+        return
+
+    body_html = "<html><body>" + "".join(body_parts) + "</body></html>"
+
+    try:
+        sg = sendgrid.SendGridAPIClient(api_key=SENDGRID_API_KEY)
+        recipients = [email.strip() for email in EMAIL_RECIPIENTS.split(';') if email.strip()]
+        to_emails = [To(email) for email in recipients]
+
+        mail = Mail(
+            from_email=Email(EMAIL_SENDER),
+            to_emails=to_emails,
+            subject=subject,
+            html_content=Content("text/html", body_html)
+        )
+
+        # Important for multiple recipients
+        mail.personalizations[0].tos = to_emails
+
+        response = sg.send(mail)
+
+        if response.status_code >= 200 and response.status_code < 300:
+            logging.info("Admin summary email sent successfully via SendGrid.")
+        else:
+            logging.error(f"Failed to send admin summary email via SendGrid: {response.status_code} {response.body}")
+
+    except Exception as e:
+        logging.error(f"Exception occurred while sending admin summary email: {e}")
 
 if __name__ == "__main__":
     main()
