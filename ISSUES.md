@@ -15,19 +15,11 @@
 
 ## High Priority Issues
 
-- [ ] **KIT-84: Add Logic to Detect Early Releases**
-  **Description:** Book titles may be released ahead of their release date because:
-  1) stock is delivered unexpectedly ahead of schedule
-  2) publishers provide no restrictions on early sales
-
-  Tasks:
-  - [ ] Let our system acknowledge books with positive inventory quantities (despite being in the Preorder collection, tagged 'preorder', etc) be nominated for the current weekly preorder release
-
 - [ ] **KIT-55: Automate Post-Report Process for Released Preorders**
   **Description:** After preorders are reported, several manual steps are still required. This should be automated.
 
   Tasks:
-  - [ ] Implement automatic removal of reported books from preorder collection
+  - [x] Implement automatic removal of reported books from preorder collection
   - [ ] Create process to update shipping profiles after reporting
   - [ ] Develop daily email for shipping adjustments that cannot be automated
   - [ ] Add verification to confirm all post-reporting steps completed successfully
@@ -73,6 +65,13 @@
   - [ ] Specify who is responsible for reviewing and approving preorder books
   - [ ] Set clear deadlines for approvals (before Monday morning)
 
+- [ ] **KIT-89: Improve pub date and collection validation redundancy checks**
+
+- [ ] **KIT-91: Automate refunds/reversals for preorders that are canceled (CSV reconciliation + lightweight webhook listening)**
+
+
+
+
 ## Future Enhancements
 
 - [ ] **KIT-85: Manual Workflow**
@@ -100,3 +99,11 @@
 - [x] **Workflow Automation**
   - Automated email distribution of reports
   - Scheduled weekly runs using GitHub Actions
+
+- [x] **KIT-84: Add Logic to Detect Early Releases**
+  **Description:** Book titles may be released ahead of their release date because:
+  1) stock is delivered unexpectedly ahead of schedule
+  2) publishers provide no restrictions on early sales
+
+  Tasks:
+  - [x] Let our system acknowledge books with positive inventory quantities (despite being in the Preorder collection, tagged 'preorder', etc) be nominated for the current weekly preorder release

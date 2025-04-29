@@ -250,6 +250,21 @@ def backup_preorder_tracking_csv():
     else:
         logging.warning(f"No NYT_preorder_tracking.csv found at {source_path} to back up.")
 
+def extract_isbn(product):
+    # Try to extract ISBN from barcode first
+    barcode = product.get('barcode')
+    if barcode and barcode.isdigit() and (len(barcode) == 10 or len(barcode) == 13):
+        return barcode
+
+    # Fall back to tags, but strictly match only ISBN-10 or ISBN-13 patterns
+    tags = product.get('tags', [])
+    for tag in tags:
+        normalized = tag.replace("-", "").strip()
+        if normalized.isdigit() and (len(normalized) == 10 or len(normalized) == 13):
+            return normalized
+
+    return ""
+
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logging.info(f"Running preorder manager with DRY_RUN={DRY_RUN}")
@@ -259,6 +274,7 @@ def main():
 
     cleaned_books = []
     pending_review_books = []
+    released_from_preorder = []
 
     early_stock_exceptions = load_early_stock_exceptions()
 
@@ -301,7 +317,8 @@ def main():
                         "title": title,
                         "id": id,
                         "pub_date": pub_date_str,
-                        "inventory": inventory
+                        "inventory": inventory,
+                        "isbn": extract_isbn(product)
                     })
                 else:
                     logging.info(f"No cleaning needed for '{title}' — description already clean.")
@@ -322,6 +339,11 @@ def main():
                                 logging.error(f"Failed to remove '{title}' from Preorder collection: {errors}")
                             else:
                                 logging.info(f"✅ Removed '{title}' (Product ID: {id}) from Preorder collection (Collection ID: {preorder_collection_id})")
+                                released_from_preorder.append({
+                                    "title": title,
+                                    "isbn": extract_isbn(product),
+                                    "pub_date": pub_date_str
+                                })
                     else:
                         logging.warning(f"No Preorder collection ID found for '{title}'")
                 else:
@@ -334,7 +356,8 @@ def main():
                         "title": title,
                         "id": id,
                         "pub_date": pub_date_str,
-                        "inventory": inventory
+                        "inventory": inventory,
+                        "isbn": extract_isbn(product)
                     })
                 else:
                     logging.info(f"'{title}' has passed pub date and has inventory <= 0, but is no longer in Preorder collection — no manual review needed.")
@@ -360,18 +383,18 @@ def main():
                 logging.info(f"No action needed for '{title}' (conditions not met)")
 
     if not DRY_RUN:
-        if cleaned_books or pending_review_books:
+        if cleaned_books or pending_review_books or released_from_preorder:
             logging.info("Sending admin summary email...")
-            send_admin_summary_email(cleaned_books, pending_review_books)
+            send_admin_summary_email(cleaned_books, pending_review_books, released_from_preorder)
         else:
             logging.info("No admin summary to send (no actions performed).")
 
     # Perform backup after evaluation
     backup_preorder_tracking_csv()
 
-def send_admin_summary_email(cleaned_books, pending_review_books):
+def send_admin_summary_email(cleaned_books, pending_review_books, released_from_preorder):
     """
-    Sends an admin summary email reporting on cleaned book descriptions and pending review books via SendGrid.
+    Sends an admin summary email reporting on cleaned book descriptions, pending review books, and released-from-preorder books via SendGrid.
     """
     import sendgrid
     from sendgrid.helpers.mail import Mail, Email, To, Content
@@ -384,7 +407,7 @@ def send_admin_summary_email(cleaned_books, pending_review_books):
         logging.error("Email environment variables not properly set. Cannot send admin summary email.")
         return
 
-    subject = "Preorder Manager Admin Summary"
+    subject = "Preorder Manager Admin Summary" + (" (Releases Included)" if released_from_preorder else "")
 
     body_parts = []
 
@@ -398,6 +421,12 @@ def send_admin_summary_email(cleaned_books, pending_review_books):
         body_parts.append("<h2>🛑 Books Pending Manual Review</h2><ul>")
         for book in pending_review_books:
             body_parts.append(f"<li>{book['title']} (ID: {book['id']}) - Pub Date: {book['pub_date']} - Inventory: {book['inventory']}</li>")
+        body_parts.append("</ul>")
+
+    if released_from_preorder:
+        body_parts.append("<h2>🚚 Shipping Profile Adjustment Reminder</h2><ul>")
+        for book in released_from_preorder:
+            body_parts.append(f"<li>{book['title']} - Pub Date: {book['pub_date']}</li>")
         body_parts.append("</ul>")
 
     if not body_parts:
