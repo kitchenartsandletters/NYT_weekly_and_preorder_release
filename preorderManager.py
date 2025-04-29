@@ -62,6 +62,37 @@ def remove_product_from_collection(collection_id, product_id):
     errors = response.get('data', {}).get('collectionRemoveProducts', {}).get('userErrors', [])
     return errors
 
+# --- NEW FUNCTION: unpublish_product_from_sales_channel ---
+def unpublish_product_from_sales_channel(product_id, channel_id):
+    """
+    Unpublishes a product from a specific sales channel using the publishableUnpublish mutation.
+    Returns any userErrors encountered.
+    """
+    mutation = """
+    mutation publishableUnpublish($id: ID!, $input: [PublicationInput!]!) {
+      publishableUnpublish(id: $id, input: $input) {
+        publishable {
+          id
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+    """
+    variables = {
+        "id": product_id,
+        "input": [
+            {
+                "channelId": channel_id
+            }
+        ]
+    }
+    response = run_query(mutation, variables)
+    errors = response.get('data', {}).get('publishableUnpublish', {}).get('userErrors', [])
+    return errors
+
 # --- NEW FUNCTION: update_product_description ---
 def update_product_description(product_id, new_description_html):
     mutation = """
@@ -344,6 +375,16 @@ def main():
                                     "isbn": extract_isbn(product),
                                     "pub_date": pub_date_str
                                 })
+                                # --- New: Unpublish from Weekly Sales Report Automation ---
+                                channel_id = "gid://shopify/Publication/103510278277"
+                                if DRY_RUN:
+                                    logging.info(f"[Dry Run] Would unpublish '{title}' from Weekly Sales Report Automation (Channel ID: {channel_id})")
+                                else:
+                                    unpublish_errors = unpublish_product_from_sales_channel(id, channel_id)
+                                    if unpublish_errors:
+                                        logging.error(f"Failed to unpublish '{title}' from Weekly Sales Report Automation: {unpublish_errors}")
+                                    else:
+                                        logging.info(f"✅ Successfully unpublished '{title}' from Weekly Sales Report Automation")
                     else:
                         logging.warning(f"No Preorder collection ID found for '{title}'")
                 else:
@@ -375,6 +416,16 @@ def main():
                                 logging.error(f"Failed to remove '{title}' from Preorder collection: {errors}")
                             else:
                                 logging.info(f"✅ Removed '{title}' (Product ID: {id}) from Preorder collection (Collection ID: {preorder_collection_id})")
+                                # --- New: Unpublish from Weekly Sales Report Automation ---
+                                channel_id = "gid://shopify/Publication/103510278277"
+                                if DRY_RUN:
+                                    logging.info(f"[Dry Run] Would unpublish '{title}' from Weekly Sales Report Automation (Channel ID: {channel_id})")
+                                else:
+                                    unpublish_errors = unpublish_product_from_sales_channel(id, channel_id)
+                                    if unpublish_errors:
+                                        logging.error(f"Failed to unpublish '{title}' from Weekly Sales Report Automation: {unpublish_errors}")
+                                    else:
+                                        logging.info(f"✅ Successfully unpublished '{title}' from Weekly Sales Report Automation")
                     else:
                         logging.warning(f"No Preorder collection ID found for '{title}'")
                 else:
