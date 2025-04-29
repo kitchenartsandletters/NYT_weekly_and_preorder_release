@@ -144,8 +144,7 @@ def main():
     logging.info(f"Running preorderOrderTagger with DRY_RUN={DRY_RUN}")
 
     preorder_product_ids = load_preorder_product_ids()
-    # TEMP: override parsed_orders to empty set to reprocess all orders regardless of prior history
-    parsed_orders = set()  # reset parsed order history temporarily
+    parsed_orders = load_parsed_orders()
 
     logging.info(f"Loaded {len(preorder_product_ids)} active preorder product IDs")
     logging.info(f"Loaded {len(parsed_orders)} previously parsed orders")
