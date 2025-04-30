@@ -12,7 +12,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PREORDER_PRODUCT_IDS_FILE = os.path.join(BASE_DIR, 'controls', 'preorder_product_ids.json')
 PREORDER_COLLECTION_HANDLE = "pre-order"
 
-STOREFRONT_URL = f"https://{os.getenv('STOREFRONT_ACCESS_TOKEN')}/api/2025-01/graphql.json"
+STOREFRONT_URL = f"https://{os.getenv('SHOP_URL')}/api/2025-01/graphql.json"
 STOREFRONT_HEADERS = {
     "Content-Type": "application/json",
     "X-Shopify-Storefront-Access-Token": os.getenv("STOREFRONT_ACCESS_TOKEN")
