@@ -23,14 +23,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Debug print environment variables
-        run: |
-          echo "SHOP_URL starts with: ${SHOP_URL:0:8}"
-          echo "STOREFRONT_ACCESS_TOKEN length: ${#STOREFRONT_ACCESS_TOKEN}"
-        env:
-          SHOP_URL: ${{ secrets.SHOP_URL }}
-          STOREFRONT_ACCESS_TOKEN: ${{ secrets.STOREFRONT_ACCESS_TOKEN }}
-
       - name: Run refreshPreorderProductIDs.py
         env:
           SHOP_URL: ${{ secrets.SHOP_URL }}
