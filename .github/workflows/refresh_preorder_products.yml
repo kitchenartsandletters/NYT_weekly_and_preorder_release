@@ -29,4 +29,4 @@ jobs:
           SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
           STOREFRONT_ACCESS_TOKEN: $ {{ secrets.STOREFRONT_ACCESS_TOKEN }}
         run: |
-          python refreshPreorderProductIDs.py
+          python refreshPreorderProductIDsTEST.py
