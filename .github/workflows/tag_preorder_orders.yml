@@ -28,11 +28,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install python-dotenv requests certifi
 
-      - name: Export REQUESTS_CA_BUNDLE (backup for certifi)
-        run: echo "REQUESTS_CA_BUNDLE=$(python -m certifi)" >> $GITHUB_ENV
-
-      - name: Set SSL_CERT_FILE environment variable
-        run: echo "SSL_CERT_FILE=$(python -m certifi)" >> $GITHUB_ENV
+      - name: Export REQUESTS_CA_BUNDLE and SSL_CERT_FILE environment variables
+        run: |
+          echo "REQUESTS_CA_BUNDLE=$(python -m certifi)" >> $GITHUB_ENV
+          echo "SSL_CERT_FILE=$(python -m certifi)" >> $GITHUB_ENV
 
       - name: Debug certifi path
         run: |
@@ -60,5 +59,6 @@ jobs:
           SHOP_URL: ${{ secrets.SHOP_URL }}
           SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
           SSL_CERT_FILE: ${{ env.SSL_CERT_FILE }}
+          REQUESTS_CA_BUNDLE: ${{ env.REQUESTS_CA_BUNDLE }}
         run: |
           python preorderOrderTagger.py
