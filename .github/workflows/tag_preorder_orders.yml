@@ -38,6 +38,13 @@ jobs:
         run: |
           python -c "import certifi; print('certifi.where():', certifi.where())"
 
+      - name: Debug OpenSSL and certifi path
+        run: |
+          python -c "import ssl; print('OpenSSL:', ssl.OPENSSL_VERSION)"
+          python -c "import certifi; print('certifi.where():', certifi.where())"
+          echo "REQUESTS_CA_BUNDLE=$REQUESTS_CA_BUNDLE"
+          echo "SSL_CERT_FILE=$SSL_CERT_FILE"
+
       - name: Run preorderOrderTagger.py
         env:
           SHOP_URL: ${{ secrets.SHOP_URL }}
