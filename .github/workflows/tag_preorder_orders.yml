@@ -45,6 +45,16 @@ jobs:
           echo "REQUESTS_CA_BUNDLE=$REQUESTS_CA_BUNDLE"
           echo "SSL_CERT_FILE=$SSL_CERT_FILE"
 
+      - name: Debug with curl to test Shopify Admin API SSL connectivity
+        env:
+          SHOP_URL: ${{ secrets.SHOP_URL }}
+          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+        run: |
+          echo "Attempting curl request to Shopify Admin API..."
+          curl -v -H "Content-Type: application/json" \
+               -H "X-Shopify-Access-Token: $SHOPIFY_ACCESS_TOKEN" \
+               "https://${SHOP_URL}/admin/api/2025-01/shop.json"
+
       - name: Run preorderOrderTagger.py
         env:
           SHOP_URL: ${{ secrets.SHOP_URL }}
