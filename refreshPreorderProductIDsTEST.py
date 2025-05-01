@@ -11,7 +11,7 @@ load_dotenv('.env.production')
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PREORDER_COLLECTION_HANDLE = "pre-order"
 
-STOREFRONT_URL = f"https://{os.getenv('SHOP_URL')}/api/2025-01/graphql.json"
+STOREFRONT_URL = f"https://{os.getenv('SHOP_URL')}.myshopify.com/api/2023-10/graphql.json"
 STOREFRONT_HEADERS = {
     "Content-Type": "application/json",
     "X-Shopify-Storefront-Access-Token": os.getenv("STOREFRONT_ACCESS_TOKEN")
