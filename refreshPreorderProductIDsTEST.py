@@ -31,6 +31,9 @@ def run_storefront_query(query, variables=None):
     return response.json()
 
 def main():
+    print("SHOP_URL (raw) =", os.getenv("SHOP_URL"))
+    print("STOREFRONT_URL =", f"https://{os.getenv('SHOP_URL')}/api/2023-10/graphql.json")
+    
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logging.info("Running debug storefront query...")
 
