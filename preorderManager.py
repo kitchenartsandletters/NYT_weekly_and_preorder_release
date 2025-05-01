@@ -34,14 +34,55 @@ def load_early_stock_exceptions():
     return exceptions
 
 def run_query(query, variables=None):
-    response = requests.post(
-        GRAPHQL_URL,
-        json={"query": query, "variables": variables},
-        headers=HEADERS
-    )
+    import certifi
+
+    # Try to use system certificates first
+    system_ca_paths = [
+        '/etc/ssl/certs/ca-certificates.crt',  # Ubuntu/Debian
+        '/etc/pki/tls/certs/ca-bundle.crt',    # CentOS/RHEL
+        '/etc/ssl/cert.pem',                   # macOS/FreeBSD
+        '/etc/ssl/certs'                       # Generic directory fallback
+    ]
+
+    ca_path = None
+    for path in system_ca_paths:
+        if os.path.exists(path):
+            ca_path = path
+            logging.info(f"Using system CA certificates: {ca_path}")
+            break
+
+    if not ca_path:
+        ca_path = certifi.where()
+        logging.info(f"System CA certificates not found, using certifi: {ca_path}")
+
+    os.environ['REQUESTS_CA_BUNDLE'] = ca_path  # Optional: for transparency
+
+    try:
+        response = requests.post(
+            GRAPHQL_URL,
+            json={"query": query, "variables": variables},
+            headers=HEADERS,
+            verify=ca_path
+        )
+    except requests.exceptions.RequestException as e:
+        logging.error(f"GraphQL request failed: {e}")
+        return None
+
     if response.status_code != 200:
-        raise Exception(f"GraphQL error: {response.text}")
-    return response.json()
+        logging.error(f"GraphQL request failed with status {response.status_code}: {response.text}")
+        return None
+
+    try:
+        response_json = response.json()
+    except ValueError:
+        logging.error(f"GraphQL response could not be decoded as JSON: {response.text}")
+        return None
+
+    if 'errors' in response_json:
+        logging.error(f"GraphQL errors: {json.dumps(response_json['errors'], indent=2)}")
+        return None
+
+    return response_json
 
 def remove_product_from_collection(collection_id, product_id):
     mutation = """
