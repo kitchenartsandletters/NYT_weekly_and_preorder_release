@@ -31,10 +31,14 @@ jobs:
       - name: Set SSL_CERT_FILE environment variable
         run: echo "SSL_CERT_FILE=$(python -m certifi)" >> $GITHUB_ENV
 
+      - name: Debug certifi path
+        run: |
+          python -c "import certifi; print('certifi.where():', certifi.where())"
+
       - name: Run preorderOrderTagger.py
         env:
           SHOP_URL: ${{ secrets.SHOP_URL }}
           SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
-          REQUESTS_CA_BUNDLE: $ {{ env.SSL_CERT_FILE }}
+          SSL_CERT_FILE: ${{ env.SSL_CERT_FILE }}
         run: |
           python preorderOrderTagger.py
