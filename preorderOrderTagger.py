@@ -28,7 +28,7 @@ def run_query(query, variables=None):
             GRAPHQL_URL,
             json={"query": query, "variables": variables},
             headers=HEADERS,
-            verify=certifi.where()  # Ensure SSL verification
+            verify=os.environ.get("SSL_CERT_FILE", certifi.where())  # Ensure SSL verification with env override
         )
     except requests.exceptions.RequestException as e:
         logging.error(f"GraphQL request failed: {e}")
