@@ -52,5 +52,8 @@ def main():
     variables = {"handle": PREORDER_COLLECTION_HANDLE}
     run_storefront_query(query, variables)
 
+print("SHOP_URL =", os.getenv("SHOP_URL"))
+print("STOREFRONT_URL =", f"https://{os.getenv('SHOP_URL')}/api/2023-10/graphql.json")
+
 if __name__ == "__main__":
     main()
