@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 import certifi
 import time
 
+print(f"Using SSL cert from: {os.environ.get('SSL_CERT_FILE')}")
+
 # Load environment variables
 load_dotenv('.env.production')
 

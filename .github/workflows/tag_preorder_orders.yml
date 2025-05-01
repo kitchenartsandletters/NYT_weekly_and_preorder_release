@@ -28,6 +28,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install python-dotenv requests certifi
 
+      - name: Export REQUESTS_CA_BUNDLE (backup for certifi)
+        run: echo "REQUESTS_CA_BUNDLE=$(python -m certifi)" >> $GITHUB_ENV
+
       - name: Set SSL_CERT_FILE environment variable
         run: echo "SSL_CERT_FILE=$(python -m certifi)" >> $GITHUB_ENV
 
