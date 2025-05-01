@@ -19,14 +19,44 @@ STOREFRONT_HEADERS = {
 }
 
 def run_storefront_query(query, variables=None):
-    response = requests.post(
-        STOREFRONT_URL,
-        json={"query": query, "variables": variables},
-        headers=STOREFRONT_HEADERS,
-        verify=certifi.where()
-    )
-    response.raise_for_status()
-    return response.json()
+    # Try to use system certificates first
+    system_ca_paths = [
+        '/etc/ssl/certs/ca-certificates.crt',
+        '/etc/pki/tls/certs/ca-bundle.crt',
+        '/etc/ssl/cert.pem',
+        '/etc/ssl/certs'
+    ]
+
+    ca_path = None
+    for path in system_ca_paths:
+        if os.path.exists(path):
+            ca_path = path
+            print(f"Using system CA certificates: {ca_path}")
+            break
+
+    if not ca_path:
+        ca_path = certifi.where()
+        print(f"System CA certificates not found, using certifi: {ca_path}")
+
+    os.environ['REQUESTS_CA_BUNDLE'] = ca_path
+
+    try:
+        response = requests.post(
+            STOREFRONT_URL,
+            json={"query": query, "variables": variables},
+            headers=STOREFRONT_HEADERS,
+            verify=ca_path
+        )
+        response.raise_for_status()
+    except requests.exceptions.RequestException as e:
+        logging.error(f"GraphQL request failed: {e}")
+        return None
+
+    try:
+        return response.json()
+    except ValueError:
+        logging.error("Invalid JSON response")
+        return None
 
 def get_preorder_product_ids_by_collection_handle(handle):
     query = """
