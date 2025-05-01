@@ -25,16 +25,35 @@ PARSED_ORDERS_FILE = os.path.join(BASE_DIR, 'controls', 'parsed_orders.json')
 DRY_RUN = False  # Set True to simulate, False to live tag
 
 def run_query(query, variables=None):
-    cert_path = certifi.where()
-    os.environ['REQUESTS_CA_BUNDLE'] = cert_path
-    print(f"Using certificate: {cert_path}")
+    # Try to use system certificates first
+    system_ca_paths = [
+        '/etc/ssl/certs/ca-certificates.crt',  # Ubuntu/Debian
+        '/etc/pki/tls/certs/ca-bundle.crt',    # CentOS/RHEL
+        '/etc/ssl/cert.pem',                   # macOS/FreeBSD
+        '/etc/ssl/certs'                       # Directory with certs
+    ]
+    
+    ca_path = None
+    for path in system_ca_paths:
+        if os.path.exists(path):
+            ca_path = path
+            print(f"Using system CA certificates: {ca_path}")
+            break
+    
+    # Fall back to certifi if system certs not found
+    if not ca_path:
+        ca_path = certifi.where()
+        print(f"System CA certificates not found, using certifi: {ca_path}")
+    
+    # Set environment variable but don't rely on it for the request
+    os.environ['REQUESTS_CA_BUNDLE'] = ca_path
     
     try:
         response = requests.post(
             GRAPHQL_URL,
             json={"query": query, "variables": variables},
             headers=HEADERS,
-            verify=cert_path  # Use the exact same path
+            verify=ca_path  # Explicitly use the certificate path
         )
     except requests.exceptions.RequestException as e:
         logging.error(f"GraphQL request failed: {e}")
