@@ -25,15 +25,16 @@ PARSED_ORDERS_FILE = os.path.join(BASE_DIR, 'controls', 'parsed_orders.json')
 DRY_RUN = False  # Set True to simulate, False to live tag
 
 def run_query(query, variables=None):
-    # Force the requests library to use the certifi CA bundle explicitly
-    os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
-    print(f"Using REQUESTS_CA_BUNDLE: {os.environ.get('REQUESTS_CA_BUNDLE')}")
+    cert_path = certifi.where()
+    os.environ['REQUESTS_CA_BUNDLE'] = cert_path
+    print(f"Using certificate: {cert_path}")
+    
     try:
         response = requests.post(
             GRAPHQL_URL,
             json={"query": query, "variables": variables},
             headers=HEADERS,
-            verify=os.getenv("REQUESTS_CA_BUNDLE", certifi.where())
+            verify=cert_path  # Use the exact same path
         )
     except requests.exceptions.RequestException as e:
         logging.error(f"GraphQL request failed: {e}")
