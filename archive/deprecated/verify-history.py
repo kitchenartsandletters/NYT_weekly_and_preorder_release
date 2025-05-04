@@ -1,3 +1,4 @@
+# DEPRECATED: This script is deprecated and will be removed in a future release.
 #!/usr/bin/env python
 """
 Verify Preorder History

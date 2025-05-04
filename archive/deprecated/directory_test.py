@@ -1,3 +1,4 @@
+# DEPRECATED
 #!/usr/bin/env python
 """
 Test script to verify directory structure and file paths for preorder history

@@ -1,3 +1,4 @@
+# DEPRECATED
 #!/usr/bin/env python
 """
 Quick script to verify preorder history file and fix if needed
