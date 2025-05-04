@@ -80,3 +80,17 @@ def process_refund_event(payload):
             processed_count += 1
 
     return processed_count
+
+
+# Audit log for refunds (same schema as append_refund_to_tracking)
+def log_refund(refund_record, log_path='../preorders/preorder_refund_log.csv'):
+    """
+    Append a refund record to the refund audit log CSV.
+    """
+    file_exists = os.path.exists(log_path)
+    fieldnames = ['ISBN', 'Title', 'Pub Date', 'Quantity', 'Status', 'Order ID', 'Line Item ID']
+    with open(log_path, 'a', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        if not file_exists:
+            writer.writeheader()
+        writer.writerow(refund_record)
