@@ -47,25 +47,23 @@ jobs:
       - name: Determine job type based on day or manual input
         id: set-job
         run: |
-          # Get current day of week (0 is Sunday, 1 is Monday, etc.)
+          # Get current day of week (1=Monday ... 7=Sunday)
           DAY_OF_WEEK=$(date +%u)
           echo "day_of_week=$DAY_OF_WEEK" >> $GITHUB_OUTPUT
-          
-          # For scheduled runs, determine based on day of week
-          if [[ "${{ github.event_name }}" == "schedule" ]]; then
-            if [[ "$DAY_OF_WEEK" == "5" ]]; then
-              echo "job_type=identify-preorders" >> $GITHUB_OUTPUT
-            elif [[ "$DAY_OF_WEEK" == "1" ]]; then
-              echo "job_type=generate-report" >> $GITHUB_OUTPUT
-            else
-              echo "job_type=none" >> $GITHUB_OUTPUT
-            fi
-          # For manual runs, use input parameter
-          else
-            echo "job_type=${{ github.event.inputs.workflow_type }}" >> $GITHUB_OUTPUT
-          fi
-          
-          echo "Determined job type: ${{ steps.set-job.outputs.job_type }}"
+
+      job_type="none"
+      if [[ "${{ github.event_name }}" == "schedule" ]]; then
+        if [[ "$DAY_OF_WEEK" == "5" ]]; then
+    job_type="identify-preorders"
+        elif [[ "$DAY_OF_WEEK" == "1" ]]; then
+    job_type="generate-report"
+        fi
+      else
+        job_type="${{ github.event.inputs.workflow_type }}"
+      fi
+
+      echo "job_type=$job_type" >> $GITHUB_OUTPUT
+      echo "Determined job type: $job_type"
 
   identify-preorders:
     needs: determine-job
