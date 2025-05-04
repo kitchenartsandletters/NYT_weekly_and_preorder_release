@@ -1,3 +1,4 @@
+# DEPRECATED
 #!/usr/bin/env python3
 """
 Shopify GraphQL Sales Report Script

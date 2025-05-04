@@ -1,3 +1,5 @@
+# DEPRECATED: This script is deprecated. Use the new script instead.
+
 import csv
 
 input_file = 'preorders/NYT_preorder_tracking.csv'
