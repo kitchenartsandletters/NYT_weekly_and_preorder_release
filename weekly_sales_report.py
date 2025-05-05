@@ -77,7 +77,7 @@ def load_pub_date_overrides(override_file='pub_date_overrides.csv'):
     """
     overrides = {}
     
-    override_path = os.path.join(BASE_DIR, 'overrides', override_file)
+    override_path = os.path.join(BASE_DIR, 'controls', override_file)
     if not os.path.exists(override_path):
         logging.info(f"No override file found at {override_path}")
         return overrides

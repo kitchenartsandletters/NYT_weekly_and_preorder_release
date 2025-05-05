@@ -180,6 +180,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
+            const path = require('path');
             let releasesFile = '${{ steps.run-audit.outputs.releases_file || steps.create-fallback.outputs.releases_file }}';
             try {
               // Read the releases file
@@ -188,6 +189,19 @@ jobs:
               const timestamp = new Date().toISOString().split('T')[0];
               const isTestData = pendingData.test_data === true;
               const testPrefix = isTestData ? '[TEST] ' : '';
+
+              // Load preorder_history.json for deduplication of early arrivals
+              let preorderHistory = { reported_preorders: [] };
+              const preorderHistoryPath = path.resolve('./preorders/preorder_history.json');
+              if (fs.existsSync(preorderHistoryPath)) {
+                try {
+                  preorderHistory = JSON.parse(fs.readFileSync(preorderHistoryPath, 'utf8'));
+                  if (!Array.isArray(preorderHistory.reported_preorders)) preorderHistory.reported_preorders = [];
+                } catch (e) {
+                  preorderHistory = { reported_preorders: [] };
+                }
+              }
+              const reportedIsbns = new Set(preorderHistory.reported_preorders.map(r => r.isbn));
 
               // Helper function to format dates as "Month DD, YYYY"
               function formatDate(dateStr) {
@@ -207,7 +221,11 @@ jobs:
               function bookRow(book, index = 0, opts = {}) {
                 // opts: { includeCheckbox: bool, includeReason: bool }
                 const checkbox = opts.includeCheckbox ? '| [ ] ' : '';
-                const reason = opts.includeReason ? `| ${book.reason || ''} ` : '';
+                // Conditional formatting: include Reason column only if book.reason is present or includeReason is true
+                let reason = '';
+                if (opts.includeReason) {
+                  reason = `| ${book.reason ? book.reason : ''} `;
+                }
                 return `${checkbox}| ${index + 1} | ${book.isbn || ''} | ${book.title || ''} | ${book.quantity ?? book.presold_qty ?? ''} | ${book.inventory ?? ''} | ${formatDate(book.pub_date)} | ${book.tagged ?? ''} | ${book.in_collection ?? ''} ${reason}|\n`;
               }
 
@@ -218,6 +236,7 @@ jobs:
                   header += '| Approve ';
                 }
                 header += '| # | ISBN | Title | Presold QTY | Inventory | Pub Date | Tagged | In Collection ';
+                // Only show Reason column if at least one book has a reason or opts.includeReason is true
                 if (opts.includeReason) header += '| Reason ';
                 header += '|\n';
                 // Table separator
@@ -246,11 +265,79 @@ jobs:
               // Section 5: 📊 All Preorders (League Table)
               let allPreorders = Array.isArray(pendingData.all_preorders) ? pendingData.all_preorders : [];
 
-              // Sort allPreorders by pub date ascending
+              // --- FILTERS AND REASON LOGIC ---
+              // Remove items already reported from earlyStockArrivals
+              earlyStockArrivals = earlyStockArrivals.filter(book => !reportedIsbns.has(book.isbn));
+
+              // Reason logic for early stock arrivals
+              // Try to infer the reason from override history, audit, or fallback field
+              function getEarlyReason(book) {
+                // If book.reason is already set, use it
+                if (book.reason) return book.reason;
+                // Check for override or audit fields
+                // (Assume audit/override info is in book.override_history or book.audit_info if present)
+                if (book.override_history && Array.isArray(book.override_history) && book.override_history.length > 0) {
+                  // Use the latest override entry
+                  const latest = book.override_history[book.override_history.length - 1];
+                  if (latest && latest.action && latest.action.includes('removed from preorder collection')) {
+                    return 'In stock early; removed from preorder collection';
+                  }
+                  if (latest && latest.action && latest.action.includes('pub date overridden')) {
+                    return `Pub date overridden to ${formatDate(latest.new_pub_date)}`;
+                  }
+                }
+                if (book.audit_info && book.audit_info.reason) {
+                  return book.audit_info.reason;
+                }
+                // Fallback: if the book was previously in the preorder collection but now not, or has inventory and future pub_date
+                if (book.in_collection === false && book.inventory > 0 && new Date(book.pub_date) > new Date()) {
+                  return 'In stock early; removed from preorder collection';
+                }
+                if (book.pub_date_override && book.pub_date_override !== book.pub_date) {
+                  return `Pub date overridden to ${formatDate(book.pub_date_override)}`;
+                }
+                // Fallback to blank
+                return '';
+              }
+              // Attach reason to each earlyStockArrival
+              earlyStockArrivals = earlyStockArrivals.map(book => ({
+                ...book,
+                reason: getEarlyReason(book)
+              }));
+
+              // Remove items already reported from anomalies as well
+              anomalies = anomalies.filter(book => !reportedIsbns.has(book.isbn));
+
+              // --- END FILTERS AND REASON LOGIC ---
+
+              // Sort allPreorders by pub date ascending (respecting overrides)
               allPreorders = allPreorders.slice().sort((a, b) => {
-                if (!a.pub_date) return 1;
-                if (!b.pub_date) return -1;
-                return (a.pub_date > b.pub_date) ? 1 : (a.pub_date < b.pub_date ? -1 : 0);
+                const dateA = a.pub_date_override || a.pub_date;
+                const dateB = b.pub_date_override || b.pub_date;
+                if (!dateA) return 1;
+                if (!dateB) return -1;
+                return (dateA > dateB) ? 1 : (dateA < dateB ? -1 : 0);
+              });
+
+              // Section 1: This week's releases (with checkbox, respect pub_date_override)
+              releaseThisWeek = releaseThisWeek.filter(book => {
+                const pubDate = book.pub_date_override || book.pub_date;
+                // Already filtered upstream, but double-check: Only include if not already reported
+                return !reportedIsbns.has(book.isbn) && pubDate;
+              });
+              // Section 2: Next week's releases (respect pub_date_override)
+              releasesNextWeek = releasesNextWeek.filter(book => {
+                const pubDate = book.pub_date_override || book.pub_date;
+                return !reportedIsbns.has(book.isbn) && pubDate;
+              });
+              // Section 4: anomalies (respect pub_date_override)
+              anomalies = anomalies.map(book => {
+                // Attach reason if present
+                let reason = book.reason || '';
+                if (!reason && book.audit_info && book.audit_info.reason) {
+                  reason = book.audit_info.reason;
+                }
+                return { ...book, reason };
               });
 
               // Issue title
@@ -287,19 +374,21 @@ jobs:
                 issueBody += '_No books releasing next week._\n';
               }
 
-              // Section 3: Early stock arrivals (reason column)
+              // Section 3: Early stock arrivals (reason column, includeReason: true if reason present)
               issueBody += `\n### 🚨 Early Stock Arrivals\n\n`;
               if (earlyStockArrivals.length > 0) {
-                issueBody += booksTable(earlyStockArrivals, { includeCheckbox: false, includeReason: true });
+                // Only includeReason if at least one row has a reason
+                const includeReason = earlyStockArrivals.some(b => b.reason && b.reason.trim().length > 0);
+                issueBody += booksTable(earlyStockArrivals, { includeCheckbox: false, includeReason });
               } else {
                 issueBody += '_No early stock arrivals detected._\n';
               }
 
-              // Section 4: Issues Requiring Attention (reuse existing formatting)
+              // Section 4: Issues Requiring Attention (reuse existing formatting, includeReason: true if reason present)
               issueBody += `\n### ⚠️ Issues Requiring Attention\n\n`;
               if (anomalies.length > 0) {
-                // Print as a table with Reason column
-                issueBody += booksTable(anomalies, { includeCheckbox: false, includeReason: true });
+                const includeReason = anomalies.some(b => b.reason && b.reason.trim().length > 0);
+                issueBody += booksTable(anomalies, { includeCheckbox: false, includeReason });
               } else {
                 issueBody += '_No anomalies detected._\n';
               }

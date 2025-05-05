@@ -1,3 +1,4 @@
+# DEPRECATED
 #!/usr/bin/env python
 """
 GitHub Issue Parser

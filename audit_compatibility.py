@@ -1,4 +1,3 @@
-# DEPRECATED
 """
 Compatibility module to ensure proper importing between audit and weekly report
 This file exports symbols from weekly_sales_report.py that audit_publication_dates.py needs
