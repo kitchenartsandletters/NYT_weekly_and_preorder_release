@@ -51,19 +51,19 @@ jobs:
           DAY_OF_WEEK=$(date +%u)
           echo "day_of_week=$DAY_OF_WEEK" >> $GITHUB_OUTPUT
 
-      job_type="none"
-      if [[ "${{ github.event_name }}" == "schedule" ]]; then
-        if [[ "$DAY_OF_WEEK" == "5" ]]; then
-    job_type="identify-preorders"
-        elif [[ "$DAY_OF_WEEK" == "1" ]]; then
-    job_type="generate-report"
-        fi
-      else
-        job_type="${{ github.event.inputs.workflow_type }}"
-      fi
-
-      echo "job_type=$job_type" >> $GITHUB_OUTPUT
-      echo "Determined job type: $job_type"
+          job_type="none"
+          if [[ "${{ github.event_name }}" == "schedule" ]]; then
+            if [[ "$DAY_OF_WEEK" == "5" ]]; then
+          job_type="identify-preorders"
+            elif [[ "$DAY_OF_WEEK" == "1" ]]; then
+          job_type="generate-report"
+            fi
+          else
+            job_type="${{ github.event.inputs.workflow_type }}"
+          fi
+      
+          echo "job_type=$job_type" >> $GITHUB_OUTPUT
+          echo "Determined job type: $job_type"
 
   identify-preorders:
     needs: determine-job
