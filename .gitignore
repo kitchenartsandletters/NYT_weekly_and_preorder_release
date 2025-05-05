@@ -26,6 +26,4 @@ preorders/NYT_preorder_tracking.csv
 inventory_check.py
 clean_history.py
 scripts/
-fix_csv_dates.py
-fix_csv_isbns.py
-fix_manual_order_ids.py
+tests/
