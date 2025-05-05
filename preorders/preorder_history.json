@@ -215,7 +215,16 @@
       "title": "The Chocolatier's Shop",
       "inventory": -6,
       "pub_date": "2025-06-05"
+    },
+    {
+      "isbn": "1",
+      "title": "9780593798935",
+      "quantity": 0,
+      "inventory": 10,
+      "pub_date": "2037-01-01",
+      "report_date": "2025-05-05",
+      "added": "2025-05-05T15:17:07.560Z"
     }
   ],
-  "last_updated": "2025-04-28T21:33:54.325675"
+  "last_updated": "2025-05-05T15:17:08.912729"
 }
