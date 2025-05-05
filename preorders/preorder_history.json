@@ -217,11 +217,11 @@
       "pub_date": "2025-06-05"
     },
     {
-      "isbn": "1",
-      "title": "9780593798935",
-      "quantity": 0,
-      "inventory": 10,
-      "pub_date": "2037-01-01",
+      "isbn": "9780593798935",
+      "title": "Salsa Daddy: Dip Your Way into Mexican Cooking",
+      "quantity": 10,
+      "inventory": 37,
+      "pub_date": "2025-04-29",
       "report_date": "2025-05-05",
       "added": "2025-05-05T15:17:07.560Z"
     }
