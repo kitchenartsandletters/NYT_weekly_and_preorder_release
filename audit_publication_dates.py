@@ -440,7 +440,10 @@ def group_preorder_titles(products, preorder_tracking, current_date):
                 record["reason"] = "; ".join(reasons)
                 early_arrivals.append(record.copy())
 
-    all_preorders.sort(key=lambda b: b.get("pub_date", "9999-12-31"))
+    for rec in all_preorders:
+        if rec.get("pub_date") is None:
+            logging.warning(f"📛 Null pub_date before sort — ISBN: {rec.get('isbn')}, Title: {rec.get('title')}")
+    all_preorders.sort(key=lambda b: b.get("pub_date") or "9999-12-31")
 
     # === Force inject special exceptions: overdue pub_date and inventory <= 0 ===
     # Get today in Eastern time, strictly (not local machine time)
