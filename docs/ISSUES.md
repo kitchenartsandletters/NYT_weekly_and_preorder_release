@@ -73,7 +73,7 @@
 
 - [ ] **KIT-91: Automate refunds/reversals for preorders that are canceled (CSV reconciliation + lightweight webhook listening)**
 
-
+- [ ] **KIT-92: Live Test preorder_refund_listener**
 
 
 ## Future Enhancements
