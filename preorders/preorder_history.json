@@ -215,7 +215,16 @@
       "title": "The Chocolatier's Shop",
       "inventory": -6,
       "pub_date": "2025-06-05"
+    },
+    {
+      "isbn": "9780593798935",
+      "title": "Salsa Daddy: Dip Your Way into Mexican Cooking",
+      "quantity": 10,
+      "inventory": 37,
+      "pub_date": "2025-04-29",
+      "report_date": "2025-05-05",
+      "added": "2025-05-05T15:17:07.560Z"
     }
   ],
-  "last_updated": "2025-04-28T21:33:54.325675"
+  "last_updated": "2025-05-05T16:26:20.685422"
 }

@@ -556,177 +556,210 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require('fs');
-            const path = require('path');
-            const resultsObj = JSON.parse('${{ steps.check-approvals.outputs.result }}');
-            const issueNumber = resultsObj.issue_number;
-            try {
-              // Get the issue
-              const issue = await github.rest.issues.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber
-              });
-              console.log(`Processing issue #${issueNumber}: ${issue.data.title}`);
-              // Save issue body to file
-              fs.writeFileSync('./issue_body.txt', issue.data.body);
-              if (!fs.existsSync('./output')) {
-                fs.mkdirSync('./output', { recursive: true });
-              }
-              // Extract the pending releases file path from the issue body
-              const releasesMatch = issue.data.body.match(/Data file: `(.+?)`/);
-              let releasesFile = null;
-              if (releasesMatch && releasesMatch[1]) {
-                releasesFile = releasesMatch[1];
-                console.log(`Found releases file reference in issue: ${releasesFile}`);
-              } else {
-                console.log("Could not find releases file reference in issue body");
-              }
-              // Parse the issue body to extract approved books (lines with [x])
-              const lines = issue.data.body.split('\n');
-              const approvedBooks = [];
-              for (const line of lines) {
-                // Match lines that have a checked box in a table row format
-                if (line.match(/\|\s*\[x\]/i)) {
-                  // Extract ISBN from the line (second column in the table)
-                  const match = line.match(/\|\s*\[x\]\s*\|\s*([0-9]+)/i);
-                  if (match) {
-                    const isbn = match[1];
-                    console.log(`Found approved ISBN: ${isbn}`);
-                    approvedBooks.push(isbn);
-                  }
-                }
-              }
-              console.log(`Total approved ISBNs found: ${approvedBooks.length}`);
-              // Helper function to convert formatted date back to ISO format
-              function parseDateToISO(formattedDate) {
-                if (!formattedDate || formattedDate === 'Unknown') return '';
+            (async () => {
+              const fs = require('fs');
+              const path = require('path');
+              const resultsObj = JSON.parse('${{ steps.check-approvals.outputs.result }}');
+              const issueNumber = resultsObj.issue_number;
+              // Add fetchLiveInventory function
+              const fetchLiveInventory = async (isbn) => {
                 try {
-                  const date = new Date(formattedDate);
-                  if (!isNaN(date.getTime())) {
-                    return date.toISOString().split('T')[0];
-                  }
-                  return formattedDate;
+                  const query = `
+                    query getProductByISBN($query: String!) {
+                      products(first: 1, query: $query) {
+                        edges {
+                          node {
+                            variants(first: 1) {
+                              edges {
+                                node {
+                                  inventoryQuantity
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  `;
+                  const result = await github.request('POST /graphql', {
+                    headers: {
+                      'X-GitHub-Api-Version': '2022-11-28',
+                      'Content-Type': 'application/json'
+                    },
+                    data: {
+                      query,
+                      variables: { query: `barcode:${isbn}` }
+                    }
+                  });
+                  const quantity = result.data.products.edges[0]?.node.variants.edges[0]?.node.inventoryQuantity;
+                  return typeof quantity === 'number' ? quantity : 0;
                 } catch (e) {
-                  console.log(`Error parsing date ${formattedDate}: ${e}`);
-                  return formattedDate;
+                  console.log(`Error fetching live inventory for ISBN ${isbn}:`, e.message);
+                  return 0;
                 }
-              }
-              // Extract details for each approved book
-              const approvedDetails = [];
-              for (const line of lines) {
-                for (const isbn of approvedBooks) {
-                  if (line.includes(isbn)) {
-                    const columns = line.split('|').map(col => col.trim());
-                    if (columns.length >= 7) {
-                      const title = columns[3] || `Book with ISBN ${isbn}`;
-                      let quantity = 0;
-                      try {
-                        quantity = parseInt(columns[4]) || 0;
-                      } catch (e) {
-                        console.log(`Could not parse quantity for ISBN ${isbn}, using default 0`);
-                      }
-                      let inventory = 0;
-                      try {
-                        inventory = parseInt(columns[5]) || 0;
-                      } catch (e) {
-                        console.log(`Could not parse inventory for ISBN ${isbn}, using default 0`);
-                      }
-                      const formattedPubDate = columns[6] || '';
-                      const pubDate = parseDateToISO(formattedPubDate);
-                      approvedDetails.push({
-                        isbn: isbn,
-                        title: title,
-                        quantity: quantity,
-                        inventory: inventory,
-                        pub_date: pubDate,
-                        formatted_pub_date: formattedPubDate
-                      });
-                      console.log(`Extracted details for ISBN ${isbn}: Title=${title}, Quantity=${quantity}, Inventory=${inventory}, Pub Date=${pubDate}`);
-                      break;
+              };
+              try {
+                // Get the issue
+                const issue = await github.rest.issues.get({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber
+                });
+                console.log(`Processing issue #${issueNumber}: ${issue.data.title}`);
+                // Save issue body to file
+                fs.writeFileSync('./issue_body.txt', issue.data.body);
+                if (!fs.existsSync('./output')) {
+                  fs.mkdirSync('./output', { recursive: true });
+                }
+                // Extract the pending releases file path from the issue body
+                const releasesMatch = issue.data.body.match(/Data file: `(.+?)`/);
+                let releasesFile = null;
+                if (releasesMatch && releasesMatch[1]) {
+                  releasesFile = releasesMatch[1];
+                  console.log(`Found releases file reference in issue: ${releasesFile}`);
+                } else {
+                  console.log("Could not find releases file reference in issue body");
+                }
+                // Parse the issue body to extract approved books (lines with [x])
+                const lines = issue.data.body.split('\n');
+                const approvedBooks = [];
+                for (const line of lines) {
+                  // Match lines that have a checked box in a table row format
+                  if (line.match(/\|\s*\[x\]/i)) {
+                    // Extract ISBN from the line (second column in the table)
+                    const match = line.match(/\|\s*\[x\]\s*\|\s*([0-9]+)/i);
+                    if (match) {
+                      const isbn = match[1];
+                      console.log(`Found approved ISBN: ${isbn}`);
+                      approvedBooks.push(isbn);
                     }
                   }
                 }
-              }
-              // Check if this is a test issue
-              const isTestData = issue.data.labels.some(label => label.name === 'test-data');
-              // Create approved releases file
-              const timestamp = new Date().toISOString().split('T')[0];
-              const approvedReleases = {
-                approved_releases: approvedDetails.map(book => ({
-                  ...book,
-                  approved: true,
-                  approval_date: timestamp
-                })),
-                total_approved_books: approvedDetails.length,
-                total_approved_quantity: approvedDetails.reduce((sum, book) => sum + (book.quantity || 0), 0),
-                approval_date: timestamp,
-                test_data: isTestData
-              };
-              // Save the approved releases file
-              const outputFile = `./output/approved_releases_${timestamp}.json`;
-              fs.writeFileSync(outputFile, JSON.stringify(approvedReleases, null, 2));
-              console.log(`Created approved releases file: ${outputFile}`);
-              console.log(`Approved books: ${approvedReleases.approved_releases.length}`);
-              console.log(`Total quantity: ${approvedReleases.total_approved_quantity}`);
-              console.log(`Is test data: ${isTestData}`);
-
-              // --- BEGIN: Update preorder_history.json with approved books ---
-              const historyPath = path.resolve('./preorders/preorder_history.json');
-              let history = { reported_preorders: [], last_updated: "" };
-              if (fs.existsSync(historyPath)) {
-                try {
-                  history = JSON.parse(fs.readFileSync(historyPath, 'utf8'));
-                  if (!Array.isArray(history.reported_preorders)) history.reported_preorders = [];
-                } catch (err) {
-                  console.log("Could not parse preorder_history.json, resetting file.");
-                  history = { reported_preorders: [], last_updated: "" };
+                console.log(`Total approved ISBNs found: ${approvedBooks.length}`);
+                // Helper function to convert formatted date back to ISO format
+                function parseDateToISO(formattedDate) {
+                  if (!formattedDate || formattedDate === 'Unknown') return '';
+                  try {
+                    const date = new Date(formattedDate);
+                    if (!isNaN(date.getTime())) {
+                      return date.toISOString().split('T')[0];
+                    }
+                    return formattedDate;
+                  } catch (e) {
+                    console.log(`Error parsing date ${formattedDate}: ${e}`);
+                    return formattedDate;
+                  }
                 }
-              }
-              // Append new approved releases if not already present
-              for (const approved of approvedReleases.approved_releases) {
-                if (!history.reported_preorders.some(r => r.isbn === approved.isbn)) {
-                  history.reported_preorders.push({
-                    isbn: approved.isbn,
-                    title: approved.title || '',
-                    quantity: approved.quantity || 0,
-                    inventory: approved.inventory || 0,
-                    pub_date: approved.pub_date || '',
-                    report_date: timestamp,
-                    added: new Date().toISOString()
-                  });
+                // Extract details for each approved book (refactored logic)
+                const approvedDetails = [];
+                for (const line of lines) {
+                  for (const isbn of approvedBooks) {
+                    if (line.includes(isbn)) {
+                      const columns = line.split('|').map(col => col.trim());
+                      if (columns.length >= 7) {
+                        // Extracted title from column 3 (not 2)
+                        const extractedTitle = columns[3] || `Book with ISBN ${isbn}`;
+                        // Quantity from column 4
+                        const presoldQty = parseInt(columns[4]) || 0;
+                        // Inventory from column 5 (now live inventory)
+                        const currentInventory = await fetchLiveInventory(isbn);
+                        // Pub date: prefer override if available, fallback to parsed ISO date from column 6
+                        const formattedPubDate = columns[6] || '';
+                        const pubDate = parseDateToISO(formattedPubDate);
+                        approvedDetails.push({
+                          isbn: isbn,
+                          title: extractedTitle,
+                          quantity: presoldQty,
+                          inventory: currentInventory,
+                          pub_date: pubDate,
+                          formatted_pub_date: formattedPubDate
+                        });
+                        console.log(`Extracted details for ISBN ${isbn}: Title=${extractedTitle}, Quantity=${presoldQty}, Inventory=${currentInventory}, Pub Date=${pubDate}`);
+                        break;
+                      }
+                    }
+                  }
                 }
-              }
-              // Update timestamp
-              history.last_updated = new Date().toISOString();
-              fs.writeFileSync(historyPath, JSON.stringify(history, null, 2));
-              console.log(`Updated preorder_history.json with approved releases.`);
-              // --- END: Update preorder_history.json ---
+                // Check if this is a test issue
+                const isTestData = issue.data.labels.some(label => label.name === 'test-data');
+                // Create approved releases file
+                const timestamp = new Date().toISOString().split('T')[0];
+                const approvedReleases = {
+                  approved_releases: approvedDetails.map(book => ({
+                    ...book,
+                    approved: true,
+                    approval_date: timestamp
+                  })),
+                  total_approved_books: approvedDetails.length,
+                  total_approved_quantity: approvedDetails.reduce((sum, book) => sum + (book.quantity || 0), 0),
+                  approval_date: timestamp,
+                  test_data: isTestData
+                };
+                // Save the approved releases file
+                const outputFile = `./output/approved_releases_${timestamp}.json`;
+                fs.writeFileSync(outputFile, JSON.stringify(approvedReleases, null, 2));
+                console.log(`Created approved releases file: ${outputFile}`);
+                console.log(`Approved books: ${approvedReleases.approved_releases.length}`);
+                console.log(`Total quantity: ${approvedReleases.total_approved_quantity}`);
+                console.log(`Is test data: ${isTestData}`);
 
-              // Close the issue and add processed label
-              await github.rest.issues.update({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-                state: 'closed',
-                labels: [...issue.data.labels.map(label => label.name), 'processed']
-              });
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issueNumber,
-                body: `✅ Approved books have been processed and will be included in the weekly report.`
-              });
-              return {
-                approved_file: outputFile,
-                approved_books: approvedReleases.approved_releases.length,
-                is_test_data: isTestData
-              };
-            } catch (error) {
-              console.error(`Error processing issue #${issueNumber}: ${error.message}`);
-              console.error(error.stack);
-              core.setFailed(`Error processing issue: ${error.message}`);
-            }
+                // --- BEGIN: Update preorder_history.json with approved books ---
+                const historyPath = path.resolve('./preorders/preorder_history.json');
+                let history = { reported_preorders: [], last_updated: "" };
+                if (fs.existsSync(historyPath)) {
+                  try {
+                    history = JSON.parse(fs.readFileSync(historyPath, 'utf8'));
+                    if (!Array.isArray(history.reported_preorders)) history.reported_preorders = [];
+                  } catch (err) {
+                    console.log("Could not parse preorder_history.json, resetting file.");
+                    history = { reported_preorders: [], last_updated: "" };
+                  }
+                }
+                // Append new approved releases if not already present
+                for (const approved of approvedReleases.approved_releases) {
+                  if (!history.reported_preorders.some(r => r.isbn === approved.isbn)) {
+                    history.reported_preorders.push({
+                      isbn: approved.isbn,
+                      title: approved.title || '',
+                      quantity: approved.quantity || 0,
+                      inventory: approved.inventory || 0,
+                      pub_date: approved.pub_date || '',
+                      report_date: timestamp,
+                      added: new Date().toISOString()
+                    });
+                  }
+                }
+                // Update timestamp
+                history.last_updated = new Date().toISOString();
+                fs.writeFileSync(historyPath, JSON.stringify(history, null, 2));
+                console.log(`Updated preorder_history.json with approved releases.`);
+                // --- END: Update preorder_history.json ---
+
+                // Close the issue and add processed label
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  state: 'closed',
+                  labels: [...issue.data.labels.map(label => label.name), 'processed']
+                });
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  body: `✅ Approved books have been processed and will be included in the weekly report.`
+                });
+                return {
+                  approved_file: outputFile,
+                  approved_books: approvedReleases.approved_releases.length,
+                  is_test_data: isTestData
+                };
+              } catch (error) {
+                console.error(`Error processing issue #${issueNumber}: ${error.message}`);
+                console.error(error.stack);
+                core.setFailed(`Error processing issue: ${error.message}`);
+              }
+            })();
       
       - name: Process manual ISBN override
         id: process-override
@@ -860,6 +893,23 @@ jobs:
             git commit -m "Update preorder history after processing releases [skip ci]" || echo "No changes to commit"
             git push || echo "Failed to push changes"
             echo "Commit and push operation completed"
+
+            # Verify that the local and remote commit hashes match
+            LOCAL_COMMIT=$(git rev-parse HEAD)
+            REMOTE_COMMIT=$(git ls-remote origin HEAD | awk '{ print $1 }')
+
+            echo "Local commit: $LOCAL_COMMIT"
+            echo "Remote commit: $REMOTE_COMMIT"
+
+            if [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then
+              echo "❌ Commit verification failed: Local and remote commits do not match."
+              curl -X POST -H 'Content-type: application/json' \
+                --data '{"text":"🚨 GitHub Actions Alert: Commit verification failed for preorder_history.json. Manual intervention may be required."}' \
+                ${{ secrets.SLACK_WEBHOOK_URL }}
+              exit 1
+            else
+              echo "✅ Commit successfully pushed and verified."
+            fi
           else
             echo "Preorder history file not found at ./preorders/preorder_history.json"
           fi
@@ -996,3 +1046,33 @@ jobs:
             ./output/NYT_excluded_items_*.csv
             ./preorders/NYT_preorder_tracking.csv
           retention-days: 30
+
+      - name: Commit updated NYT preorder tracking
+        if: github.event.inputs.run_mode != 'test'
+        run: |
+          if [ -f "./preorders/NYT_preorder_tracking.csv" ]; then
+            echo "Preparing to commit updated NYT_preorder_tracking.csv"
+            git config --local user.email "github-actions@github.com"
+            git config --local user.name "GitHub Actions"
+            git add ./preorders/NYT_preorder_tracking.csv
+            git commit -m "Update NYT preorder tracking file after weekly report [skip ci]" || echo "No changes to commit"
+            git push || echo "Failed to push changes"
+
+            # Verify the commit hash
+            LOCAL_COMMIT=$(git rev-parse HEAD)
+            REMOTE_COMMIT=$(git ls-remote origin HEAD | awk '{ print $1 }')
+            echo "Local commit: $LOCAL_COMMIT"
+            echo "Remote commit: $REMOTE_COMMIT"
+
+            if [ "$LOCAL_COMMIT" != "$REMOTE_COMMIT" ]; then
+              echo "❌ Commit verification failed: Local and remote commits do not match."
+              curl -X POST -H 'Content-type: application/json' \
+                --data '{"text":"🚨 GitHub Actions Alert: Commit verification failed for NYT_preorder_tracking.csv. Manual intervention may be required."}' \
+                ${{ secrets.SLACK_WEBHOOK_URL }}
+              exit 1
+            else
+              echo "✅ Commit successfully pushed and verified."
+            fi
+          else
+            echo "NYT_preorder_tracking.csv not found; skipping commit step."
+          fi

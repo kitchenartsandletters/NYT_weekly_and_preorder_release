@@ -2,16 +2,16 @@
 
 ## Critical Issues
 
-- [ ] **KIT-56: Implement Reliable Repository Commits for History Changes**
+- [x] **KIT-56: Implement Reliable Repository Commits for History Changes**
   **Description:** Changes to the preorder history file are not being committed to the repository, causing inconsistencies between local and remote versions.
 
   Tasks:
-  - [ ] Debug repository commit process in GitHub workflow
-  - [ ] Ensure proper Git credentials are available to workflow
-  - [ ] Add verification step to confirm commits were successful
-  - [ ] Implement notification for failed commits
-  - [ ] Add documentation for manual recovery process
-  - [ ] Add logging for all history update operations
+  - [x] Debug repository commit process in GitHub workflow
+  - [x] Ensure proper Git credentials are available to workflow
+  - [x] Add verification step to confirm commits were successful
+  - [x] Implement notification for failed commits
+  - [x] Add documentation for manual recovery process
+  - [x] Add logging for all history update operations
 
 ## High Priority Issues
 
@@ -20,13 +20,13 @@
 
   Tasks:
   - [x] Implement automatic removal of reported books from preorder collection
-  - [ ] Create process to update shipping profiles after reporting
-  - [ ] Develop daily email for shipping adjustments that cannot be automated
+  - [x] Create process to update shipping profiles after reporting
+  - [x] Develop daily email for shipping adjustments that cannot be automated
   - [ ] Add verification to confirm all post-reporting steps completed successfully
   - [ ] Create audit trail of automated actions
 
 - [ ] **KIT-86: Adding verification feature to parse pending release data and revisit preorder overrides**
-  **Description:** As preorder sales are accumulated, add the ability to parse presales quantities and titles. Allow overrides via Github Issue
+  **Description:** As preorder sales are accumulated, add the ability to parse presales quantities and titles. Allow overrides via Github Issue.
 
   Tasks:
   - [ ] Add ability to search accumulated preorder presales
@@ -54,12 +54,7 @@
   - [ ] Ensure team members know how to manually trigger the workflows if needed
   - [ ] Document any manual override processes for emergencies
 
-- [ ] **KIT-29: Set Up Monitoring**
-  Tasks:
-  - [x] Configure GitHub notifications for when approval issues are created
-  - [ ] Establish a check to verify that the workflow ran successfully each week
-
-- [ ] **KIT-28: Document the Process**
+- [ ] **KIT-28: Document the Process (future feature-dashboard)**
   Tasks:
   - [ ] Share the approval process with your team
   - [ ] Specify who is responsible for reviewing and approving preorder books
@@ -73,7 +68,7 @@
 
 - [ ] **KIT-91: Automate refunds/reversals for preorders that are canceled (CSV reconciliation + lightweight webhook listening)**
 
-
+- [ ] **KIT-92: Live Test preorder_refund_listener**
 
 
 ## Future Enhancements
@@ -111,3 +106,8 @@
 
   Tasks:
   - [x] Let our system acknowledge books with positive inventory quantities (despite being in the Preorder collection, tagged 'preorder', etc) be nominated for the current weekly preorder release
+
+  - [x] **KIT-29: Set Up Monitoring**
+  Tasks:
+  - [x] Configure GitHub notifications for when approval issues are created
+  - [x] Establish a check to verify that the workflow ran successfully each week
