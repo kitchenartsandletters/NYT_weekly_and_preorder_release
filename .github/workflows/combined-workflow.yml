@@ -54,9 +54,9 @@ jobs:
           job_type="none"
           if [[ "${{ github.event_name }}" == "schedule" ]]; then
             if [[ "$DAY_OF_WEEK" == "5" ]]; then
-          job_type="identify-preorders"
-            elif [[ "$DAY_OF_WEEK" == "1" ]]; then
-          job_type="generate-report"
+              job_type="identify-preorders"
+            elif [[ "$DAY_OF_WEEK" == "1" || "$DAY_OF_WEEK" == "7" ]]; then
+              job_type="generate-report"
             fi
           else
             job_type="${{ github.event.inputs.workflow_type }}"
