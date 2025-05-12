@@ -112,9 +112,6 @@ def unpublish_product_from_sales_channel(product_id, channel_id):
     mutation = """
     mutation publishableUnpublish($id: ID!, $input: [PublicationInput!]!) {
       publishableUnpublish(id: $id, input: $input) {
-        publishable {
-          id
-        }
         userErrors {
           field
           message
@@ -131,6 +128,10 @@ def unpublish_product_from_sales_channel(product_id, channel_id):
         ]
     }
     response = run_query(mutation, variables)
+    if not response:
+        logging.error(f"Failed to unpublish product {product_id} — no response from GraphQL.")
+        return [{"field": ["mutation"], "message": "No response from GraphQL"}]
+
     errors = response.get('data', {}).get('publishableUnpublish', {}).get('userErrors', [])
     return errors
 
