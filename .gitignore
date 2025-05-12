@@ -27,3 +27,4 @@ inventory_check.py
 clean_history.py
 scripts/
 tests/
+archive/
