@@ -226,11 +226,20 @@
       "added": "2025-05-05T15:17:07.560Z"
     },
     {
-      "isbn": "1",
-      "title": "9780500481158",
-      "quantity": 0,
-      "inventory": 0,
-      "pub_date": "2001-03-01",
+      "isbn": "9780525612285",
+      "title": "Arthurs: Home of the Nosh, A Big Personality Cookbook of Delicious Jewish Favorites",
+      "quantity": 10,
+      "inventory": 10,
+      "pub_date": "2025-05-06",
+      "report_date": "2025-05-13",
+      "added": "2025-05-13T01:06:12.407Z"
+    },
+    {
+      "isbn": "9780500481158",
+      "title": "Repast: The Story of Food",
+      "quantity": 3,
+      "inventory": -3,
+      "pub_date": "2025-05-06",
       "report_date": "2025-05-13",
       "added": "2025-05-13T01:06:12.407Z"
     }
