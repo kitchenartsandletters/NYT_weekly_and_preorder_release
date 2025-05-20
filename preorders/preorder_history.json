@@ -244,11 +244,11 @@
       "added": "2025-05-13T01:06:12.407Z"
     },
     {
-      "isbn": "1",
-      "title": "9781984860972",
-      "quantity": 0,
-      "inventory": 0,
-      "pub_date": "2001-03-01",
+      "isbn": "9781984860972",
+      "title": "Setting a Place for Us: Recipes and Stories of Displacement, Resilience, and Community from Eight Countries Impacted by War",
+      "quantity": 3,
+      "inventory": -3,
+      "pub_date": "2025-05-13",
       "report_date": "2025-05-20",
       "added": "2025-05-20T16:00:02.838Z"
     }
