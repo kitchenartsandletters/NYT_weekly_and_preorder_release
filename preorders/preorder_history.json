@@ -253,11 +253,11 @@
       "added": "2025-05-20T16:00:02.838Z"
     },
     {
-      "isbn": "1",
-      "title": "9781250336026",
-      "quantity": 0,
-      "inventory": 0,
-      "pub_date": "23",
+      "isbn": "9781250336026",
+      "title": "The Condiment Book: Unlocking Maximum Flavor with Minimal Effort",
+      "quantity": 7,
+      "inventory": 23,
+      "pub_date": "2025-05-20",
       "report_date": "2025-05-27",
       "added": "2025-05-27T16:50:13.556Z"
     }
