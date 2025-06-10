@@ -30,3 +30,9 @@ jobs:
           STOREFRONT_ACCESS_TOKEN: ${{ secrets.STOREFRONT_ACCESS_TOKEN }}
         run: |
           python refreshPreorderProductIDs.py
+
+      - name: Upload preorder product ID file
+        uses: actions/upload-artifact@v4
+        with:
+          name: preorder-product-ids
+          path: controls/preorder_product_ids.json

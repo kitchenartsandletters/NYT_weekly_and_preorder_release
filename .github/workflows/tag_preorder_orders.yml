@@ -54,6 +54,12 @@ jobs:
                -H "X-Shopify-Access-Token: $SHOPIFY_ACCESS_TOKEN" \
                "https://${SHOP_URL}/admin/api/2025-01/shop.json"
 
+      - name: Download preorder product ID artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: preorder-product-ids
+          path: controls
+
       - name: Run preorderOrderTagger.py
         env:
           SHOP_URL: ${{ secrets.SHOP_URL }}
