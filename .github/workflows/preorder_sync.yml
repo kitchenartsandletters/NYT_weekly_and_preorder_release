@@ -1,0 +1,58 @@
+name: Preorder Sync
+
+on:
+  schedule:
+    - cron: "0 */2 * * *" # Runs every 2 hours
+  workflow_dispatch: # Allow manual trigger from GitHub if needed
+
+jobs:
+  preorder-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system CA certificates
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ca-certificates
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt python-dotenv requests certifi
+
+      - name: Export REQUESTS_CA_BUNDLE and SSL_CERT_FILE environment variables
+        run: |
+          echo "REQUESTS_CA_BUNDLE=$(python -m certifi)" >> $GITHUB_ENV
+          echo "SSL_CERT_FILE=$(python -m certifi)" >> $GITHUB_ENV
+
+      - name: Debug OpenSSL and certifi path
+        run: |
+          python -c "import ssl; print('OpenSSL:', ssl.OPENSSL_VERSION)"
+          python -c "import certifi; print('certifi.where():', certifi.where())"
+          echo "REQUESTS_CA_BUNDLE=$REQUESTS_CA_BUNDLE"
+          echo "SSL_CERT_FILE=$SSL_CERT_FILE"
+
+      - name: Run refreshPreorderProductIDs.py
+        env:
+          SHOP_URL: ${{ secrets.SHOP_URL }}
+          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+          STOREFRONT_ACCESS_TOKEN: ${{ secrets.STOREFRONT_ACCESS_TOKEN }}
+        run: |
+          python refreshPreorderProductIDs.py
+
+      - name: Run preorderOrderTagger.py
+        env:
+          SHOP_URL: ${{ secrets.SHOP_URL }}
+          SHOPIFY_ACCESS_TOKEN: ${{ secrets.SHOPIFY_ACCESS_TOKEN }}
+          SSL_CERT_FILE: ${{ env.SSL_CERT_FILE }}
+          REQUESTS_CA_BUNDLE: ${{ env.REQUESTS_CA_BUNDLE }}
+        run: |
+          python preorderOrderTagger.py
