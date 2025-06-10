@@ -77,7 +77,9 @@ def run_query(query, variables=None):
 def load_preorder_product_ids():
     if os.path.exists(PREORDER_PRODUCT_IDS_FILE):
         with open(PREORDER_PRODUCT_IDS_FILE) as f:
-            return json.load(f)
+            ids = json.load(f)
+            logging.info(f"Loaded {len(ids)} active preorder product IDs: {ids}")
+            return ids
     else:
         logging.error(f"No preorder_product_ids.json found at {PREORDER_PRODUCT_IDS_FILE}")
         return []
