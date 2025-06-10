@@ -118,6 +118,7 @@ def main():
     if preorder_product_ids:
         save_preorder_product_ids(preorder_product_ids)
         logging.info(f"✅ Saved {len(preorder_product_ids)} preorder product IDs.")
+        logging.info(f"Product IDs saved: {preorder_product_ids}")
     else:
         logging.error("❌ No preorder products found for collection handle 'pre-order'.")
 
