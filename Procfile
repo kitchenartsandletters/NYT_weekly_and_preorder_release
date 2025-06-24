@@ -1,1 +1,1 @@
-web: uvicorn refactor.main:app --host :: --port ${PORT}
+web: "uvicorn refactor.main:app --host :: --port ${PORT}"
