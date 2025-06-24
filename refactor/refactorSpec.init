@@ -1,0 +1,150 @@
+
+✅ NYT Preorder & Weekly Report System – Refactor Specification (refactorSpec.init)
+
+Overview
+
+This system automates the tracking, approval, release, and reporting of preorder books sold via Shopify. It replaces a brittle file- and GitHub-driven system with a robust, database-backed workflow deployed to Railway.
+
+⸻
+
+🧱 Tech Stack
+	•	Platform: Railway (for app deployment)
+	•	Database: PostgreSQL (Railway-hosted)
+	•	Primary Interfaces:
+	•	Slack: Slash commands & modals for approvals and alerts
+	•	(Optional in future): Web UI for audit trail, filtering, and history
+
+⸻
+
+📦 Phase 0: Project Layout & Scaffolding
+
+Directory structure:
+
+refactor/
+├── db/
+│   └── schema.sql
+├── functions/
+│   ├── sync_preorders.py
+│   ├── record_presales.py
+│   ├── analyze_readiness.py
+│   ├── release_preorder.py
+│   ├── log_anomalies.py
+│   └── export_nyt_report.py
+├── slack/
+│   └── slack_handlers.py
+├── utils/
+│   ├── shopify.py
+│   ├── db.py
+│   └── time.py
+├── main.py
+└── README.md
+
+
+⸻
+
+🗃️ Phase 1: Database Structure
+
+Tables and their purposes:
+
+Table	Purpose
+preorders	All products tagged ‘preorder’ from Shopify. Core metadata lives here.
+presales	Each preorder line item sold (by order_id, ISBN, qty, date).
+releases	Approved releases with presale snapshot and inventory.
+anomalies	Logged validation errors and data mismatches.
+audit_logs	Snapshots of batch jobs, imports, and warnings.
+nyt_exports	Tracks which ISBNs were exported in a given weekly NYT report.
+
+Full schema provided in schema.sql (foreign keys, types, timestamps aligned).
+
+⸻
+
+🧠 Phase 2: Modular Pipeline
+
+Each of the following is a stateless function in /functions and can be called in sequence or individually for debugging or testing:
+
+sync_preorders()        # Pull 'preorder' tagged products from Shopify
+record_presales()       # Log order line items to presales via webhook
+analyze_readiness()     # Identify preorder titles eligible for release
+release_preorder(isbn)  # Unpublish, remove tags, insert into releases
+log_anomalies()         # Detect malformed pub_date, tag, or collection state
+export_nyt_report()     # Build NYT-compatible CSV using presales + releases
+
+
+⸻
+
+🔍 Preorder Lifecycle Rules
+
+Preorder (Active)
+	•	Tagged with 'preorder'
+	•	In Preorder Collection (handle: 'pre-order')
+	•	Pub date (metafield or tag) is in the future
+
+Preorder (Historical)
+	•	Tagged with 'preorder'
+	•	Not in Preorder Collection
+	•	Pub date is in the past
+
+Preorder (Anomaly)
+	•	Formatting errors in pub_date
+	•	Missing or mismatched tags vs. metafield
+	•	Structural data issues (e.g. missing ISBN, duplicate release)
+
+Anomalies are logged to anomalies and surfaced via Slack and optional UI.
+
+⸻
+
+📅 Phase 3: Weekly NYT Report
+
+Reporting Window:
+	•	Sunday → Saturday (inclusive)
+	•	Report is generated Monday AM
+
+Inclusion Logic:
+
+a. Released This Week
+	•	Books with a pub_date falling within this week’s window
+	•	Include:
+	•	ISBN
+	•	Presales total (prior to or on release date)
+
+b. Post-Release Sales
+	•	For titles released in prior weeks, include only if they sold copies this week
+	•	Presales are not counted again
+	•	Only net new sales (via Shopify orders)
+
+Export Format (CSV):
+
+Column	Purpose
+ISBN	Required by NYT
+QTY	Total units sold
+
+Only these 2 fields are required. Other fields (title, pub date, etc.) can be optionally retained for internal use or Slack alert context.
+
+⸻
+
+📲 Phase 4: Slack Integration
+
+Slash commands:
+	•	/preorders list → Titles eligible for release
+	•	/preorders approve <ISBN> → Triggers release_preorder()
+	•	/preorders anomalies → Lists detected anomalies
+	•	/preorders export → Manually triggers NYT report export
+
+Slack is used for approval, alerts, and quick queries. In the future, a Web UI may be layered in.
+
+⸻
+
+📤 Phase 5: Exports & Archival
+	•	Weekly NYT reports saved as artifacts (CSV)
+	•	Releases and presales stored in DB
+	•	Optional: JSON backups for full audit (/output/)
+	•	GitHub commits no longer used for core logic/state
+
+⸻
+
+🔁 Data Consistency Rules
+	•	ISBN is the unique key and is enforced across all tables
+	•	Preorders must be synced before analyzing or releasing
+	•	Presales must reference a valid preorder ISBN
+	•	Releases are single events—immutable after snapshot
+	•	NYT exports are append-only
