@@ -5,13 +5,14 @@ from psycopg2.extras import RealDictCursor
 
 load_dotenv()
 
-DB_URL = os.getenv("DATABASE_URL", "")
+# Prefer Railway's internal URL when present
+DB_URL = os.getenv("DATABASE_INTERNAL_URL") or os.getenv("DATABASE_URL", "")
 
 
 def get_connection():
-    """Return a new database connection using DATABASE_URL env var."""
+    """Return a new database connection using the configured database URL."""
     if not DB_URL:
-        raise RuntimeError("DATABASE_URL is not set")
+        raise RuntimeError("DATABASE_INTERNAL_URL is not set")
     return psycopg2.connect(DB_URL, cursor_factory=RealDictCursor)
 
 
