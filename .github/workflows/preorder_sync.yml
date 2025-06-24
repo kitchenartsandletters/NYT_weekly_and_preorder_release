@@ -2,7 +2,10 @@ name: Preorder Sync
 
 on:
   schedule:
-    - cron: "0 */2 * * *" # Runs every 2 hours
+    # Every 30 minutes during store hours (Mon–Sat, 10am–6pm ET)
+    - cron: "0,30 14-21,22 * * 1-6"
+    # Every 2 hours outside store hours (on the hour)
+    - cron: "0 */2 * * *"
   workflow_dispatch: # Allow manual trigger from GitHub if needed
 
 jobs:
