@@ -30,3 +30,4 @@ tests/
 archive/.DS_Store
 .DS_Store
 refactor/refactorSpec.init.old
+refactor/README_Codex.md
