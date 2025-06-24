@@ -1,34 +1,3 @@
-def load_automation_controls():
-    """
-    Load configuration files from /controls for overrides and tagging logic
-    """
-    controls_dir = os.path.join(BASE_DIR, 'controls')
-    configs = {}
-
-    try:
-        # Load automation flags
-        flags_path = os.path.join(controls_dir, 'automation_flags.json')
-        if os.path.exists(flags_path):
-            with open(flags_path, 'r') as f:
-                configs['flags'] = json.load(f)
-                logging.info(f"Loaded automation flags: {configs['flags']}")
-        else:
-            logging.warning(f"No automation_flags.json found at {flags_path}")
-
-        # Load tag rules
-        tag_rules_path = os.path.join(controls_dir, 'tag_rules.csv')
-        if os.path.exists(tag_rules_path):
-            with open(tag_rules_path, 'r') as f:
-                reader = csv.DictReader(f)
-                configs['tag_rules'] = [row for row in reader]
-                logging.info(f"Loaded {len(configs['tag_rules'])} tag rules")
-        else:
-            logging.warning(f"No tag_rules.csv found at {tag_rules_path}")
-        
-    except Exception as e:
-        logging.error(f"Failed to load automation configs: {e}", exc_info=True)
-
-    return configs
 import os
 import requests
 import csv
