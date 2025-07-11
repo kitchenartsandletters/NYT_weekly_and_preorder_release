@@ -1,5 +1,5 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import PlainTextResponse
+from fastapi import FastAPI, Request, BackgroundTasks
+from fastapi.responses import PlainTextResponse, JSONResponse
 
 from .slack.slack_handler import handle_slash
 from .src.record_presales import record_presales
@@ -53,13 +53,14 @@ async def shopify_refunds_create(payload: dict):
     record_refund(payload)
     return {"status": "processed"}
 
+
 @app.post("/webhooks/orders_create")
-async def orders_create_webhook(request: Request):
+async def orders_create_webhook(request: Request, background_tasks: BackgroundTasks):
     data = await request.json()
-    # ✅ Respond immediately to Shopify
-    response = JSONResponse(content={"status": "success"})
-    
-    # ✅ Do heavy processing AFTER the response (background task, queue, etc.)
+    background_tasks.add_task(process_order_data, data)
+    return JSONResponse(content={"status": "success"})
+
+def process_order_data(data):
+    # This will execute after the response has been sent
     print("Received order:", data)
-    
-    return response
+    # Placeholder for future DB or processing logic
