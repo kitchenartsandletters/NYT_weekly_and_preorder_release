@@ -65,3 +65,7 @@ def process_order_data(data):
     # This will execute after the response has been sent
     print("Received order:", data)
     # Placeholder for future DB or processing logic
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
