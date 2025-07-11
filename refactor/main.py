@@ -55,11 +55,11 @@ async def shopify_refunds_create(payload: dict):
 
 
 @app.post("/webhooks/orders_create")
-async def orders_create_webhook(request: Request, background_tasks: BackgroundTasks):
+async def orders_create_webhook(request: Request):
     print("✅ Webhook received at /webhooks/orders_create")
-    data = await request.json()
-    background_tasks.add_task(process_order_data, data)
-    return JSONResponse(content={"status": "success"})
+    body = await request.body()
+    print("Raw webhook body:", body.decode())
+    return JSONResponse(content={"status": "ok"})
 
 def process_order_data(data):
     # This will execute after the response has been sent
