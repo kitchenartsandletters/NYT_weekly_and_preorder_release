@@ -96,3 +96,10 @@ Begin by:
 - Scaffolding `sync_preorders.py` using mocked Shopify data to populate the `preorders` table
 
 Confirm each step with comments and clean modular structure. Do not rush. Prioritize stability and extensibility.
+
+### ⚙️ Syncing Codex Branch
+
+To sync Codex’s latest changes into your working branch:
+
+```bash
+./refactor/utils/sync_codex_branch.sh
