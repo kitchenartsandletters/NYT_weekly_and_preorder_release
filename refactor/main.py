@@ -27,3 +27,10 @@ async def shopify_order_created(payload: dict):
     if items:
         record_presales(items)
     return {"status": "processed"}
+
+@app.post("/webhooks/orders_create")
+async def orders_create_webhook(request: Request):
+    data = await request.json()
+    print("Received order:", data)
+    # Add your order-processing logic here
+    return {"status": "success"}
