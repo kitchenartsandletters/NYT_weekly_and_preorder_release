@@ -1,7 +1,7 @@
 """Minimal Slack command handler for preorder operations."""
 from typing import Dict
 
-from ..src.analyze_readiness import analyze_readiness
+from ..src.readiness import analyze_readiness
 
 
 def handle_slash(command: str, text: str = "") -> str:
@@ -10,9 +10,8 @@ def handle_slash(command: str, text: str = "") -> str:
     Currently supports only `/preorders list` returning a simple string of ISBNs.
     """
     if command == "/preorders" and text.strip() == "list":
-        rows = analyze_readiness()
-        if not rows:
+        isbns = analyze_readiness()
+        if not isbns:
             return "No preorders ready for release."
-        lines = [f"{r['isbn']} - {r['title']}" for r in rows]
-        return "\n".join(lines)
+        return "\n".join(isbns)
     return "Command not recognized."
