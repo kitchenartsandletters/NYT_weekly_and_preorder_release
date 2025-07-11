@@ -32,3 +32,6 @@ archive/
 archive/deprecated/
 .DS_Store
 refactor/refactorSpec.init.old
+refactor/utils/audit_codex_workflow.sh
+	refactor/utils/sync_codex_branch.sh
+	sync_codex_branch.sh
