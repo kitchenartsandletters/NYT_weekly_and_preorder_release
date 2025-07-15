@@ -99,7 +99,7 @@ Confirm each step with comments and clean modular structure. Do not rush. Priori
 
 ### ⚙️ Syncing Codex Branch
 
-To sync Codex’s latest changes into your working branch:
+This script rebases your local codex-sync-work branch onto Codex’s latest kickoff-refactor-project-and-scaffold-sync_preorders.py branch and pushes the result:
 
 ```bash
 ./refactor/utils/sync_codex_branch.sh

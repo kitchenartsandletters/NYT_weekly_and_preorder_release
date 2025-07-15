@@ -58,7 +58,7 @@ refactor/
 
 Tables and their purposes:
 
-Table	Purpose
+Table	    Purpose
 preorders	All products tagged ‘preorder’ from Shopify. Core metadata lives here.
 presales	Each preorder line item sold (by order_id, ISBN, qty, date).
 releases	Approved releases with presale snapshot and inventory.
@@ -66,6 +66,7 @@ anomalies	Logged validation errors and data mismatches.
 audit_logs	Snapshots of batch jobs, imports, and warnings.
 nyt_exports	Tracks which ISBNs were exported in a given weekly NYT report.
 sales_log	All regular (non-preorder) sales from Shopify orders (order_id, ISBN, quantity, order date).
+refund_log  Tracks individual line-item refund activity to maintain accurate historical sales totals and to reconcile preorder vs regular sales tallies.
 
 Full schema provided in schema.sql (foreign keys, types, timestamps aligned).
 
@@ -104,6 +105,8 @@ Preorder (Anomaly)
 	•	Structural data issues (e.g. missing ISBN, duplicate release)
 
 Anomalies are logged to anomalies and surfaced via Slack and optional UI.
+
+📝 Note: The `preorder` tag is retained on all products as a permanent historical marker, even after release. This supports data validation, auditability, and simplifies classification of historical sales.
 
 ⸻
 
