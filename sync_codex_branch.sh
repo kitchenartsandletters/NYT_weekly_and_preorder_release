@@ -1,17 +1,22 @@
 #!/bin/bash
 
-# Auto-sync codex-sync-work branch with remote
+echo "🔄 Syncing with Codex's latest branch..."
 
-echo "Fetching latest changes from origin..."
+# Step 1: Make sure you're on your working branch
+git checkout codex-sync-work || exit 1
+
+# Step 2: Fetch all remote branches
 git fetch origin
 
-echo "Rebasing local codex-sync-work onto origin/codex-sync-work..."
-git rebase origin/codex-sync-work
+# Step 3: Rebase Codex's latest into your local work
+echo "Rebasing origin/codex/kickoff-refactor-project-and-scaffold-sync_preorders.py into codex-sync-work..."
+git rebase origin/codex/kickoff-refactor-project-and-scaffold-sync_preorders.py
 
+# Step 4: Push updated codex-sync-work to remote if rebase succeeded
 if [ $? -eq 0 ]; then
-  echo "Rebase successful. Pushing to origin..."
-  git push origin codex-sync-work
-  echo "✅ Sync complete!"
+  echo "✅ Rebase successful. Pushing to origin..."
+  git push origin codex-sync-work --force-with-lease
+  echo "🚀 Deployed codex-sync-work is now up to date!"
 else
-  echo "⚠️ Rebase failed. Please resolve conflicts manually."
+  echo "⚠️ Rbease failed. Please resolve conflicts manually."
 fi
