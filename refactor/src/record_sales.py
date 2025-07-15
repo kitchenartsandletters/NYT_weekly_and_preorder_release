@@ -41,7 +41,7 @@ def record_sales(order_data: Dict) -> bool:
             preorder_isbns = {row["isbn"] for row in cur.fetchall()}
 
             for item in _extract_items(order_data):
-                isbn = item.get("isbn")
+                isbn = item.get("barcode") or item.get("isbn")
                 if not isbn or isbn in preorder_isbns:
                     continue
 

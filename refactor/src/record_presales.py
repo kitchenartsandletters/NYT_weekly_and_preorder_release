@@ -11,9 +11,9 @@ def record_presales(items: Iterable[Dict]) -> None:
         with conn.cursor() as cur:
             for item in items:
                 print("🧪 record_presales item:", item)  # Debug each item
-                # Safe access or placeholder fallback
-                if "isbn" not in item:
-                    print("⚠️ Missing ISBN field:", item)
+                isbn = item.get("barcode") or item.get("isbn")
+                if not isbn:
+                    print("⚠️ Missing ISBN/Barcode:", item)
                     continue  # Skip or log as anomaly
                 cur.execute(
                     """
@@ -22,7 +22,7 @@ def record_presales(items: Iterable[Dict]) -> None:
                     ON CONFLICT DO NOTHING;
                     """,
                     {
-                        "isbn": item["isbn"],
+                        "isbn": isbn,
                         "order_id": item["order_id"],
                         "qty": item.get("qty", 1),
                         "order_date": item.get("order_date", datetime.utcnow()),
