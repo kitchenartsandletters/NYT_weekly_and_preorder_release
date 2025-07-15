@@ -22,23 +22,35 @@ Directory structure:
 
 refactor/
 ├── db/
-│   └── schema.sql
-├── functions/
-│   ├── sync_preorders.py
-│   ├── record_presales.py
-│   ├── analyze_readiness.py
-│   ├── release_preorder.py
-│   ├── log_anomalies.py
-│   └── export_nyt_report.py
-├── slack/
-│   └── slack_handlers.py
-├── utils/
-│   ├── shopify.py
 │   ├── db.py
-│   └── time.py
+│   └── schema.sql
+├── slack/
+│   ├── commands.md
+│   └── slack_handler.py
+├── src/
+│   ├── __init__.py
+│   ├── ingest.py
+│   ├── nyt_report.py
+│   ├── presales.py
+│   ├── readiness.py
+│   ├── record_cancellation.py
+│   ├── record_presales.py
+│   ├── record_refund.py
+│   ├── record_sales.py
+│   ├── release.py
+│   ├── record_preorder.py
+│   ├── sync_preorders.py
+│   └── utils.py
+├── utils/
+│   ├── __init__.py
+│   └── db.py
+├── workflows/
+│   └── generate_report.yml
+├── .env.example
+├── README.md
+├── __init__.py
 ├── main.py
-└── README.md
-
+└── refactorSpec.init
 
 ⸻
 

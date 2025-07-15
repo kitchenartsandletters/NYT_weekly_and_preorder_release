@@ -54,3 +54,24 @@ CREATE TABLE nyt_exports (
     included_isbns TEXT[],
     notes TEXT
 );
+
+-- 🗂️ Standard Sales Logging
+CREATE TABLE IF NOT EXISTS sales_log (
+    id SERIAL PRIMARY KEY,
+    isbn TEXT NOT NULL,
+    order_id TEXT NOT NULL,
+    quantity INTEGER NOT NULL,
+    order_date TIMESTAMP NOT NULL,
+    UNIQUE (order_id, isbn)
+);
+
+-- 🗂️ Shopify Refund Logging
+CREATE TABLE IF NOT EXISTS refund_log (
+    id SERIAL PRIMARY KEY,
+    isbn TEXT NOT NULL,
+    order_id TEXT NOT NULL,
+    refunded_quantity INTEGER NOT NULL,
+    refund_date TIMESTAMP NOT NULL,
+    reason TEXT,
+    UNIQUE (order_id, isbn)
+);
