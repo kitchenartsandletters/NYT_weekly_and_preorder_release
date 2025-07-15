@@ -1,4 +1,4 @@
-
+<file name=0 path=/Users/gilcalderon/shopify-projects/NYT_weekly_and_preorder_release/refactor/refactorSpec.init>
 ✅ NYT Preorder & Weekly Report System – Refactor Specification (refactorSpec.init)
 
 Overview
@@ -53,6 +53,7 @@ releases	Approved releases with presale snapshot and inventory.
 anomalies	Logged validation errors and data mismatches.
 audit_logs	Snapshots of batch jobs, imports, and warnings.
 nyt_exports	Tracks which ISBNs were exported in a given weekly NYT report.
+sales_log	All regular (non-preorder) sales from Shopify orders (order_id, ISBN, quantity, order date).
 
 Full schema provided in schema.sql (foreign keys, types, timestamps aligned).
 
@@ -64,6 +65,7 @@ Each of the following is a stateless function in /functions and can be called in
 
 sync_preorders()        # Pull 'preorder' tagged products from Shopify
 record_presales()       # Log order line items to presales via webhook
+record_sales()          # Log regular sales from Shopify orders to sales_log via webhook
 analyze_readiness()     # Identify preorder titles eligible for release
 release_preorder(isbn)  # Unpublish, remove tags, insert into releases
 log_anomalies()         # Detect malformed pub_date, tag, or collection state
@@ -112,6 +114,12 @@ b. Post-Release Sales
 	•	Presales are not counted again
 	•	Only net new sales (via Shopify orders)
 
+c. Regular Sales
+	•	All non-preorder sales from sales_log within this week’s window
+	•	Include:
+		•	ISBN
+		•	Units sold
+
 Export Format (CSV):
 
 Column	Purpose
@@ -148,3 +156,31 @@ Slack is used for approval, alerts, and quick queries. In the future, a Web UI m
 	•	Presales must reference a valid preorder ISBN
 	•	Releases are single events—immutable after snapshot
 	•	NYT exports are append-only
+
+⸻
+
+📌 Phase 6: Regular Sales Tracking (New Addition)
+
+Overview:
+	•	Introduces new sales_log table for capturing non-preorder sales from Shopify.
+	•	Webhook handler now differentiates preorder vs. regular sales.
+
+Database Schema:
+CREATE TABLE sales_log (
+    id SERIAL PRIMARY KEY,
+    isbn VARCHAR(13) NOT NULL,
+    order_id TEXT NOT NULL,
+    quantity INTEGER NOT NULL,
+    order_date TIMESTAMP NOT NULL
+);
+
+Functions:
+record_sales() — To be invoked via order webhooks for all non-preorder sales.
+
+Integration:
+	•	Merged into NYT report logic alongside presales and releases.
+	•	Required for accurate reporting of non-preorder titles.
+
+Slack/Alerts:
+	•	Not directly exposed yet, but may be in future audit or reporting commands.
+</file>
