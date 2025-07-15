@@ -35,8 +35,10 @@ async def shopify_order_created(payload: dict):
 
 @app.post("/webhooks/orders_updated")
 async def shopify_orders_updated(payload: dict):
+    print("🔍 orders_updated payload:", payload)  # Log raw payload
     items = payload.get("items", []) or payload.get("line_items", [])
     if items:
+        print("📦 Parsed items:", items)  # Log extracted items
         record_presales(items)
     record_sales(payload)
     return {"status": "processed"}

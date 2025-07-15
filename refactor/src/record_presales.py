@@ -10,6 +10,11 @@ def record_presales(items: Iterable[Dict]) -> None:
     with db.get_connection() as conn:
         with conn.cursor() as cur:
             for item in items:
+                print("🧪 record_presales item:", item)  # Debug each item
+                # Safe access or placeholder fallback
+                if "isbn" not in item:
+                    print("⚠️ Missing ISBN field:", item)
+                    continue  # Skip or log as anomaly
                 cur.execute(
                     """
                     INSERT INTO presales (isbn, order_id, qty, order_date)
