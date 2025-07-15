@@ -3,6 +3,7 @@ from fastapi.responses import PlainTextResponse
 
 from .slack.slack_handler import handle_slash
 from .src.record_presales import record_presales
+from .src.record_sales import record_sales
 
 app = FastAPI()
 
@@ -26,4 +27,5 @@ async def shopify_order_created(payload: dict):
     items = payload.get("items", [])
     if items:
         record_presales(items)
+    record_sales(payload)
     return {"status": "processed"}
