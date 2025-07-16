@@ -7,6 +7,7 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 import time
+from mailtrap import MailtrapClient, EmailAddress, Message
 
 # Load environment variables
 load_dotenv('.env.production')
@@ -487,21 +488,18 @@ def main():
 
 def send_admin_summary_email(cleaned_books, pending_review_books, released_from_preorder):
     """
-    Sends an admin summary email reporting on cleaned book descriptions, pending review books, and released-from-preorder books via SendGrid.
+    Sends an admin summary email reporting on cleaned book descriptions, pending review books,
+    and released-from-preorder books via Mailtrap.
     """
-    import sendgrid
-    from sendgrid.helpers.mail import Mail, Email, To, Content
-
-    SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
+    MAILTRAP_API_TOKEN = os.getenv('MAILTRAP_API_TOKEN')
     EMAIL_SENDER = os.getenv('EMAIL_SENDER')
     EMAIL_RECIPIENTS = os.getenv('EMAIL_RECIPIENTS')
 
-    if not SENDGRID_API_KEY or not EMAIL_SENDER or not EMAIL_RECIPIENTS:
+    if not MAILTRAP_API_TOKEN or not EMAIL_SENDER or not EMAIL_RECIPIENTS:
         logging.error("Email environment variables not properly set. Cannot send admin summary email.")
         return
 
     subject = "Preorder Manager Admin Summary" + (" (Releases Included)" if released_from_preorder else "")
-
     body_parts = []
 
     if cleaned_books:
@@ -529,29 +527,38 @@ def send_admin_summary_email(cleaned_books, pending_review_books, released_from_
     body_html = "<html><body>" + "".join(body_parts) + "</body></html>"
 
     try:
-        sg = sendgrid.SendGridAPIClient(api_key=SENDGRID_API_KEY)
-        recipients = [email.strip() for email in EMAIL_RECIPIENTS.split(';') if email.strip()]
-        to_emails = [To(email) for email in recipients]
+        client = MailtrapClient(token=MAILTRAP_API_TOKEN)
 
-        mail = Mail(
-            from_email=Email(EMAIL_SENDER),
-            to_emails=to_emails,
+        recipients = [email.strip() for email in EMAIL_RECIPIENTS.split(';') if email.strip()]
+        to_list = [EmailAddress(email=email) for email in recipients]
+
+        message = Message(
+            sender=EmailAddress(email=EMAIL_SENDER, name="Preorder Manager"),
+            to=to_list,
             subject=subject,
-            html_content=Content("text/html", body_html)
+            html=body_html
         )
 
-        # Important for multiple recipients
-        mail.personalizations[0].tos = to_emails
-
-        response = sg.send(mail)
-
-        if response.status_code >= 200 and response.status_code < 300:
-            logging.info("Admin summary email sent successfully via SendGrid.")
-        else:
-            logging.error(f"Failed to send admin summary email via SendGrid: {response.status_code} {response.body}")
+        client.send(message)
+        logging.info("Admin summary email sent successfully via Mailtrap.")
 
     except Exception as e:
-        logging.error(f"Exception occurred while sending admin summary email: {e}")
+        logging.error(f"Exception occurred while sending admin summary email via Mailtrap: {e}")
 
 if __name__ == "__main__":
+    # --- TEMPORARY: Force send a test email to verify Mailtrap setup ---
+    if os.getenv("MAILTRAP_API_TOKEN") and os.getenv("EMAIL_SENDER") and os.getenv("EMAIL_RECIPIENTS"):
+        logging.info("Forcing test admin summary email with dummy data...")
+        test_cleaned_books = [
+            {"title": "Test Book A", "id": "gid://shopify/Product/111111111", "pub_date": "2025-07-01", "inventory": 12}
+        ]
+        test_pending_review_books = [
+            {"title": "Test Book B", "id": "gid://shopify/Product/222222222", "pub_date": "2025-06-01", "inventory": 0}
+        ]
+        test_released_books = [
+            {"title": "Test Book C", "pub_date": "2025-05-15"}
+        ]
+        send_admin_summary_email(test_cleaned_books, test_pending_review_books, test_released_books)
+    else:
+        logging.warning("Skipping forced test email — required environment variables are not set.")
     main()
