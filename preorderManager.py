@@ -532,12 +532,12 @@ def send_admin_summary_email(cleaned_books, pending_review_books, released_from_
         recipients = [email.strip() for email in EMAIL_RECIPIENTS.split(';') if email.strip()]
         to_list = [{"email": email} for email in recipients]
 
-        message = Message(
-            "from" : {"email": EMAIL_SENDER, "name": "Preorder Manager"},
-            "to" : to_list,
-            "subject" : subject,
-            "html" : body_html
-        )
+        message = {
+            "from": {"email": EMAIL_SENDER, "name": "Preorder Manager"},
+            "to": to_list,
+            "subject": subject,
+            "html": body_html
+        }
 
         client.send(message)
         logging.info("Admin summary email sent successfully via Mailtrap.")
