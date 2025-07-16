@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 import time
-from mailtrap import MailtrapClient, Message
+from mailtrap import MailtrapClient
 
 # Load environment variables
 load_dotenv('.env.production')
@@ -533,10 +533,10 @@ def send_admin_summary_email(cleaned_books, pending_review_books, released_from_
         to_list = [{"email": email} for email in recipients]
 
         message = Message(
-            sender={"email": EMAIL_SENDER, "name": "Preorder Manager"},
-            to=to_list,
-            subject=subject,
-            html=body_html
+            "from" : {"email": EMAIL_SENDER, "name": "Preorder Manager"},
+            "to" : to_list,
+            "subject" : subject,
+            "html" : body_html
         )
 
         client.send(message)
