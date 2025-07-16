@@ -7,7 +7,6 @@ import logging
 from datetime import datetime
 from dotenv import load_dotenv
 import time
-from mailtrap import MailtrapClient
 
 # Load environment variables
 load_dotenv('.env.production')
@@ -20,6 +19,7 @@ HEADERS = {
 }
 
 DRY_RUN = False  # Set to False when ready to perform live updates
+FORCE_TEST_EMAIL = False  # Set to True to force test of email sending
 
 def load_early_stock_exceptions():
     exceptions_path = os.path.join(BASE_DIR, 'controls', 'early_stock_exceptions.csv')
@@ -339,6 +339,69 @@ def extract_isbn(product):
 
     return ""
 
+def send_admin_summary_email(cleaned_books, pending_review_books, released_from_preorder):
+    """
+    Sends an admin summary email reporting on cleaned book descriptions, pending review books, and released-from-preorder books via Mailtrap API.
+    """
+    MAILTRAP_API_TOKEN = os.getenv("MAILTRAP_API_TOKEN")
+    EMAIL_SENDER = os.getenv("EMAIL_SENDER")
+    EMAIL_RECIPIENTS = os.getenv("EMAIL_RECIPIENTS")
+
+    if not MAILTRAP_API_TOKEN or not EMAIL_SENDER or not EMAIL_RECIPIENTS:
+        logging.warning("Skipping email — required environment variables are not set.")
+        return
+
+    subject = "Preorder Manager Admin Summary" + (" (Releases Included)" if released_from_preorder else "")
+
+    body_parts = []
+
+    if cleaned_books:
+        body_parts.append("<h2>✅ Cleaned Book Descriptions</h2><ul>")
+        for book in cleaned_books:
+            body_parts.append(f"<li>{book['title']} (ID: {book['id']}) - Pub Date: {book['pub_date']} - Inventory: {book['inventory']}</li>")
+        body_parts.append("</ul>")
+
+    if pending_review_books:
+        body_parts.append("<h2>🛑 Books Pending Manual Review</h2><ul>")
+        for book in pending_review_books:
+            body_parts.append(f"<li>{book['title']} (ID: {book['id']}) - Pub Date: {book['pub_date']} - Inventory: {book['inventory']}</li>")
+        body_parts.append("</ul>")
+
+    if released_from_preorder:
+        body_parts.append("<h2>🚚 Shipping Profile Adjustment Reminder</h2><ul>")
+        for book in released_from_preorder:
+            body_parts.append(f"<li>{book['title']} - Pub Date: {book['pub_date']}</li>")
+        body_parts.append("</ul>")
+
+    if not body_parts:
+        logging.info("No content to send in admin summary email.")
+        return
+
+    body_html = "<html><body>" + "".join(body_parts) + "</body></html>"
+
+    # Prepare API request
+    to_addresses = [{"email": email.strip()} for email in EMAIL_RECIPIENTS.split(";") if email.strip()]
+    payload = {
+        "from": {"email": EMAIL_SENDER, "name": "Preorder Manager"},
+        "to": to_addresses,
+        "subject": subject,
+        "html": body_html
+    }
+
+    headers = {
+        "Authorization": f"Bearer {MAILTRAP_API_TOKEN}",
+        "Content-Type": "application/json"
+    }
+
+    try:
+        response = requests.post("https://send.api.mailtrap.io/api/send", json=payload, headers=headers)
+        if 200 <= response.status_code < 300:
+            logging.info("Admin summary email sent successfully via Mailtrap API.")
+        else:
+            logging.error(f"Mailtrap API email failed: {response.status_code} - {response.text}")
+    except Exception as e:
+        logging.error(f"Error sending Mailtrap API email: {e}")
+
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logging.info(f"Running preorder manager with DRY_RUN={DRY_RUN}")
@@ -482,83 +545,15 @@ def main():
             send_admin_summary_email(cleaned_books, pending_review_books, released_from_preorder)
         else:
             logging.info("No admin summary to send (no actions performed).")
+            if FORCE_TEST_EMAIL:
+                logging.info("FORCE_TEST_EMAIL is enabled — sending test admin summary email with mock data...")
+                test_cleaned = [{"title": "Test Title", "id": "gid://shopify/Product/1234567890", "pub_date": "2025-07-20", "inventory": 5, "isbn": "9781234567897"}]
+                test_pending = [{"title": "Pending Title", "id": "gid://shopify/Product/0987654321", "pub_date": "2025-07-19", "inventory": 0, "isbn": "9789876543210"}]
+                test_released = [{"title": "Released Title", "pub_date": "2025-07-18"}]
+                send_admin_summary_email(test_cleaned, test_pending, test_released)
 
     # Perform backup after evaluation
     backup_preorder_tracking_csv()
 
-def send_admin_summary_email(cleaned_books, pending_review_books, released_from_preorder):
-    """
-    Sends an admin summary email reporting on cleaned book descriptions, pending review books,
-    and released-from-preorder books via Mailtrap.
-    """
-    MAILTRAP_API_TOKEN = os.getenv('MAILTRAP_API_TOKEN')
-    EMAIL_SENDER = os.getenv('EMAIL_SENDER')
-    EMAIL_RECIPIENTS = os.getenv('EMAIL_RECIPIENTS')
-
-    if not MAILTRAP_API_TOKEN or not EMAIL_SENDER or not EMAIL_RECIPIENTS:
-        logging.error("Email environment variables not properly set. Cannot send admin summary email.")
-        return
-
-    subject = "Preorder Manager Admin Summary" + (" (Releases Included)" if released_from_preorder else "")
-    body_parts = []
-
-    if cleaned_books:
-        body_parts.append("<h2>✅ Cleaned Book Descriptions</h2><ul>")
-        for book in cleaned_books:
-            body_parts.append(f"<li>{book['title']} (ID: {book['id']}) - Pub Date: {book['pub_date']} - Inventory: {book['inventory']}</li>")
-        body_parts.append("</ul>")
-
-    if pending_review_books:
-        body_parts.append("<h2>🛑 Books Pending Manual Review</h2><ul>")
-        for book in pending_review_books:
-            body_parts.append(f"<li>{book['title']} (ID: {book['id']}) - Pub Date: {book['pub_date']} - Inventory: {book['inventory']}</li>")
-        body_parts.append("</ul>")
-
-    if released_from_preorder:
-        body_parts.append("<h2>🚚 Shipping Profile Adjustment Reminder</h2><ul>")
-        for book in released_from_preorder:
-            body_parts.append(f"<li>{book['title']} - Pub Date: {book['pub_date']}</li>")
-        body_parts.append("</ul>")
-
-    if not body_parts:
-        logging.info("No content to send in admin summary email.")
-        return
-
-    body_html = "<html><body>" + "".join(body_parts) + "</body></html>"
-
-    try:
-        client = MailtrapClient(token=MAILTRAP_API_TOKEN)
-
-        recipients = [email.strip() for email in EMAIL_RECIPIENTS.split(';') if email.strip()]
-        to_list = [{"email": email} for email in recipients]
-
-        message = {
-            "from": {"email": EMAIL_SENDER, "name": "Preorder Manager"},
-            "to": to_list,
-            "subject": subject,
-            "html": body_html
-        }
-
-        client.send(message)
-        logging.info("Admin summary email sent successfully via Mailtrap.")
-
-    except Exception as e:
-        logging.error(f"Exception occurred while sending admin summary email via Mailtrap: {e}")
-
 if __name__ == "__main__":
-    # --- TEMPORARY: Force send a test email to verify Mailtrap setup ---
-    if os.getenv("MAILTRAP_API_TOKEN") and os.getenv("EMAIL_SENDER") and os.getenv("EMAIL_RECIPIENTS"):
-        logging.info("Forcing test admin summary email with dummy data...")
-        test_cleaned_books = [
-            {"title": "Test Book A", "id": "gid://shopify/Product/111111111", "pub_date": "2025-07-01", "inventory": 12}
-        ]
-        test_pending_review_books = [
-            {"title": "Test Book B", "id": "gid://shopify/Product/222222222", "pub_date": "2025-06-01", "inventory": 0}
-        ]
-        test_released_books = [
-            {"title": "Test Book C", "pub_date": "2025-05-15"}
-        ]
-        send_admin_summary_email(test_cleaned_books, test_pending_review_books, test_released_books)
-    else:
-        logging.warning("Skipping forced test email — required environment variables are not set.")
     main()
