@@ -27,4 +27,6 @@ inventory_check.py
 clean_history.py
 scripts/
 tests/
-archive/
+archive/.DS_Store
+minimal.py
+refactor/
