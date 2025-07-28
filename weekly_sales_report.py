@@ -1331,11 +1331,11 @@ REPORT DEFINITIONS:
     # Send email with all reports (Mailtrap)
     subject = f"📊 Weekly NYT Sales Report — {datetime.now().strftime('%B %d, %Y')}"
     html_content = "<h2>NYT Sales Report</h2><p>Attached you’ll find:</p><ul>"
-    if report_path.exists():
+    if Path(report_path).exists():
         html_content += f"<li>{report_filename}</li>"
-    if skipped_path.exists():
+    if Path(skipped_path).exists():
         html_content += f"<li>{skipped_filename}</li>"
-    if preorder_path.exists():
+    if Path(preorder_path).exists():
         html_content += f"<li>{preorder_filename}</li>"
     html_content += "</ul>"
 
