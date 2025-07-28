@@ -30,7 +30,7 @@ def prepare_attachments(filepaths):
     return attachments
 
 
-def send_mailtrap_email(subject, html_body, attachments=None):
+def send_mailtrap_email(subject, body_html, attachments=None):
     validate_env_for_mailtrap()
     url = "https://send.api.mailtrap.io/api/send"
     headers = {
@@ -38,11 +38,13 @@ def send_mailtrap_email(subject, html_body, attachments=None):
         "Content-Type": "application/json"
     }
 
+    body_html = "<html><body>" + "".join(body_parts) + "</body></html>"
+    to_addresses = [{"email": email.strip()} for email in EMAIL_RECIPIENTS.split(";") if email.strip()]
     data = {
         "from": {"email": EMAIL_SENDER, "name": "Preorder Manager"},
-        "to": [{"email": EMAIL_RECIPIENT}],
+        "to": to_addresses,
         "subject": subject,
-        "html": html_body,
+        "html": body_html,
     }
 
     if attachments:
