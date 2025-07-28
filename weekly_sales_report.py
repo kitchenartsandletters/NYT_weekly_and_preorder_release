@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 from process_approved_releases import process_approved_releases
 from email_utils import send_mailtrap_email
 from pathlib import Path
+import json
 
 # Base directory for the script
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
