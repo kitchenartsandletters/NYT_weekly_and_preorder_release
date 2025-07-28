@@ -59,7 +59,7 @@ def load_environment():
         logging.info("Environment variables successfully loaded.")
         logging.info(f"SHOP_URL present: {bool(os.getenv('SHOP_URL'))}")
         logging.info(f"SHOPIFY_ACCESS_TOKEN present: {bool(os.getenv('SHOPIFY_ACCESS_TOKEN'))}")
-        logging.info(f"SENDGRID_API_KEY present: {bool(os.getenv('SENDGRID_API_KEY'))}")
+        logging.info(f"MAILTRAP_API_TOKEN present: {bool(os.getenv('MAILTRAP_API_TOKEN'))}")
         logging.info(f"EMAIL_SENDER present: {bool(os.getenv('EMAIL_SENDER'))}")
         logging.info(f"EMAIL_RECIPIENTS present: {bool(os.getenv('EMAIL_RECIPIENTS'))}")
     except Exception as e:
@@ -1291,11 +1291,11 @@ REPORT DEFINITIONS:
 
     attachments = []
 
-    if report_path.exists():
+    if Path(report_path).exists():
         attachments.append(report_path)
-    if skipped_path.exists():
+    if Path(skipped_path).exists():
         attachments.append(skipped_path)
-    if preorder_path.exists():
+    if Path(preorder_path).exists():
         attachments.append(preorder_path)
 
     export_to_csv(sales_data, report_filename)
