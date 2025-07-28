@@ -4,13 +4,13 @@ import csv
 import logging
 import argparse
 from datetime import datetime, timedelta
+import sendgrid
+from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
 import time
 import sys
 import base64
 from dotenv import load_dotenv
 from process_approved_releases import process_approved_releases
-from email_utils import send_mailtrap_email
-from pathlib import Path
 
 # Base directory for the script
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -1282,20 +1282,7 @@ REPORT DEFINITIONS:
 
     report_filename = f"NYT_weekly_sales_report_{datetime.now().strftime('%Y-%m-%d')}.csv"
     skipped_filename = f"NYT_excluded_items_{datetime.now().strftime('%Y-%m-%d')}.csv"
-    preorder_filename = "NYT_preorder_tracking.csv"
-
-    report_path = Path("output") / report_filename
-    skipped_path = Path("output") / skipped_filename
-    preorder_path = Path("output") / preorder_filename
-
-    attachments = []
-
-    if report_path.exists():
-        attachments.append(report_path)
-    if skipped_path.exists():
-        attachments.append(skipped_path)
-    if preorder_path.exists():
-        attachments.append(preorder_path)
+    preorder_filename = f"NYT_preorder_tracking.csv"
 
     export_to_csv(sales_data, report_filename)
     export_skipped_line_items(skipped_items, skipped_filename)
@@ -1327,24 +1314,16 @@ REPORT DEFINITIONS:
     logging.info(f"Output Directory: {output_dir}")
     logging.info(f"Preorders Directory: {os.path.join(BASE_DIR, 'preorders')}")
 
-    # Send email with all reports (Mailtrap)
-    subject = f"📊 Weekly NYT Sales Report — {datetime.now().strftime('%B %d, %Y')}"
-    html_content = "<h2>NYT Sales Report</h2><p>Attached you’ll find:</p><ul>"
-    if report_path.exists():
-        html_content += f"<li>{report_filename}</li>"
-    if skipped_path.exists():
-        html_content += f"<li>{skipped_filename}</li>"
-    if preorder_path.exists():
-        html_content += f"<li>{preorder_filename}</li>"
-    html_content += "</ul>"
-
-    send_mailtrap_email(
-        subject=subject,
-        html_content=html_content,
-        attachments=attachments
+    # Send email with all reports
+    send_email(
+        report_filename,
+        skipped_filename,
+        preorder_filename,
+        start_date,
+        end_date,
+        skipped_items,
+        approved_releases
     )
-
-    logging.info("✅ Weekly NYT sales report email sent via Mailtrap.")
 
 if __name__ == "__main__":
     main()
