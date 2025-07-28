@@ -1342,7 +1342,7 @@ REPORT DEFINITIONS:
 
     send_mailtrap_email(
         subject=subject,
-        text_content=html_content,
+        body_html=html_content,
         attachments=attachments
     )
 
