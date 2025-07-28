@@ -6,12 +6,12 @@ from dotenv import load_dotenv
 
 MAILTRAP_API_TOKEN = os.getenv("MAILTRAP_API_TOKEN")
 EMAIL_SENDER = os.getenv("EMAIL_SENDER")
-EMAIL_RECIPIENT = os.getenv("EMAIL_RECIPIENTS")
+EMAIL_RECIPIENTS = os.getenv("EMAIL_RECIPIENTS")
 FORCE_TEST_EMAIL = os.getenv("FORCE_TEST_EMAIL", "false").lower() == "true"
 
 
 def validate_env_for_mailtrap():
-    if not MAILTRAP_API_TOKEN or not EMAIL_SENDER or not EMAIL_RECIPIENT:
+    if not MAILTRAP_API_TOKEN or not EMAIL_SENDER or not EMAIL_RECIPIENTS:
         raise EnvironmentError("Missing required Mailtrap environment variables.")
 
 
@@ -38,7 +38,6 @@ def send_mailtrap_email(subject, body_html, attachments=None):
         "Content-Type": "application/json"
     }
 
-    body_html = "<html><body>" + "".join(body_parts) + "</body></html>"
     to_addresses = [{"email": email.strip()} for email in EMAIL_RECIPIENTS.split(";") if email.strip()]
     data = {
         "from": {"email": EMAIL_SENDER, "name": "Preorder Manager"},

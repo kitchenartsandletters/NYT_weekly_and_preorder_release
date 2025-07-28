@@ -1330,18 +1330,19 @@ REPORT DEFINITIONS:
 
     # Send email with all reports (Mailtrap)
     subject = f"📊 Weekly NYT Sales Report — {datetime.now().strftime('%B %d, %Y')}"
-    body_html = "<h2>NYT Sales Report</h2><p>Attached you’ll find:</p><ul>"
+    # Initialize HTML content for email body (Mailtrap/SendGrid style)
+    html_content = "<p>Attached are the following files for this week's sales report:</p><ul>"
     if Path(report_path).exists():
         html_content += f"<li>{report_filename}</li>"
     if Path(skipped_path).exists():
         html_content += f"<li>{skipped_filename}</li>"
     if Path(preorder_path).exists():
         html_content += f"<li>{preorder_filename}</li>"
-    body_html += "</ul>"
+    html_content += "</ul>"
 
     send_mailtrap_email(
         subject=subject,
-        text_content=body_html,
+        text_content=html_content,
         attachments=attachments
     )
 
