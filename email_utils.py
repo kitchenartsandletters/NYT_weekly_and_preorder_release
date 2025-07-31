@@ -4,6 +4,13 @@ import base64
 import requests
 from dotenv import load_dotenv
 
+import os
+from dotenv import load_dotenv
+
+# Load local env vars only if not running in GitHub Actions
+if os.getenv("GITHUB_ACTIONS") != "true":
+    load_dotenv(dotenv_path=".env.production")
+
 MAILTRAP_API_TOKEN = os.getenv("MAILTRAP_API_TOKEN")
 EMAIL_SENDER = os.getenv("EMAIL_SENDER")
 EMAIL_RECIPIENTS = os.getenv("EMAIL_RECIPIENTS")

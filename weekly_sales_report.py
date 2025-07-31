@@ -1287,16 +1287,56 @@ REPORT DEFINITIONS:
 
     report_path = Path("output") / report_filename
     skipped_path = Path("output") / skipped_filename
-    preorder_path = Path("output") / preorder_filename
+    preorder_csv_path = Path("output") / preorder_filename
 
     attachments = []
 
-    if Path(report_path).exists():
-        attachments.append(report_path)
-    if Path(skipped_path).exists():
-        attachments.append(skipped_path)
-    if Path(preorder_path).exists():
-        attachments.append(preorder_path)
+    if report_path and report_path.exists():
+        logging.info(f"Encoding file: {report_path}")
+        with open(report_path, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode("utf-8")
+        logging.info(f"Encoded size for {report_path.name}: {len(encoded)}")
+        attachments.append({
+            "filename": os.path.basename(report_path),
+            "content": encoded,
+            "type": "text/csv",
+            "disposition": "attachment"
+        })
+    else:
+        logging.warning(f"Report file not found at: {report_path}")
+
+    if skipped_path and skipped_path.exists():
+        logging.info(f"Encoding file: {skipped_path}")
+        with open(skipped_path, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode("utf-8")
+        logging.info(f"Encoded size for {skipped_path.name}: {len(encoded)}")
+        attachments.append({
+            "filename": os.path.basename(skipped_path),
+            "content": encoded,
+            "type": "text/csv",
+            "disposition": "attachment"
+        })
+    else:
+        logging.warning(f"Skipped file not found at: {skipped_path}")
+
+    logging.info(f"Checking for preorder_csv_path: {preorder_csv_path}")
+    logging.info(f"Exists? {preorder_csv_path.exists()}")
+    
+    if preorder_csv_path and preorder_csv_path.exists():
+        logging.info(f"Encoding file: {preorder_csv_path}")
+        with open(preorder_csv_path, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode("utf-8")
+        logging.info(f"Encoded size for {preorder_csv_path.name}: {len(encoded)}")
+        attachments.append({
+            "filename": os.path.basename(preorder_csv_path),
+            "content": encoded,
+            "type": "text/csv",
+            "disposition": "attachment"
+        })
+    else:
+        logging.warning(f"Preorder file not found at: {preorder_csv_path}")
+
+    logging.info(f"Encoded and attached: {preorder_csv_path.name}")
 
     export_to_csv(sales_data, report_filename)
     export_skipped_line_items(skipped_items, skipped_filename)
@@ -1305,13 +1345,13 @@ REPORT DEFINITIONS:
     output_dir = os.path.join(BASE_DIR, 'output')
     report_path = os.path.join(output_dir, report_filename)
     skipped_path = os.path.join(output_dir, skipped_filename)
-    preorder_path = os.path.join(BASE_DIR, 'preorders', preorder_filename)
+    preorder_csv_path = os.path.join(BASE_DIR, 'preorders', preorder_filename)
 
     logging.info("=== File Verification ===")
     files_to_check = {
         'Weekly Sales Report': report_path,
         'Excluded Items': skipped_path,
-        'Preorder Tracking': preorder_path
+        'Preorder Tracking': preorder_csv_path
     }
 
     for file_type, path in files_to_check.items():
@@ -1336,7 +1376,7 @@ REPORT DEFINITIONS:
         html_content += f"<li>{report_filename}</li>"
     if Path(skipped_path).exists():
         html_content += f"<li>{skipped_filename}</li>"
-    if Path(preorder_path).exists():
+    if Path(preorder_csv_path).exists():
         html_content += f"<li>{preorder_filename}</li>"
     html_content += "</ul>"
 
