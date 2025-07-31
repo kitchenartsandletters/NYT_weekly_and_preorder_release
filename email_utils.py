@@ -18,8 +18,19 @@ FORCE_TEST_EMAIL = os.getenv("FORCE_TEST_EMAIL", "false").lower() == "true"
 
 
 def validate_env_for_mailtrap():
-    if not MAILTRAP_API_TOKEN or not EMAIL_SENDER or not EMAIL_RECIPIENTS:
-        raise EnvironmentError("Missing required Mailtrap environment variables.")
+    print("DEBUG ENV DUMP:")
+    print(f"MAILTRAP_API_TOKEN: {os.getenv('MAILTRAP_API_TOKEN')}")
+    print(f"EMAIL_SENDER: {os.getenv('EMAIL_SENDER')}")
+    print(f"EMAIL_RECIPIENTS: {os.getenv('EMAIL_RECIPIENTS')}")
+
+    required_vars = [
+        "MAILTRAP_API_TOKEN",
+        "EMAIL_SENDER",
+        "EMAIL_RECIPIENTS"
+    ]
+    missing = [var for var in required_vars if not os.getenv(var)]
+    if missing:
+        raise EnvironmentError(f"Missing required Mailtrap environment variables: {', '.join(missing)}")
 
 
 def prepare_attachments(filepaths):
