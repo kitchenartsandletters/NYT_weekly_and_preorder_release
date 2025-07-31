@@ -87,7 +87,7 @@ jobs:
         run: |
           echo "SHOP_URL=${{ secrets.SHOP_URL }}" > .env.production
           echo "SHOPIFY_ACCESS_TOKEN=${{ secrets.SHOPIFY_ACCESS_TOKEN }}" >> .env.production
-          echo "SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}" >> .env.production
+          echo "MAILTRAP_API_TOKEN=${{ secrets.MAILTRAP_API_TOKEN }}" >> .env.production
           echo "EMAIL_SENDER=${{ secrets.EMAIL_SENDER }}" >> .env.production
           echo "EMAIL_RECIPIENTS=${{ secrets.EMAIL_RECIPIENTS }}" >> .env.production
           
@@ -465,7 +465,7 @@ jobs:
         run: |
           echo "SHOP_URL=${{ secrets.SHOP_URL }}" > .env.production
           echo "SHOPIFY_ACCESS_TOKEN=${{ secrets.SHOPIFY_ACCESS_TOKEN }}" >> .env.production
-          echo "SENDGRID_API_KEY=${{ secrets.SENDGRID_API_KEY }}" >> .env.production
+          echo "MAILTRAP_API_TOKEN=${{ secrets.MAILTRAP_API_TOKEN }}" >> .env.production
           echo "EMAIL_SENDER=${{ secrets.EMAIL_SENDER }}" >> .env.production
           echo "EMAIL_RECIPIENTS=${{ secrets.EMAIL_RECIPIENTS }}" >> .env.production
           
