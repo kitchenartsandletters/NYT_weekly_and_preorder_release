@@ -1289,6 +1289,11 @@ REPORT DEFINITIONS:
     skipped_path = Path("output") / skipped_filename
     preorder_csv_path = Path("output") / preorder_filename
 
+    # Export files first before encoding/attaching
+    export_to_csv(sales_data, report_filename)
+    export_skipped_line_items(skipped_items, skipped_filename)
+
+    # Now prepare attachments after files are written
     attachments = []
 
     if report_path and report_path.exists():
@@ -1337,9 +1342,6 @@ REPORT DEFINITIONS:
         logging.warning(f"Preorder file not found at: {preorder_csv_path}")
 
     logging.info(f"Encoded and attached: {preorder_csv_path.name}")
-
-    export_to_csv(sales_data, report_filename)
-    export_skipped_line_items(skipped_items, skipped_filename)
 
     # Set up paths for verification
     output_dir = os.path.join(BASE_DIR, 'output')
