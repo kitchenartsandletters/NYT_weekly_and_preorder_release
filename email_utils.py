@@ -11,9 +11,6 @@ from dotenv import load_dotenv
 if os.getenv("GITHUB_ACTIONS") != "true":
     load_dotenv(dotenv_path=".env.production")
 
-MAILTRAP_API_TOKEN = os.getenv("MAILTRAP_API_TOKEN")
-EMAIL_SENDER = os.getenv("EMAIL_SENDER")
-EMAIL_RECIPIENTS = os.getenv("EMAIL_RECIPIENTS")
 FORCE_TEST_EMAIL = os.getenv("FORCE_TEST_EMAIL", "false").lower() == "true"
 
 
@@ -51,14 +48,19 @@ def prepare_attachments(filepaths):
 def send_mailtrap_email(subject, body_html, attachments=None):
     validate_env_for_mailtrap()
     url = "https://send.api.mailtrap.io/api/send"
+
+    mailtrap_token = os.getenv("MAILTRAP_API_TOKEN")
+    email_sender = os.getenv("EMAIL_SENDER")
+    email_recipients = os.getenv("EMAIL_RECIPIENTS")
+
     headers = {
-        "Authorization": f"Bearer {MAILTRAP_API_TOKEN}",
+        "Authorization": f"Bearer {mailtrap_token}",
         "Content-Type": "application/json"
     }
 
-    to_addresses = [{"email": email.strip()} for email in EMAIL_RECIPIENTS.split(";") if email.strip()]
+    to_addresses = [{"email": email.strip()} for email in email_recipients.split(";") if email.strip()]
     data = {
-        "from": {"email": EMAIL_SENDER, "name": "Preorder Manager"},
+        "from": {"email": email_sender, "name": "Preorder Manager"},
         "to": to_addresses,
         "subject": subject,
         "html": body_html,
