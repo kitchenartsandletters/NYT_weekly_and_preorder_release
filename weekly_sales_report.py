@@ -1287,7 +1287,7 @@ REPORT DEFINITIONS:
 
     report_path = Path("output") / report_filename
     skipped_path = Path("output") / skipped_filename
-    preorder_csv_path = Path("output") / preorder_filename
+    preorder_csv_path = Path(BASE_DIR) / "preorders" / preorder_filename
 
     # Export files first before encoding/attaching
     export_to_csv(sales_data, report_filename)
