@@ -316,11 +316,11 @@
       "added": "2025-07-22T15:24:49.491Z"
     },
     {
-      "isbn": "1",
-      "title": "9781068691119",
-      "quantity": 0,
-      "inventory": 0,
-      "pub_date": "2033-01-01",
+      "isbn": "9781068691119",
+      "title": "Weekend Recipes",
+      "quantity": 63,
+      "inventory": 32,
+      "pub_date": "2025-08-05",
       "report_date": "2025-08-12",
       "added": "2025-08-12T21:31:54.310Z"
     }
