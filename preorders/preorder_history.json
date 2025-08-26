@@ -325,11 +325,11 @@
       "added": "2025-08-12T21:31:54.310Z"
     },
     {
-      "isbn": "1",
-      "title": "9781840919400",
-      "quantity": 0,
-      "inventory": 0,
-      "pub_date": "2001-05-01",
+      "isbn": "9781840919400",
+      "title": "Portugal",
+      "quantity": 12,
+      "inventory": 5,
+      "pub_date": "2025-08-19",
       "report_date": "2025-08-26",
       "added": "2025-08-26T15:55:40.703Z"
     }
