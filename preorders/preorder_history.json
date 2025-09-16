@@ -332,6 +332,60 @@
       "pub_date": "2025-08-19",
       "report_date": "2025-08-26",
       "added": "2025-08-26T15:55:40.703Z"
+    },
+    {
+      "isbn": "9781964786186",
+      "title": "Korean Temple Cooking: Lessons on Life and Buddhism, with Recipes",
+      "quantity": 26,
+      "inventory": 8,
+      "pub_date": "2025-09-09",
+      "report_date": "2025-09-16",
+      "added": "2025-08-26T15:55:40.703Z"
+    },
+    {
+      "isbn": "9781250886675",
+      "title": "Russ & Daughters: 100 Years of Appetizing",
+      "quantity": 20,
+      "inventory": 41,
+      "pub_date": "2025-09-09",
+      "report_date": "2025-09-16",
+      "added": "2025-08-26T15:55:40.703Z"
+    },
+    {
+      "isbn": "9781250886675",
+      "title": "Russ & Daughters: 100 Years of Appetizing",
+      "quantity": 20,
+      "inventory": 41,
+      "pub_date": "2025-09-09",
+      "report_date": "2025-09-16",
+      "added": "2025-08-26T15:55:40.703Z"
+    },
+    {
+      "isbn": "9784911188002",
+      "title": "Introduction to Japanese Cuisine: Nature, History and Culture",
+      "quantity": 20,
+      "inventory": 41,
+      "pub_date": "2025-09-09",
+      "report_date": "2025-09-16",
+      "added": "2025-08-26T15:55:40.703Z"
+    },
+    {
+      "isbn": "9784911188033",
+      "title": "Flavoring and Seasoning: Dashi, Umami, and Fermented Foods",
+      "quantity": 8,
+      "inventory": -11,
+      "pub_date": "2025-09-16",
+      "report_date": "2025-09-16",
+      "added": "2025-08-26T15:55:40.703Z"
+    },
+    {
+      "isbn": "9781984857781",
+      "title": "Good Things: Recipes and Rituals to Share with People You Love",
+      "quantity": 35,
+      "inventory": -36,
+      "pub_date": "2025-09-16",
+      "report_date": "2025-09-16",
+      "added": "2025-08-26T15:55:40.703Z"
     }
   ],
   "last_updated": "2025-09-16T14:31:02.947324"
