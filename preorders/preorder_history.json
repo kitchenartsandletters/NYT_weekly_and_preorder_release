@@ -388,20 +388,56 @@
       "added": "2025-08-26T15:55:40.703Z"
     },
     {
-      "isbn": "1",
-      "title": "9781998365425",
-      "quantity": 0,
-      "inventory": 0,
-      "pub_date": "2000-01-01",
-      "report_date": "2025-09-22",
+      "isbn": "9781648291920",
+      "title": "Six Seasons of Pasta: A New Way with Everyone's Favorite Food",
+      "quantity": 119,
+      "inventory": 43,
+      "pub_date": "2025-09-30",
+      "report_date": "2025-09-30",
       "added": "2025-09-22T16:34:01.526Z"
     },
     {
-      "isbn": "2",
-      "title": "9780062863959",
-      "quantity": 0,
-      "inventory": 0,
-      "pub_date": "2001-12-01",
+      "isbn": "9781538765579",
+      "title": "I'm Not Trying To Be Difficult: Stories from the Restaurant Trenches",
+      "quantity": 27,
+      "inventory": 41,
+      "pub_date": "2025-09-23",
+      "report_date": "2025-09-30",
+      "added": "2025-09-30T15:08:59.463Z"
+    },
+    {
+      "isbn": "9781837290062",
+      "title": "Mokonuts: The Cookbook",
+      "quantity": 49,
+      "inventory": 31,
+      "pub_date": "2025-09-25",
+      "report_date": "2025-09-30",
+      "added": "2025-09-30T15:08:59.463Z"
+    },
+    {
+      "isbn": "9781837290864",
+      "title": "On Meat: Modern Recipes for the Home Kitchen",
+      "quantity": 64,
+      "inventory": 32,
+      "pub_date": "2025-09-23",
+      "report_date": "2025-09-30",
+      "added": "2025-09-30T15:08:59.463Z"
+    },
+    {
+      "isbn": "9781648292026",
+      "title": "The Art of Gluten-Free Bread: Groundbreaking Recipes for Artisanal Breads and Pastries",
+      "quantity": 57,
+      "inventory": 22,
+      "pub_date": "2025-09-23",
+      "report_date": "2025-09-30",
+      "added": "2025-09-30T15:08:59.463Z"
+    },
+    {
+      "isbn": "9781984860330",
+      "title": "The Comic Book History of the Cocktail",
+      "quantity": 12,
+      "inventory": 18,
+      "pub_date": "2025-09-23",
       "report_date": "2025-09-30",
       "added": "2025-09-30T15:08:59.463Z"
     }
