@@ -458,6 +458,33 @@
       "pub_date": "2025-10-07",
       "report_date": "2025-10-07",
       "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9784911188057",
+      "title": "Mukoita I, Cutting Techniques: Fish",
+      "quantity": 6,
+      "inventory": 7,
+      "pub_date": "2025-09-30",
+      "report_date": "2025-10-07",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9781984863379",
+      "title": "My Cambodia: A Khmer Cookbook",
+      "quantity": 29,
+      "inventory": 15,
+      "pub_date": "2025-09-30",
+      "report_date": "2025-10-07",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9780593836293",
+      "title": "Ready for Dessert, Revised: My Best Recipes",
+      "quantity": 22,
+      "inventory": 13,
+      "pub_date": "2025-09-30",
+      "report_date": "2025-10-07",
+      "added": "2025-10-07T14:22:29.011Z"
     }
   ],
   "last_updated": "2025-10-07T14:22:30.813151"
