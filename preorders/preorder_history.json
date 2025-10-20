@@ -557,7 +557,70 @@
       "pub_date": "2025-10-07",
       "report_date": "2025-10-07",
       "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9780525561569",
+      "title": "A School Lunch Revolution: A Cookbook",
+      "quantity": 59,
+      "inventory": 51,
+      "pub_date": "2025-10-14",
+      "report_date": "2025-10-20",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9781668051993",
+      "title": "Chocolat: Parisian Desserts and Other Delights",
+      "quantity": 35,
+      "inventory": 10,
+      "pub_date": "2025-10-14",
+      "report_date": "2025-10-20",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9781797232096",
+      "title": "Dobre Dobre: Baking from Poland and Beyond",
+      "quantity": 16,
+      "inventory": 7,
+      "pub_date": "2025-10-14",
+      "report_date": "2025-10-20",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9781324020998",
+      "title": "Homemade Ramen",
+      "quantity": 59,
+      "inventory": 18,
+      "pub_date": "2025-10-14",
+      "report_date": "2025-10-20",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9784911188071",
+      "title": "Mukoita II, Cutting Techniques: Seafood, Poultry, and Vegetables",
+      "quantity": 11,
+      "inventory": 19,
+      "pub_date": "2025-10-14",
+      "report_date": "2025-10-20",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9781837290871",
+      "title": "Recipes from the American South",
+      "quantity": 53,
+      "inventory": 34,
+      "pub_date": "2025-10-14",
+      "report_date": "2025-10-20",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9780593541296",
+      "title": "The Korean Vegan Homemade: Recipes and Stories from My Kitchen",
+      "quantity": 9,
+      "inventory": 18,
+      "pub_date": "2025-10-14",
+      "report_date": "2025-10-20",
+      "added": "2025-10-07T14:22:29.011Z"
     }
   ],
-  "last_updated": "2025-10-20T16:25:41.957821"
+  "last_updated": "2025-10-20T16:12:53.237340"
 }
