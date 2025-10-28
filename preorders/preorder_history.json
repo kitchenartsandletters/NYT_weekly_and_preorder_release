@@ -620,7 +620,25 @@
       "pub_date": "2025-10-14",
       "report_date": "2025-10-20",
       "added": "2025-10-07T14:22:29.011Z"
-    }
+    },
+    {
+      "isbn": "9781419787621",
+      "title": "Baking and the Meaning of Life: How to Find Joy in 100 Recipes",
+      "quantity": 17,
+      "inventory": 10,
+      "pub_date": "2025-10-21",
+      "report_date": "2025-10-28",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9780063346963",
+      "title": "Dorie's Anytime Cakes: Simple, Simpler, Simplest",
+      "quantity": 65,
+      "inventory": 88,
+      "pub_date": "2025-10-21",
+      "report_date": "2025-10-28",
+      "added": "2025-10-07T14:22:29.011Z"
+    }    
   ],
   "last_updated": "2025-10-28T15:31:11.240617"
 }
