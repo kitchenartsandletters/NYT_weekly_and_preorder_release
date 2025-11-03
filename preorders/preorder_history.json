@@ -638,6 +638,51 @@
       "pub_date": "2025-10-21",
       "report_date": "2025-10-28",
       "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9781250880024",
+      "title": "Athens: Food, Stories, Love",
+      "quantity": 124,
+      "inventory": 12,
+      "pub_date": "2025-10-28",
+      "report_date": "2025-11-03",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9781837290611",
+      "title": "Franco Pepe: Pizza Chef",
+      "quantity": 66,
+      "inventory": 17,
+      "pub_date": "2025-10-28",
+      "report_date": "2025-11-03",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9781761452260",
+      "title": "The Whole Fish Collection",
+      "quantity": 15,
+      "inventory": 1,
+      "pub_date": "2025-10-28",
+      "report_date": "2025-11-03",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9784911188101",
+      "title": "Yakiba Grilling Techniques: Shio-yaki, Furishio-yaki, Yuan-yaki, Tare-yaki, and Yakitori",
+      "quantity": 36,
+      "inventory": 13,
+      "pub_date": "2025-10-28",
+      "report_date": "2025-11-03",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9780063379770",
+      "title": "The Blue Food Cookbook: Delicious Seafood Recipes for a Sustainable Future",
+      "quantity": 13,
+      "inventory": 14,
+      "pub_date": "2025-10-28",
+      "report_date": "2025-11-03",
+      "added": "2025-10-07T14:22:29.011Z"
     }
   ],
   "last_updated": "2025-11-03T16:25:15.545988"
