@@ -99,41 +99,46 @@ def load_pub_date_overrides(override_file='pub_date_overrides.csv'):
     logging.info(f"Loaded {len(overrides)} publication date overrides")
     return overrides
 
-def run_query_with_retries(query, variables, max_retries=3, delay=1):
+def run_query_with_retries(query, variables, graphql_url=None, headers=None, max_retries=3, delay=1):
     """
-    Runs a GraphQL query with retry logic
+    Runs a GraphQL query with retry logic.
+    Allows optional graphql_url and headers for external callers.
     """
+    if graphql_url is None:
+        graphql_url = GRAPHQL_URL
+    if headers is None:
+        headers = HEADERS
+
     attempt = 0
     while attempt < max_retries:
         try:
             response = requests.post(
-                GRAPHQL_URL,
+                graphql_url,
                 json={'query': query, 'variables': variables},
-                headers=HEADERS
+                headers=headers
             )
-            
+
             if response.status_code != 200:
                 logging.error(f"Error: Received status code {response.status_code}")
                 logging.error(f"Response: {response.text}")
                 attempt += 1
                 time.sleep(delay)
                 continue
-                
+
             data = response.json()
-            
             if 'errors' in data:
                 logging.error(f"GraphQL Errors: {data['errors']}")
                 attempt += 1
                 time.sleep(delay)
                 continue
-                
+
             return data['data']
-            
+
         except Exception as e:
             logging.error(f"Attempt {attempt + 1} failed: {e}")
             attempt += 1
             time.sleep(delay)
-            
+
     raise Exception(f"Failed to execute query after {max_retries} attempts")
 
 def fetch_orders(start_date, end_date):
