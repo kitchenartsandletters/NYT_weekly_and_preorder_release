@@ -683,6 +683,51 @@
       "pub_date": "2025-10-28",
       "report_date": "2025-11-03",
       "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9781419784002",
+      "title": "Le Bistrot Paul Bert: French Comfort Food from the Parisian Restaurant",
+      "quantity": 52,
+      "inventory": 116,
+      "pub_date": "2025-11-04",
+      "report_date": "2025-11-03",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9781419775246",
+      "title": "The Bottomless Cup: A Memoir of Secrets, Restaurants, and Forgiveness",
+      "quantity": 197,
+      "inventory": -12,
+      "pub_date": "2025-11-04",
+      "report_date": "2025-11-03",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9781324079248",
+      "title": "The Heart-Shaped Tin: Love, Loss, and Kitchen Objects",
+      "quantity": 8,
+      "inventory": 35,
+      "pub_date": "2025-11-04",
+      "report_date": "2025-11-03",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9781250868701",
+      "title": "The King Cookbook",
+      "quantity": 23,
+      "inventory": 43,
+      "pub_date": "2025-11-04",
+      "report_date": "2025-11-03",
+      "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9781036920685",
+      "title": "The Irish Kitchen",
+      "quantity": 123,
+      "inventory": -132,
+      "pub_date": "2025-11-04",
+      "report_date": "2025-11-03",
+      "added": "2025-10-07T14:22:29.011Z"
     }
   ],
   "last_updated": "2025-11-11T15:33:58.401248"
