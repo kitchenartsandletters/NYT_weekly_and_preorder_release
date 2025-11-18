@@ -1,0 +1,1761 @@
+{
+  "pending_releases": [
+    {
+      "isbn": "9781998365425",
+      "title": "The Gastronomic History of Paris: From the Middle Ages to Our Times",
+      "quantity": 21,
+      "pub_date": "2025-09-02",
+      "original_pub_date": "2025-09-02",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 0,
+      "vendor": "IPS",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9780300264531",
+      "title": "Vanilla: The History of an Extraordinary Bean",
+      "quantity": 6,
+      "pub_date": "2025-08-26",
+      "original_pub_date": "2025-08-26",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 3,
+      "vendor": "UYAL",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9780300281125",
+      "title": "Spice: The 16th-Century Contest that Shaped the Modern World",
+      "quantity": 9,
+      "pub_date": "2025-08-12",
+      "original_pub_date": "2025-08-12",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 4,
+      "vendor": "UYAL",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9780316496551",
+      "title": "Dinner with King Tut: How Rogue Archaeologists are Recreating the Sights, Sounds, Smells, and Tastes of Lost Civilizations",
+      "quantity": 4,
+      "pub_date": "2025-07-08",
+      "original_pub_date": "2025-07-08",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 4,
+      "vendor": "LTB",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9781836430308",
+      "title": "The Evin Prison Bakers' Club: Surviving Iran's Most Notorious Prisons in 16 Recipes",
+      "quantity": 9,
+      "pub_date": "2025-05-27",
+      "original_pub_date": "2025-05-27",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 10,
+      "vendor": "SSN",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9782017252917",
+      "title": "My French Cuisine at Le Poule au Pot",
+      "quantity": 43,
+      "pub_date": "2025-06-11",
+      "original_pub_date": "2025-06-11",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 9,
+      "vendor": "FHCT",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9780316577991",
+      "title": "The Talisman of Happiness: The Most Iconic Italian Cookbook Ever Written",
+      "quantity": 42,
+      "pub_date": "2025-10-07",
+      "original_pub_date": "2025-10-07",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 9,
+      "vendor": "HBG",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9781837834143",
+      "title": "The Anatomy of a Japanese Knife: The Ultimate Guide to the Culture and Craft",
+      "quantity": 15,
+      "pub_date": "2025-10-21",
+      "original_pub_date": "2025-10-21",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 2,
+      "vendor": "QDR",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9780593579237",
+      "title": "Turtle Island: Foods and Traditions of the Indigenous Peoples of North America",
+      "quantity": 31,
+      "pub_date": "2025-11-11",
+      "original_pub_date": "2025-11-11",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 29,
+      "vendor": "CWN",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9780062863959",
+      "title": "The Anthony Bourdain Reader",
+      "quantity": 11,
+      "pub_date": "2025-09-23",
+      "original_pub_date": "2025-09-23",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 14,
+      "vendor": "ECCO",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9780374608699",
+      "title": "What to Eat Now: The Indispensable Guide to Good Food, How to Find It, and Why It Matters",
+      "quantity": 21,
+      "pub_date": "2025-11-11",
+      "original_pub_date": "2025-11-11",
+      "overridden_pub_date": null,
+      "reason": "Publication date passed but still in Preorder collection (has positive inventory)",
+      "inventory": 34,
+      "vendor": "FSG",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9781984861924",
+      "title": "Cook Like a King: Recipes from My California Chinese Kitchen",
+      "quantity": 10,
+      "pub_date": "2025-09-09",
+      "original_pub_date": "2025-09-09",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 15,
+      "vendor": "TSP",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9798217207862",
+      "title": "All Consuming: Why We Eat the Way We Eat Now",
+      "quantity": 6,
+      "pub_date": "2025-09-05",
+      "original_pub_date": "2025-09-05",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 37,
+      "vendor": "RDH",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9798217034871",
+      "title": "Entertaining",
+      "quantity": 144,
+      "pub_date": "2025-10-28",
+      "original_pub_date": "2025-10-28",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 6,
+      "vendor": "RDH",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9781984826411",
+      "title": "Something from Nothing",
+      "quantity": 33,
+      "pub_date": "2025-11-11",
+      "original_pub_date": "2025-11-11",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 28,
+      "vendor": "CWN",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9781668026298",
+      "title": "Preserving the Seasons: A Guide to Canned, Jammed, Frozen, Dehydrated, Freeze-Dried, Quick-Pickled, and Infused Produce, Herbs, and Flowers (paperback)",
+      "quantity": 1,
+      "pub_date": "2025-07-29",
+      "original_pub_date": "2025-07-29",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 7,
+      "vendor": "SSN",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9780593535325",
+      "title": "Padma's All American: Tales, Travels, and Recipes from Taste the Nation and Beyond",
+      "quantity": 154,
+      "pub_date": "2025-11-04",
+      "original_pub_date": "2025-11-04",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 13,
+      "vendor": "RDH",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9780231221474",
+      "title": "What We Eat: A Global History of Food",
+      "quantity": 1,
+      "pub_date": "2025-08-12",
+      "original_pub_date": "2025-08-12",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 3,
+      "vendor": "UCOL",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9781510784192",
+      "title": "Blackbarn: Recipes from our Kitchen to Yours",
+      "quantity": 1,
+      "pub_date": "2025-09-02",
+      "original_pub_date": "2025-09-02",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 14,
+      "vendor": "SKY",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9780063378582",
+      "title": "Parm to Table: Italian American and American Italian Recipes from Ponza to the Bronx",
+      "quantity": 30,
+      "pub_date": "2025-09-23",
+      "original_pub_date": "2025-09-23",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 1,
+      "vendor": "HAR",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9781837290505",
+      "title": "BiBi: The Cookbook",
+      "quantity": 9,
+      "pub_date": "2025-10-08",
+      "original_pub_date": "2025-10-08",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 8,
+      "vendor": "PHAI",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9780520391611",
+      "title": "Will Work for Food: Labor across the Food Chain",
+      "quantity": 1,
+      "pub_date": "2025-09-23",
+      "original_pub_date": "2025-09-23",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 1,
+      "vendor": "UCAL",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9780712355216",
+      "title": "The Philosophy of Pickles and Fermented Food",
+      "quantity": 6,
+      "pub_date": "2025-10-24",
+      "original_pub_date": "2025-10-24",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 0,
+      "vendor": "IPG",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9780712355117",
+      "title": "The Philosophy of Puddings",
+      "quantity": 11,
+      "pub_date": "2025-10-24",
+      "original_pub_date": "2025-10-24",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 1,
+      "vendor": "IPG",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9781773272474",
+      "title": "Perch: Soil / Land / Sea",
+      "quantity": 5,
+      "pub_date": "2025-10-14",
+      "original_pub_date": "2025-10-14",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 3,
+      "vendor": "IPS",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9781632175502",
+      "title": "Pastry Temple: Baking with Inspired Flavors",
+      "quantity": 1,
+      "pub_date": "2025-09-30",
+      "original_pub_date": "2025-09-30",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 3,
+      "vendor": "SAS",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9798986997650",
+      "title": "Rome: A Culinary History, Cookbook, and Field Guide to Flavors that Built a City",
+      "quantity": 79,
+      "pub_date": "2025-11-14",
+      "original_pub_date": "2025-11-14",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 12,
+      "vendor": "Katie Parla",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9798986997667",
+      "title": "Rome: A Culinary History, Cookbook, and Field Guide to Flavors that Built a City | Slipcased Edition",
+      "quantity": 46,
+      "pub_date": "2025-11-14",
+      "original_pub_date": "2025-11-14",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 29,
+      "vendor": "Katie Parla",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9798886742152",
+      "title": "The German Christmas Cookbook",
+      "quantity": 9,
+      "pub_date": "2025-10-07",
+      "original_pub_date": "2025-10-07",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 0,
+      "vendor": "WDOW",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9781419778148",
+      "title": "Trust Your Gut: Anti-Inflammatory Recipes for Feeling Unstoppable",
+      "quantity": 100,
+      "pub_date": "2025-10-28",
+      "original_pub_date": "2025-10-28",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 0,
+      "vendor": "ABR",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9788281541658",
+      "title": "New Nordic. Cuisine, Aesthetics and Place: A Compendium.",
+      "quantity": 2,
+      "pub_date": "2025-11-04",
+      "original_pub_date": "2025-11-04",
+      "overridden_pub_date": null,
+      "reason": "No longer in preorder status",
+      "inventory": 10,
+      "vendor": "SSN",
+      "source": "tracking"
+    },
+    {
+      "isbn": "9781838662202",
+      "title": "Septime (English)",
+      "quantity": 0,
+      "pub_date": "2021-10-20",
+      "original_pub_date": "2021-10-20",
+      "overridden_pub_date": null,
+      "reason": "Found in collection but not in tracking",
+      "inventory": 29,
+      "vendor": "PHAI",
+      "source": "collection"
+    },
+    {
+      "isbn": "JCA5VOL",
+      "title": "Japanese Culinary Academy 5-Volume Set",
+      "quantity": 0,
+      "pub_date": "2025-10-28",
+      "original_pub_date": "2025-10-28",
+      "overridden_pub_date": null,
+      "reason": "Found in collection but not in tracking",
+      "inventory": 0,
+      "vendor": "KAL",
+      "source": "collection"
+    }
+  ],
+  "error_cases": [],
+  "total_quantity": 861,
+  "run_date": "2025-11-18",
+  "total_pending_books": 33,
+  "problematic_books": {
+    "past_pub_dates": [
+      {
+        "isbn": "9780374608699",
+        "title": "What to Eat Now: The Indispensable Guide to Good Food, How to Find It, and Why It Matters",
+        "pub_date": "2025-11-11",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781838662202",
+        "title": "Septime (English)",
+        "pub_date": "2021-10-20",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9784911188057",
+        "title": "Mukoita I, Cutting Techniques: Fish",
+        "pub_date": "2025-09-30",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9789401487832",
+        "title": "The Chocolatier's Shop",
+        "pub_date": "2024-06-05",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781984861443",
+        "title": "The Scarr's Pizza Cookbook: New York-Style Pizza for Everybody",
+        "pub_date": "2025-03-25",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780451494962",
+        "title": "The Last Supper: How to Overcome the Future Food Crisis",
+        "pub_date": "2025-10-07",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9798886741438",
+        "title": "Seasons of Greens: A Collection of New Recipes from the Iconic San Francisco Restaurant",
+        "pub_date": "2025-04-22",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780593534847",
+        "title": "Morgenstern's Finest Ice Cream",
+        "pub_date": "2025-06-17",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781984863188",
+        "title": "Boustany: A Celebration of Vegetables from My Palestine",
+        "pub_date": "2025-07-15",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781250336026",
+        "title": "The Condiment Book: Unlocking Maximum Flavor with Minimal Effort",
+        "pub_date": "2025-05-20",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780593139776",
+        "title": "Braided Heritage: Recipes and Stories on the Origin of American Cuisine",
+        "pub_date": "2025-06-10",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780525612285",
+        "title": "Arthurs: Home of the Nosh, A Big Personality Cookbook of Delicious Jewish Favorites",
+        "pub_date": "2025-05-06",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781984860972",
+        "title": "Setting a Place for Us: Recipes and Stories of Displacement, Resilience, and Community from Eight Countries Impacted by War",
+        "pub_date": "2025-05-13",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781840919400",
+        "title": "Portugal: Recipes and Ingredients",
+        "pub_date": "2025-08-19",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781998365425",
+        "title": "The Gastronomic History of Paris: From the Middle Ages to Our Times",
+        "pub_date": "2025-09-02",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780063436152",
+        "title": "Change the Recipe: Because You Can't Build a Better World Without Breaking Some Eggs",
+        "pub_date": "2025-04-22",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780316580915",
+        "title": "Accidentally on Purpose",
+        "pub_date": "2025-04-22",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780500481158",
+        "title": "Repast: The Story of Food",
+        "pub_date": "2025-05-06",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781487500702",
+        "title": "Marvellous Vegetables in the English Renaissance",
+        "pub_date": "2025-04-22",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780306832161",
+        "title": "Dining Out: First Dates, Defiant Nights, and Last Call Disco Fries at America's Gay Restaurants",
+        "pub_date": "2025-06-03",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781324073796",
+        "title": "What Is Queer Food? How We Served a Revolution",
+        "pub_date": "2025-06-03",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781648291920",
+        "title": "Six Seasons of Pasta: A New Way with Everyone's Favorite Food",
+        "pub_date": "2025-09-23",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780593804193",
+        "title": "Linger: Salads, Sweets, and Stories to Savor",
+        "pub_date": "2025-10-07",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "JCA5VOL",
+        "title": "Japanese Culinary Academy 5-Volume Set",
+        "pub_date": "2025-10-28",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780525561569",
+        "title": "A School Lunch Revolution: A Cookbook",
+        "pub_date": "2025-10-14",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9798217207862",
+        "title": "All Consuming: Why We Eat the Way We Eat Now",
+        "pub_date": "2025-09-05",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781837834143",
+        "title": "The Anatomy of a Japanese Knife: The Ultimate Guide to the Culture and Craft",
+        "pub_date": "2025-10-21",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781846016004",
+        "title": "Around the Table: 52 Essays on Food and Life",
+        "pub_date": "2025-10-07",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781250880024",
+        "title": "Athens: Food, Stories, Love",
+        "pub_date": "2025-10-28",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781419787621",
+        "title": "Baking and the Meaning of Life: How to Find Joy in 100 Recipes",
+        "pub_date": "2025-10-21",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781837833597",
+        "title": "Beyond Baking: Plant-Based Baking for a New Era",
+        "pub_date": "2025-10-07",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781668051993",
+        "title": "Chocolat: Parisian Desserts and Other Delights",
+        "pub_date": "2025-10-14",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781984861924",
+        "title": "Cook Like a King: Recipes from My California Chinese Kitchen",
+        "pub_date": "2025-09-09",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781797232096",
+        "title": "Dobre Dobre: Baking from Poland and Beyond",
+        "pub_date": "2025-10-14",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780063346963",
+        "title": "Dorie's Anytime Cakes: Simple, Simpler, Simplest",
+        "pub_date": "2025-10-21",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9798217034871",
+        "title": "Entertaining",
+        "pub_date": "2025-10-28",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9784911188033",
+        "title": "Flavoring and Seasoning: Dashi, Umami, and Fermented Foods",
+        "pub_date": "2025-09-16",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781837290611",
+        "title": "Franco Pepe: Pizza Chef",
+        "pub_date": "2025-10-28",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781984857781",
+        "title": "Good Things: Recipes and Rituals to Share with People You Love",
+        "pub_date": "2025-09-16",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781324020998",
+        "title": "Homemade Ramen",
+        "pub_date": "2025-10-14",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781538765579",
+        "title": "I'm Not Trying To Be Difficult: Stories from the Restaurant Trenches",
+        "pub_date": "2025-09-23",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9784911188002",
+        "title": "Introduction to Japanese Cuisine: Nature, History and Culture",
+        "pub_date": "2025-09-02",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781964786186",
+        "title": "Korean Temple Cooking: Lessons on Life and Buddhism, with Recipes",
+        "pub_date": "2025-09-09",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781419784002",
+        "title": "Le Bistrot Paul Bert: French Comfort Food from the Parisian Restaurant",
+        "pub_date": "2025-11-04",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781682688984",
+        "title": "Lebanese Baking: More Than 100 Recipes for Sweet and Savory Baked Goods",
+        "pub_date": "2025-10-07",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781837290062",
+        "title": "Mokonuts: The Cookbook",
+        "pub_date": "2025-09-25",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9784911188071",
+        "title": "Mukoita II, Cutting Techniques: Seafood, Poultry, and Vegetables",
+        "pub_date": "2025-10-14",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781984863379",
+        "title": "My Cambodia: A Khmer Cookbook",
+        "pub_date": "2025-09-30",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781837290864",
+        "title": "On Meat: Modern Recipes for the Home Kitchen",
+        "pub_date": "2025-09-23",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780593836293",
+        "title": "Ready for Dessert, Revised: My Best Recipes",
+        "pub_date": "2025-09-30",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781837290871",
+        "title": "Recipes from the American South",
+        "pub_date": "2025-10-14",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781250886675",
+        "title": "Russ & Daughters: 100 Years of Appetizing",
+        "pub_date": "2025-09-09",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781984826411",
+        "title": "Something from Nothing",
+        "pub_date": "2025-11-11",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780300264357",
+        "title": "Terra Nova: Food, Water, and Work in an Early Atlantic World",
+        "pub_date": "2025-10-07",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780062863959",
+        "title": "The Anthony Bourdain Reader",
+        "pub_date": "2025-09-23",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781648292026",
+        "title": "The Art of Gluten-Free Bread: Groundbreaking Recipes for Artisanal Breads and Pastries",
+        "pub_date": "2025-09-23",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9782379451010",
+        "title": "The Big Book of Baking & Viennoiserie",
+        "pub_date": "2025-10-07",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781419775246",
+        "title": "The Bottomless Cup: A Memoir of Secrets, Restaurants, and Forgiveness",
+        "pub_date": "2025-11-04",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781984860330",
+        "title": "The Comic Book History of the Cocktail",
+        "pub_date": "2025-09-23",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781324079248",
+        "title": "The Heart-Shaped Tin: Love, Loss, and Kitchen Objects",
+        "pub_date": "2025-11-04",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781250868701",
+        "title": "The King Cookbook",
+        "pub_date": "2025-11-04",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780593541296",
+        "title": "The Korean Vegan Homemade: Recipes and Stories from My Kitchen",
+        "pub_date": "2025-10-14",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780316577991",
+        "title": "The Talisman of Happiness: The Most Iconic Italian Cookbook Ever Written",
+        "pub_date": "2025-10-07",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781761452260",
+        "title": "The Whole Fish Collection",
+        "pub_date": "2025-10-28",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780593579237",
+        "title": "Turtle Island: Foods and Traditions of the Indigenous Peoples of North America",
+        "pub_date": "2025-11-11",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9784911188101",
+        "title": "Yakiba Grilling Techniques: Shio-yaki, Furishio-yaki, Yuan-yaki, Tare-yaki, and Yakitori",
+        "pub_date": "2025-10-28",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781834050027",
+        "title": "Queers at the Table: An Illustrated Guide to Queer Food (with Recipes)",
+        "pub_date": "2025-10-07",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781068691119",
+        "title": "Weekend Recipes",
+        "pub_date": "2025-08-05",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9781036920685",
+        "title": "The Irish Kitchen",
+        "pub_date": "2025-10-28",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9798986997650",
+        "title": "Rome: A Culinary History, Cookbook, and Field Guide to Flavors that Built a City",
+        "pub_date": "2025-11-14",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9798986997667",
+        "title": "Rome: A Culinary History, Cookbook, and Field Guide to Flavors that Built a City | Slipcased Edition",
+        "pub_date": "2025-11-14",
+        "issue": "Past publication date"
+      },
+      {
+        "isbn": "9780063379770",
+        "title": "The Blue Food Cookbook: Delicious Seafood Recipes for a Sustainable Future",
+        "pub_date": "2025-10-28",
+        "issue": "Past publication date"
+      }
+    ],
+    "missing_pub_dates": [],
+    "malformed_dates": []
+  },
+  "total_problematic_books": 72,
+  "test_data": false,
+  "release_this_week": [
+    {
+      "isbn": "9780374608699",
+      "title": "What to Eat Now: The Indispensable Guide to Good Food, How to Find It, and Why It Matters",
+      "quantity": 21,
+      "presold_qty": 21,
+      "inventory": 34,
+      "pub_date": "2025-11-11",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781984826411",
+      "title": "Something from Nothing",
+      "quantity": 33,
+      "presold_qty": 33,
+      "inventory": 28,
+      "pub_date": "2025-11-11",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780593579237",
+      "title": "Turtle Island: Foods and Traditions of the Indigenous Peoples of North America",
+      "quantity": 31,
+      "presold_qty": 31,
+      "inventory": 29,
+      "pub_date": "2025-11-11",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9798986997650",
+      "title": "Rome: A Culinary History, Cookbook, and Field Guide to Flavors that Built a City",
+      "quantity": 79,
+      "presold_qty": 79,
+      "inventory": 12,
+      "pub_date": "2025-11-14",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9798986997667",
+      "title": "Rome: A Culinary History, Cookbook, and Field Guide to Flavors that Built a City | Slipcased Edition",
+      "quantity": 46,
+      "presold_qty": 46,
+      "inventory": 29,
+      "pub_date": "2025-11-14",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781998365425",
+      "title": "The Gastronomic History of Paris: From the Middle Ages to Our Times",
+      "quantity": 21,
+      "presold_qty": 21,
+      "inventory": 0,
+      "pub_date": "2025-09-02",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780451494962",
+      "title": "The Last Supper: How to Overcome the Future Food Crisis",
+      "quantity": 7,
+      "presold_qty": 7,
+      "inventory": 0,
+      "pub_date": "2025-10-07",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780300264357",
+      "title": "Terra Nova: Food, Water, and Work in an Early Atlantic World",
+      "quantity": 5,
+      "presold_qty": 5,
+      "inventory": 0,
+      "pub_date": "2025-10-07",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781797232096",
+      "title": "Dobre Dobre: Baking from Poland and Beyond",
+      "quantity": 16,
+      "presold_qty": 16,
+      "inventory": 0,
+      "pub_date": "2025-10-14",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "JCA5VOL",
+      "title": "Japanese Culinary Academy 5-Volume Set",
+      "quantity": 0,
+      "presold_qty": 0,
+      "inventory": 0,
+      "pub_date": "2025-10-28",
+      "tagged": true,
+      "in_collection": true
+    }
+  ],
+  "releases_next_week": [
+    {
+      "isbn": "9791399009507",
+      "title": "Disfrutar Volume 3 in Spanish",
+      "quantity": 0,
+      "presold_qty": 0,
+      "inventory": 0,
+      "pub_date": "2025-11-19",
+      "tagged": true,
+      "in_collection": true
+    }
+  ],
+  "early_stock_arrivals": [],
+  "all_preorders": [
+    {
+      "isbn": "9781838662202",
+      "title": "Septime (English)",
+      "quantity": 0,
+      "presold_qty": 0,
+      "inventory": 29,
+      "pub_date": "2021-10-20",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9789401487832",
+      "title": "The Chocolatier's Shop",
+      "quantity": 6,
+      "presold_qty": 6,
+      "inventory": 6,
+      "pub_date": "2024-06-05",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781984861443",
+      "title": "The Scarr's Pizza Cookbook: New York-Style Pizza for Everybody",
+      "quantity": 28,
+      "presold_qty": 28,
+      "inventory": 27,
+      "pub_date": "2025-03-25",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9798886741438",
+      "title": "Seasons of Greens: A Collection of New Recipes from the Iconic San Francisco Restaurant",
+      "quantity": 8,
+      "presold_qty": 8,
+      "inventory": 1,
+      "pub_date": "2025-04-22",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780063436152",
+      "title": "Change the Recipe: Because You Can't Build a Better World Without Breaking Some Eggs",
+      "quantity": 8,
+      "presold_qty": 8,
+      "inventory": 4,
+      "pub_date": "2025-04-22",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780316580915",
+      "title": "Accidentally on Purpose",
+      "quantity": 4,
+      "presold_qty": 4,
+      "inventory": 3,
+      "pub_date": "2025-04-22",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781487500702",
+      "title": "Marvellous Vegetables in the English Renaissance",
+      "quantity": 2,
+      "presold_qty": 2,
+      "inventory": 2,
+      "pub_date": "2025-04-22",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780525612285",
+      "title": "Arthurs: Home of the Nosh, A Big Personality Cookbook of Delicious Jewish Favorites",
+      "quantity": 10,
+      "presold_qty": 10,
+      "inventory": 9,
+      "pub_date": "2025-05-06",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780500481158",
+      "title": "Repast: The Story of Food",
+      "quantity": 3,
+      "presold_qty": 3,
+      "inventory": 4,
+      "pub_date": "2025-05-06",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781984860972",
+      "title": "Setting a Place for Us: Recipes and Stories of Displacement, Resilience, and Community from Eight Countries Impacted by War",
+      "quantity": 3,
+      "presold_qty": 3,
+      "inventory": 9,
+      "pub_date": "2025-05-13",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781250336026",
+      "title": "The Condiment Book: Unlocking Maximum Flavor with Minimal Effort",
+      "quantity": 7,
+      "presold_qty": 7,
+      "inventory": 14,
+      "pub_date": "2025-05-20",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780306832161",
+      "title": "Dining Out: First Dates, Defiant Nights, and Last Call Disco Fries at America's Gay Restaurants",
+      "quantity": 2,
+      "presold_qty": 2,
+      "inventory": 4,
+      "pub_date": "2025-06-03",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781324073796",
+      "title": "What Is Queer Food? How We Served a Revolution",
+      "quantity": 8,
+      "presold_qty": 8,
+      "inventory": 6,
+      "pub_date": "2025-06-03",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780593139776",
+      "title": "Braided Heritage: Recipes and Stories on the Origin of American Cuisine",
+      "quantity": 5,
+      "presold_qty": 5,
+      "inventory": 3,
+      "pub_date": "2025-06-10",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780593534847",
+      "title": "Morgenstern's Finest Ice Cream",
+      "quantity": 28,
+      "presold_qty": 28,
+      "inventory": 5,
+      "pub_date": "2025-06-17",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781984863188",
+      "title": "Boustany: A Celebration of Vegetables from My Palestine",
+      "quantity": 19,
+      "presold_qty": 19,
+      "inventory": 2,
+      "pub_date": "2025-07-15",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781068691119",
+      "title": "Weekend Recipes",
+      "quantity": 63,
+      "presold_qty": 63,
+      "inventory": 4,
+      "pub_date": "2025-08-05",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781840919400",
+      "title": "Portugal: Recipes and Ingredients",
+      "quantity": 12,
+      "presold_qty": 12,
+      "inventory": 4,
+      "pub_date": "2025-08-19",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781998365425",
+      "title": "The Gastronomic History of Paris: From the Middle Ages to Our Times",
+      "quantity": 21,
+      "presold_qty": 21,
+      "inventory": 0,
+      "pub_date": "2025-09-02",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9784911188002",
+      "title": "Introduction to Japanese Cuisine: Nature, History and Culture",
+      "quantity": 4,
+      "presold_qty": 4,
+      "inventory": 24,
+      "pub_date": "2025-09-02",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9798217207862",
+      "title": "All Consuming: Why We Eat the Way We Eat Now",
+      "quantity": 6,
+      "presold_qty": 6,
+      "inventory": 37,
+      "pub_date": "2025-09-05",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781984861924",
+      "title": "Cook Like a King: Recipes from My California Chinese Kitchen",
+      "quantity": 10,
+      "presold_qty": 10,
+      "inventory": 15,
+      "pub_date": "2025-09-09",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781964786186",
+      "title": "Korean Temple Cooking: Lessons on Life and Buddhism, with Recipes",
+      "quantity": 26,
+      "presold_qty": 26,
+      "inventory": 7,
+      "pub_date": "2025-09-09",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781250886675",
+      "title": "Russ & Daughters: 100 Years of Appetizing",
+      "quantity": 20,
+      "presold_qty": 20,
+      "inventory": 26,
+      "pub_date": "2025-09-09",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9784911188033",
+      "title": "Flavoring and Seasoning: Dashi, Umami, and Fermented Foods",
+      "quantity": 8,
+      "presold_qty": 8,
+      "inventory": 6,
+      "pub_date": "2025-09-16",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781984857781",
+      "title": "Good Things: Recipes and Rituals to Share with People You Love",
+      "quantity": 35,
+      "presold_qty": 35,
+      "inventory": 77,
+      "pub_date": "2025-09-16",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781648291920",
+      "title": "Six Seasons of Pasta: A New Way with Everyone's Favorite Food",
+      "quantity": 119,
+      "presold_qty": 119,
+      "inventory": 22,
+      "pub_date": "2025-09-23",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781538765579",
+      "title": "I'm Not Trying To Be Difficult: Stories from the Restaurant Trenches",
+      "quantity": 27,
+      "presold_qty": 27,
+      "inventory": 46,
+      "pub_date": "2025-09-23",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781837290864",
+      "title": "On Meat: Modern Recipes for the Home Kitchen",
+      "quantity": 64,
+      "presold_qty": 64,
+      "inventory": 2,
+      "pub_date": "2025-09-23",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780062863959",
+      "title": "The Anthony Bourdain Reader",
+      "quantity": 11,
+      "presold_qty": 11,
+      "inventory": 14,
+      "pub_date": "2025-09-23",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781648292026",
+      "title": "The Art of Gluten-Free Bread: Groundbreaking Recipes for Artisanal Breads and Pastries",
+      "quantity": 57,
+      "presold_qty": 57,
+      "inventory": 7,
+      "pub_date": "2025-09-23",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781984860330",
+      "title": "The Comic Book History of the Cocktail",
+      "quantity": 12,
+      "presold_qty": 12,
+      "inventory": 4,
+      "pub_date": "2025-09-23",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781837290062",
+      "title": "Mokonuts: The Cookbook",
+      "quantity": 49,
+      "presold_qty": 49,
+      "inventory": 22,
+      "pub_date": "2025-09-25",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9784911188057",
+      "title": "Mukoita I, Cutting Techniques: Fish",
+      "quantity": 6,
+      "presold_qty": 6,
+      "inventory": 12,
+      "pub_date": "2025-09-30",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781984863379",
+      "title": "My Cambodia: A Khmer Cookbook",
+      "quantity": 29,
+      "presold_qty": 29,
+      "inventory": 11,
+      "pub_date": "2025-09-30",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780593836293",
+      "title": "Ready for Dessert, Revised: My Best Recipes",
+      "quantity": 22,
+      "presold_qty": 22,
+      "inventory": 4,
+      "pub_date": "2025-09-30",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780451494962",
+      "title": "The Last Supper: How to Overcome the Future Food Crisis",
+      "quantity": 7,
+      "presold_qty": 7,
+      "inventory": 0,
+      "pub_date": "2025-10-07",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780593804193",
+      "title": "Linger: Salads, Sweets, and Stories to Savor",
+      "quantity": 75,
+      "presold_qty": 75,
+      "inventory": 36,
+      "pub_date": "2025-10-07",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781846016004",
+      "title": "Around the Table: 52 Essays on Food and Life",
+      "quantity": 40,
+      "presold_qty": 40,
+      "inventory": 12,
+      "pub_date": "2025-10-07",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781837833597",
+      "title": "Beyond Baking: Plant-Based Baking for a New Era",
+      "quantity": 15,
+      "presold_qty": 15,
+      "inventory": 11,
+      "pub_date": "2025-10-07",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781682688984",
+      "title": "Lebanese Baking: More Than 100 Recipes for Sweet and Savory Baked Goods",
+      "quantity": 13,
+      "presold_qty": 13,
+      "inventory": 9,
+      "pub_date": "2025-10-07",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780300264357",
+      "title": "Terra Nova: Food, Water, and Work in an Early Atlantic World",
+      "quantity": 5,
+      "presold_qty": 5,
+      "inventory": 0,
+      "pub_date": "2025-10-07",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9782379451010",
+      "title": "The Big Book of Baking & Viennoiserie",
+      "quantity": 15,
+      "presold_qty": 15,
+      "inventory": 6,
+      "pub_date": "2025-10-07",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780316577991",
+      "title": "The Talisman of Happiness: The Most Iconic Italian Cookbook Ever Written",
+      "quantity": 42,
+      "presold_qty": 42,
+      "inventory": 9,
+      "pub_date": "2025-10-07",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781834050027",
+      "title": "Queers at the Table: An Illustrated Guide to Queer Food (with Recipes)",
+      "quantity": 11,
+      "presold_qty": 11,
+      "inventory": 6,
+      "pub_date": "2025-10-07",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780525561569",
+      "title": "A School Lunch Revolution: A Cookbook",
+      "quantity": 59,
+      "presold_qty": 59,
+      "inventory": 51,
+      "pub_date": "2025-10-14",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781668051993",
+      "title": "Chocolat: Parisian Desserts and Other Delights",
+      "quantity": 35,
+      "presold_qty": 35,
+      "inventory": 14,
+      "pub_date": "2025-10-14",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781797232096",
+      "title": "Dobre Dobre: Baking from Poland and Beyond",
+      "quantity": 16,
+      "presold_qty": 16,
+      "inventory": 0,
+      "pub_date": "2025-10-14",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781324020998",
+      "title": "Homemade Ramen",
+      "quantity": 59,
+      "presold_qty": 59,
+      "inventory": 6,
+      "pub_date": "2025-10-14",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9784911188071",
+      "title": "Mukoita II, Cutting Techniques: Seafood, Poultry, and Vegetables",
+      "quantity": 11,
+      "presold_qty": 11,
+      "inventory": 25,
+      "pub_date": "2025-10-14",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781837290871",
+      "title": "Recipes from the American South",
+      "quantity": 53,
+      "presold_qty": 53,
+      "inventory": 25,
+      "pub_date": "2025-10-14",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780593541296",
+      "title": "The Korean Vegan Homemade: Recipes and Stories from My Kitchen",
+      "quantity": 9,
+      "presold_qty": 9,
+      "inventory": 15,
+      "pub_date": "2025-10-14",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781837834143",
+      "title": "The Anatomy of a Japanese Knife: The Ultimate Guide to the Culture and Craft",
+      "quantity": 15,
+      "presold_qty": 15,
+      "inventory": 2,
+      "pub_date": "2025-10-21",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781419787621",
+      "title": "Baking and the Meaning of Life: How to Find Joy in 100 Recipes",
+      "quantity": 17,
+      "presold_qty": 17,
+      "inventory": 5,
+      "pub_date": "2025-10-21",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780063346963",
+      "title": "Dorie's Anytime Cakes: Simple, Simpler, Simplest",
+      "quantity": 65,
+      "presold_qty": 65,
+      "inventory": 47,
+      "pub_date": "2025-10-21",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "JCA5VOL",
+      "title": "Japanese Culinary Academy 5-Volume Set",
+      "quantity": 0,
+      "presold_qty": 0,
+      "inventory": 0,
+      "pub_date": "2025-10-28",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781250880024",
+      "title": "Athens: Food, Stories, Love",
+      "quantity": 124,
+      "presold_qty": 124,
+      "inventory": 8,
+      "pub_date": "2025-10-28",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9798217034871",
+      "title": "Entertaining",
+      "quantity": 144,
+      "presold_qty": 144,
+      "inventory": 6,
+      "pub_date": "2025-10-28",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781837290611",
+      "title": "Franco Pepe: Pizza Chef",
+      "quantity": 66,
+      "presold_qty": 66,
+      "inventory": 15,
+      "pub_date": "2025-10-28",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781761452260",
+      "title": "The Whole Fish Collection",
+      "quantity": 15,
+      "presold_qty": 15,
+      "inventory": 7,
+      "pub_date": "2025-10-28",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9784911188101",
+      "title": "Yakiba Grilling Techniques: Shio-yaki, Furishio-yaki, Yuan-yaki, Tare-yaki, and Yakitori",
+      "quantity": 36,
+      "presold_qty": 36,
+      "inventory": 9,
+      "pub_date": "2025-10-28",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781036920685",
+      "title": "The Irish Kitchen",
+      "quantity": 123,
+      "presold_qty": 123,
+      "inventory": 7,
+      "pub_date": "2025-10-28",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780063379770",
+      "title": "The Blue Food Cookbook: Delicious Seafood Recipes for a Sustainable Future",
+      "quantity": 13,
+      "presold_qty": 13,
+      "inventory": 32,
+      "pub_date": "2025-10-28",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781419784002",
+      "title": "Le Bistrot Paul Bert: French Comfort Food from the Parisian Restaurant",
+      "quantity": 52,
+      "presold_qty": 52,
+      "inventory": 46,
+      "pub_date": "2025-11-04",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781419775246",
+      "title": "The Bottomless Cup: A Memoir of Secrets, Restaurants, and Forgiveness",
+      "quantity": 197,
+      "presold_qty": 197,
+      "inventory": 50,
+      "pub_date": "2025-11-04",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781324079248",
+      "title": "The Heart-Shaped Tin: Love, Loss, and Kitchen Objects",
+      "quantity": 8,
+      "presold_qty": 8,
+      "inventory": 34,
+      "pub_date": "2025-11-04",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781250868701",
+      "title": "The King Cookbook",
+      "quantity": 23,
+      "presold_qty": 23,
+      "inventory": 20,
+      "pub_date": "2025-11-04",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780374608699",
+      "title": "What to Eat Now: The Indispensable Guide to Good Food, How to Find It, and Why It Matters",
+      "quantity": 21,
+      "presold_qty": 21,
+      "inventory": 34,
+      "pub_date": "2025-11-11",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781984826411",
+      "title": "Something from Nothing",
+      "quantity": 33,
+      "presold_qty": 33,
+      "inventory": 28,
+      "pub_date": "2025-11-11",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780593579237",
+      "title": "Turtle Island: Foods and Traditions of the Indigenous Peoples of North America",
+      "quantity": 31,
+      "presold_qty": 31,
+      "inventory": 29,
+      "pub_date": "2025-11-11",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9798986997650",
+      "title": "Rome: A Culinary History, Cookbook, and Field Guide to Flavors that Built a City",
+      "quantity": 79,
+      "presold_qty": 79,
+      "inventory": 12,
+      "pub_date": "2025-11-14",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9798986997667",
+      "title": "Rome: A Culinary History, Cookbook, and Field Guide to Flavors that Built a City | Slipcased Edition",
+      "quantity": 46,
+      "presold_qty": 46,
+      "inventory": 29,
+      "pub_date": "2025-11-14",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9791399009507",
+      "title": "Disfrutar Volume 3 in Spanish",
+      "quantity": 0,
+      "presold_qty": 0,
+      "inventory": 0,
+      "pub_date": "2025-11-19",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781911714347",
+      "title": "L'Auberge de L'Ill: 65 Recipes Straight from the Water's Edge",
+      "quantity": 28,
+      "presold_qty": 28,
+      "inventory": -26,
+      "pub_date": "2025-11-30",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781668078020",
+      "title": "Feast on Your Life: Kitchen Meditations for Every Day",
+      "quantity": 13,
+      "presold_qty": 13,
+      "inventory": -13,
+      "pub_date": "2025-12-02",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781668060315",
+      "title": "Tell Me How You Eat: Food, Power, and The Will to Live",
+      "quantity": 0,
+      "presold_qty": 0,
+      "inventory": 0,
+      "pub_date": "2026-02-24",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780306836336",
+      "title": "On Eating: The Making and Unmaking of My Appetites",
+      "quantity": 9,
+      "presold_qty": 9,
+      "inventory": -63,
+      "pub_date": "2026-04-14",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9781579657192",
+      "title": "The Noma Guide to Building Flavour",
+      "quantity": 263,
+      "presold_qty": 263,
+      "inventory": -287,
+      "pub_date": "2026-04-28",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9780593719015",
+      "title": "Zariz:  100 Easy, Breezy, Tel Aviv-y Recipes",
+      "quantity": 10,
+      "presold_qty": 10,
+      "inventory": -25,
+      "pub_date": "2026-04-28",
+      "tagged": true,
+      "in_collection": true
+    },
+    {
+      "isbn": "9782386220715",
+      "title": "The Plant-Forward Handbook",
+      "quantity": 1,
+      "presold_qty": 1,
+      "inventory": -1,
+      "pub_date": "2026-09-01",
+      "tagged": true,
+      "in_collection": true
+    }
+  ]
+}

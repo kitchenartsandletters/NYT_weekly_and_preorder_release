@@ -728,7 +728,52 @@
       "pub_date": "2025-11-04",
       "report_date": "2025-11-03",
       "added": "2025-10-07T14:22:29.011Z"
+    },
+    {
+      "isbn": "9780374608699",
+      "title": "What to Eat Now: The Indispensable Guide to Good Food, How to Find It, and Why It Matters",
+      "quantity": 21,
+      "inventory": 35,
+      "pub_date": "2025-11-11",
+      "report_date": "2025-11-18",
+      "added": "2025-11-11T15:33:58.401248"
+    },
+    {
+      "isbn": "9781984826411",
+      "title": "Something from Nothing",
+      "quantity": 33,
+      "inventory": 34,
+      "pub_date": "2025-11-11",
+      "report_date": "2025-11-18",
+      "added": "2025-11-11T15:33:58.401248"
+    },
+    {
+      "isbn": "9780593579237",
+      "title": "Turtle Island: Foods and Traditions of the Indigenous Peoples of North America",
+      "quantity": 31,
+      "inventory": 33,
+      "pub_date": "2025-11-11",
+      "report_date": "2025-11-18",
+      "added": "2025-11-11T15:33:58.401248"
+    },
+    {
+      "isbn": "9798986997650",
+      "title": "Rome: A Culinary History, Cookbook, and Field Guide to Flavors that Built a City",
+      "quantity": 79,
+      "inventory": 22,
+      "pub_date": "2025-11-11",
+      "report_date": "2025-11-18",
+      "added": "2025-11-11T15:33:58.401248"
+    },
+    {
+      "isbn": "9798986997667",
+      "title": "Rome: A Culinary History, Cookbook, and Field Guide to Flavors that Built a City: Slipcased Version",
+      "quantity": 46,
+      "inventory": 29,
+      "pub_date": "2025-11-11",
+      "report_date": "2025-11-18",
+      "added": "2025-11-11T15:33:58.401248"
     }
   ],
-  "last_updated": "2025-11-11T15:33:58.401248"
+  "last_updated": "2025-11-18T15:33:58.401248"
 }
