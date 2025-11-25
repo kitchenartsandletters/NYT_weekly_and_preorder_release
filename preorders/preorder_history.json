@@ -775,11 +775,29 @@
       "added": "2025-11-11T15:33:58.401248"
     },
     {
-      "isbn": "3",
+      "isbn": "9780593836293",
       "title": "Ready for Dessert, Revised: My Best Recipes",
       "quantity": 22,
       "inventory": 0,
       "pub_date": "2025-09-30",
+      "report_date": "2025-11-25",
+      "added": "2025-11-25T15:19:01.036Z"
+    },
+    {
+      "isbn": "9780316577991",
+      "title": "The Talisman of Happiness: The Most Iconic Italian Cookbook Ever Written",
+      "quantity": 42,
+      "inventory": -3,
+      "pub_date": "2025-10-28",
+      "report_date": "2025-11-25",
+      "added": "2025-11-25T15:19:01.036Z"
+    },
+    {
+      "isbn": "9791399009507",
+      "title": "Disfrutar Vol. 3 in English",
+      "quantity": 25,
+      "inventory": -25,
+      "pub_date": "2025-11-19",
       "report_date": "2025-11-25",
       "added": "2025-11-25T15:19:01.036Z"
     }
