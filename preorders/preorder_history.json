@@ -773,7 +773,16 @@
       "pub_date": "2025-11-11",
       "report_date": "2025-11-18",
       "added": "2025-11-11T15:33:58.401248"
+    },
+    {
+      "isbn": "3",
+      "title": "Ready for Dessert, Revised: My Best Recipes",
+      "quantity": 22,
+      "inventory": 0,
+      "pub_date": "2025-09-30",
+      "report_date": "2025-11-25",
+      "added": "2025-11-25T15:19:01.036Z"
     }
   ],
-  "last_updated": "2025-11-18T15:33:58.401248"
+  "last_updated": "2025-11-25T15:19:02.750546"
 }
