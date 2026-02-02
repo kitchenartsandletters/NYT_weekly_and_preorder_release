@@ -802,11 +802,20 @@
       "added": "2025-11-25T15:19:01.036Z"
     },
     {
-      "isbn": "3",
-      "title": "The Irish Kitchen: Damaged",
-      "quantity": 0,
-      "inventory": 0,
-      "pub_date": "",
+      "isbn": "9781733686648",
+      "title": "Pitchfork Pulpit: Wisdom and Practice in a Self-Reliant Life",
+      "quantity": 3,
+      "inventory": -3,
+      "pub_date": "2026-01-27",
+      "report_date": "2026-02-02",
+      "added": "2026-02-02T17:02:24.256Z"
+    },
+    {
+      "isbn": "9781648293801",
+      "title": "Everyone Hot Pot: Creating the Ultimate Meal for Gathering and Feasting",
+      "quantity": 6,
+      "inventory": 28,
+      "pub_date": "2026-01-27",
       "report_date": "2026-02-02",
       "added": "2026-02-02T17:02:24.256Z"
     }
