@@ -30,3 +30,4 @@ tests/
 archive/.DS_Store
 minimal.py
 refactor/
+.DS_Store
