@@ -114,6 +114,10 @@ def fetch_recent_orders():
                   product {
                     id
                   }
+                  customAttributes {
+                    key
+                    value
+                  }
                 }
               }
             }
@@ -178,6 +182,40 @@ def tag_order_with_preorder(order_id, existing_tags):
     errors = response.get('data', {}).get('orderUpdate', {}).get('userErrors', [])
     return errors
 
+def tag_order(order_id, existing_tags, tag_to_add):
+    new_tags = list(existing_tags)
+    existing_lower = [tag.lower() for tag in existing_tags]
+
+    if tag_to_add.lower() not in existing_lower:
+        new_tags.append(tag_to_add)
+
+    mutation = """
+    mutation orderUpdate($input: OrderInput!) {
+      orderUpdate(input: $input) {
+        order {
+          id
+          tags
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }
+    """
+    variables = {
+        "input": {
+            "id": order_id,
+            "tags": new_tags
+        }
+    }
+    response = run_query(mutation, variables)
+    if response is None:
+        return [{"field": ["unknown"], "message": "No response from server"}]
+
+    errors = response.get('data', {}).get('orderUpdate', {}).get('userErrors', [])
+    return errors
+
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     logging.info(f"Running preorderOrderTagger with DRY_RUN={DRY_RUN}")
@@ -197,27 +235,57 @@ def main():
         if order['id'] in parsed_orders:
             continue
 
-        line_item_product_ids = []
-        for item_edge in order['lineItems']['edges']:
-            product = item_edge['node']['product']
-            if product:
-                shopify_product_gid = product['id']  # gid://shopify/Product/1234567890
-                product_id = shopify_product_gid.split("/")[-1]
-                line_item_product_ids.append(product_id)
+        has_preorder = False
+        has_non_preorder = False
 
-        matches_preorder = any(pid in preorder_product_ids for pid in line_item_product_ids)
+        for item_edge in order['lineItems']['edges']:
+            node = item_edge['node']
+            product = node.get('product')
+
+            product_id = None
+            if product:
+                shopify_product_gid = product['id']
+                product_id = shopify_product_gid.split("/")[-1]
+
+            # Canonical preorder detection: product ID matching
+            is_preorder_product = product_id in preorder_product_ids if product_id else False
+
+            # Supplemental safety net: line item property
+            properties = {attr['key']: attr['value'] for attr in node.get('customAttributes', [])}
+            is_preorder_property = properties.get('_preorder', '').lower() == 'true'
+
+            if is_preorder_product or is_preorder_property:
+                has_preorder = True
+            else:
+                has_non_preorder = True
+
+        matches_preorder = has_preorder
+        is_mixed = has_preorder and has_non_preorder
 
         if matches_preorder:
             logging.info(f"Order {order['name']} contains a preorder item")
+
             if DRY_RUN:
                 logging.info(f"[Dry Run] Would tag order {order['name']} with 'preorder'")
             else:
-                errors = tag_order_with_preorder(order['id'], order['tags'])
+                errors = tag_order(order['id'], order['tags'], "preorder")
                 if errors:
-                    logging.error(f"Failed to update tags for order {order['name']}: {errors}")
+                    logging.error(f"Failed to update 'preorder' tag for order {order['name']}: {errors}")
                 else:
                     logging.info(f"✅ Tagged order {order['name']} with 'preorder'")
                     updated_orders += 1
+
+            # Mixed logic (preorder + at least one non-preorder item)
+            if is_mixed:
+                if DRY_RUN:
+                    logging.info(f"[Dry Run] Would tag order {order['name']} with 'mixed'")
+                else:
+                    errors = tag_order(order['id'], order['tags'], "mixed")
+                    if errors:
+                        logging.error(f"Failed to update 'mixed' tag for order {order['name']}: {errors}")
+                    else:
+                        logging.info(f"✅ Tagged order {order['name']} with 'mixed'")
+
         else:
             logging.info(f"Order {order['name']} does not contain any preorder items")
 
